@@ -108,7 +108,8 @@ npm run export:pom-sheet   # builds qa/avatar_master/pom-sheet.csv + .json from 
 ## Asset provenance & licensing
 
 - The body is CLO3D-derived (see [Status & known gaps](#status--known-gaps)); [`assets/source/mpfb-base-license-evidence.txt`](assets/source/mpfb-base-license-evidence.txt) records CC0 licensing evidence for the MPFB/MakeHuman `hm08` base mesh present earlier in this project's lineage. That evidence clears the core basemesh only — it does not, by itself, license the current baked skin/textures.
-- This is internal tooling for Crossian's bra product development — the repo is private for that reason, not published for external/public use.
+- This is internal tooling for Crossian's bra product development. The repo is **public** so the team can clone/test it without needing individual collaborator invites, but it stays proprietary: see [`LICENSE`](LICENSE) — all rights reserved, no reuse permitted beyond viewing/cloning to test.
+- `main` is branch-protected (PR + 1 review required, no force-push, no deletion) so public visibility doesn't translate into anyone else being able to push changes.
 
 ## Further reading
 
