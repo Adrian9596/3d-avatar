@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Avatar platform viewer. CLO3D-derived torso avatar with baked PBR skin.">
+  <title>Avatar Platform Viewer</title>
+  <script type="module" src="/src/main.js"></script>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="identity"><strong>Avatar</strong><span>platform viewer</span></div>
+      <div class="status"><i></i>DRAFT · NO MEASUREMENT RECORD</div>
+      <button id="resetView" class="round" aria-label="Reset camera">↺</button>
+    </header>
+
+    <section class="viewport" aria-label="Interactive 3D avatar">
+      <canvas id="avatarCanvas"></canvas>
+      <img id="fallbackImage" class="fallback" alt="Static draft avatar fallback" hidden>
+      <div id="loading" class="loading" role="status"><i></i><strong>Loading draft GLB</strong><span id="loadingDetail">Preparing viewer…</span></div>
+      <div id="errorCard" class="error" role="alert" hidden><strong>Interactive model unavailable</strong><p id="errorMessage"></p></div>
+    </section>
+
+    <aside class="control-panel" aria-label="Avatar controls">
+      <section>
+        <div class="section-head">
+          <h2>Mesh measurements</h2>
+          <button id="tapeToggle" class="chip" aria-pressed="true">Tape lines</button>
+        </div>
+        <table class="mtable">
+          <thead><tr><th>Point</th><th>Cm</th><th>inch</th></tr></thead>
+          <tbody id="measureRows"><tr><td colspan="3">Measuring…</td></tr></tbody>
+        </table>
+      </section>
+      <section>
+        <h2>Camera</h2>
+        <div class="button-grid" id="cameraControls">
+          <button data-view="front" class="active">Front</button><button data-view="three-quarter">45°</button>
+          <button data-view="side">Side</button><button data-view="back">Back</button>
+        </div>
+      </section>
+      <section>
+        <h2>Display</h2>
+        <div class="toggle-list">
+          <button data-role="BODY" aria-pressed="true">Body <span>On</span></button>
+          <button data-role="WIREFRAME" aria-pressed="false">Wireframe <span>Off</span></button>
+        </div>
+      </section>
+      <section>
+        <h2>Arm motion</h2>
+        <p id="motionNotice" class="notice">Inspecting animation contract…</p>
+        <div class="button-grid motion" id="motionControls">
+          <button data-clip="arms_down" disabled>Down</button><button data-clip="arms_45" disabled>45°</button>
+          <button data-clip="arms_90_lateral" disabled>90°</button><button data-clip="arms_120" disabled>120°</button>
+          <button data-clip="arms_overhead" disabled>Overhead</button><button data-clip="arms_forward_90" disabled>Forward</button>
+          <button data-clip="arms_sweep" class="wide" disabled>Sweep down → overhead → down</button>
+        </div>
+      </section>
+      <section>
+        <h2>Shape contract</h2>
+        <p id="morphNotice" class="notice">Inspecting the six semantic morphs…</p>
+      </section>
+    </aside>
+
+    <div id="assetTag" class="asset-tag">avatar_master.glb · loading</div>
+    <output id="viewerDiagnostics" hidden aria-hidden="true"></output>
+  </main>
+</body>
+</html>
+

@@ -1,0 +1,44 @@
+{
+  "name": "avatar-36c-stage1-pipeline",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Validation tooling for the draft 36C master avatar asset",
+  "scripts": {
+    "validate:gltf": "node scripts/validate_gltf.cjs",
+    "validate:stage1": "python3 scripts/validate_stage1.py",
+    "validate:identity": "python3 scripts/audit_asset_identity.py",
+    "measure:avatar": "python3 scripts/measure_avatar.py",
+    "validate:measure-parity": "node scripts/test_measurement_parity.mjs",
+    "validate:surface-path": "node scripts/test_surface_path.mjs",
+    "validate:cup-volume": "python3 scripts/test_cup_volume.py",
+    "validate:lane-parity": "node scripts/test_lane_parity.mjs",
+    "export:pom-sheet": "python3 scripts/export_pom_sheet.py",
+    "validate:measurements": "npm run sync:registry && npm run measure:avatar && npm run validate:measure-parity && npm run validate:surface-path && npm run validate:cup-volume && npm run validate:lane-parity",
+    "validate:prototype": "python3 scripts/validate_prototype.py",
+    "validate:prototype:gltf": "node scripts/validate_gltf.cjs assets/export/avatar_36C_prototype.glb qa/avatar_36C/prototype-gltf-validator-report.json",
+    "validate:bootstrap": "python3 scripts/check_bootstrap.py",
+    "validate:requirements": "python3 scripts/validate_platform_requirements.py",
+    "validate:platform": "python3 scripts/validate_platform.py",
+    "validate:viewer-contracts": "node scripts/test_viewer_contracts.mjs",
+    "sync:registry": "node scripts/sync_registry_to_viewer.mjs",
+    "prebuild:viewer": "npm run sync:registry",
+    "build:viewer": "vite build",
+    "predev:viewer": "npm run sync:registry",
+    "dev:viewer": "vite",
+    "preview:viewer": "vite preview",
+    "export:prototype": "/Applications/Blender.app/Contents/MacOS/Blender --background avatar_36C_master.blend --python scripts/export_prototype_glb.py --python-exit-code 1",
+    "measure:draft": "/Applications/Blender.app/Contents/MacOS/Blender --background avatar_36C_master.blend --python scripts/measure_master_body.py --python-exit-code 1",
+    "validate:ground-alignment": "/Applications/Blender.app/Contents/MacOS/Blender --background avatar_36C_master.blend --python scripts/validate_evaluated_vs_basis.py --python-exit-code 1",
+    "audit:mesh": "/Applications/Blender.app/Contents/MacOS/Blender --background avatar_36C_master.blend --python scripts/audit_mesh_integrity.py --python-exit-code 1",
+    "serve:prototype": "python3 -m http.server 8765",
+    "build:bikini-top": "/Applications/Blender.app/Contents/MacOS/Blender --background avatar_36C_master.blend --python scripts/build_bikini_top.py --python-exit-code 1"
+  },
+  "dependencies": {
+    "gltf-validator": "2.0.0-dev.3.10",
+    "three": "0.179.1"
+  },
+  "devDependencies": {
+    "vite": "8.2.1"
+  }
+}

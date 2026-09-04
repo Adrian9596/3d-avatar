@@ -1,0 +1,48 @@
+name: 3D Avatar Platform
+
+on:
+  pull_request:
+    paths:
+      - "3D avatar/**"
+      - ".github/workflows/3d-avatar-platform.yml"
+  push:
+    paths:
+      - "3D avatar/**"
+      - ".github/workflows/3d-avatar-platform.yml"
+  workflow_dispatch:
+
+jobs:
+  validate-platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: "3D avatar"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: "3D avatar/package-lock.json"
+      - name: Install exact JavaScript dependencies
+        run: npm ci
+      - name: Validate platform foundation
+        run: npm run validate:platform
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3d-avatar-platform-${{ matrix.os }}
+          path: |
+            3D avatar/qa/avatar_36C/*validation*.json
+            3D avatar/qa/avatar_36C/*validator*.json
+          if-no-files-found: error

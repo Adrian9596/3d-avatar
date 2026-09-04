@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-04T23:12:59Z",
+  "purpose": "Static guard that the prototype and production viewer lanes cannot disagree about a measurement.",
+  "registry_sha256": "056c64938801ff5a9d63de9ed99528cbaa6225fdf77e17ef97a46876cba8e18c",
+  "checks": [
+    {
+      "name": "the production lane serves the same registry, byte for byte",
+      "status": "PASS",
+      "detail": "sha256 056c64938801…"
+    },
+    {
+      "name": "the prototype lane imports the shared measurement engine",
+      "status": "PASS",
+      "detail": "imports scripts/measure_core.mjs"
+    },
+    {
+      "name": "the production lane imports the shared measurement engine",
+      "status": "PASS",
+      "detail": "imports scripts/measure_core.mjs"
+    },
+    {
+      "name": "the prototype lane does not reimplement the engine",
+      "status": "PASS",
+      "detail": "no engine function is redefined"
+    },
+    {
+      "name": "the production lane does not reimplement the engine",
+      "status": "PASS",
+      "detail": "no engine function is redefined"
+    },
+    {
+      "name": "measure_core.mjs names no asset-specific material",
+      "status": "PASS",
+      "detail": "asset-agnostic"
+    },
+    {
+      "name": "surface_path.mjs names no asset-specific material",
+      "status": "PASS",
+      "detail": "asset-agnostic"
+    },
+    {
+      "name": "the production lane hardcodes no material name",
+      "status": "PASS",
+      "detail": "the measurement surface comes from the registry"
+    },
+    {
+      "name": "the production lane hardcodes no scan range",
+      "status": "PASS",
+      "detail": "the scan comes from the registry"
+    },
+    {
+      "name": "the production lane refuses to measure without the registry",
+      "status": "PASS",
+      "detail": "no silent default: without a registry it reports nothing"
+    },
+    {
+      "name": "the prototype names the material only inside its documented fallback",
+      "status": "PASS",
+      "detail": "only in loadRegistry()"
+    }
+  ],
+  "decision": "LANES_CANNOT_DISAGREE"
+}

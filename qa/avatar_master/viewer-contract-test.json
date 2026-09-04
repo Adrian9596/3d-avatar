@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-04T17:26:14.076Z",
+  "tool": {
+    "node": "v25.5.0"
+  },
+  "assertions": [
+    {
+      "name": "morph exact set passes",
+      "status": "PASS"
+    },
+    {
+      "name": "morph missing blocks",
+      "status": "PASS"
+    },
+    {
+      "name": "morph duplicate blocks",
+      "status": "PASS"
+    },
+    {
+      "name": "animation exact set passes",
+      "status": "PASS"
+    },
+    {
+      "name": "animation missing blocks",
+      "status": "PASS"
+    }
+  ],
+  "actual_asset_status": "BLOCKED",
+  "actual": {
+    "morphs": {
+      "status": "BLOCKED",
+      "required": [
+        "Underbust",
+        "Projection",
+        "RootWidth",
+        "Spacing",
+        "UpperFullness",
+        "Ptosis"
+      ],
+      "actual": [],
+      "missing": [
+        "Underbust",
+        "Projection",
+        "RootWidth",
+        "Spacing",
+        "UpperFullness",
+        "Ptosis"
+      ],
+      "duplicates": [],
+      "unexpected": []
+    },
+    "animations": {
+      "status": "BLOCKED",
+      "required": [
+        "arms_down",
+        "arms_45",
+        "arms_90_lateral",
+        "arms_120",
+        "arms_overhead",
+        "arms_forward_90",
+        "arms_sweep"
+      ],
+      "actual": [],
+      "missing": [
+        "arms_down",
+        "arms_45",
+        "arms_90_lateral",
+        "arms_120",
+        "arms_overhead",
+        "arms_forward_90",
+        "arms_sweep"
+      ],
+      "duplicates": [],
+      "unexpected": []
+    },
+    "armature_exported": false
+  },
+  "decision": "CONTRACT_HARNESS_PASS_ASSET_REMAINS_BLOCKED"
+}

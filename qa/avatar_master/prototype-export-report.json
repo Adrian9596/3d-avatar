@@ -1,0 +1,9 @@
+{
+  "asset": "avatar_master.glb",
+  "sha256": "3f8e01884a0a8ac1f8320b555c7a493698d77f3171a4bb45841d62340dc50afb",
+  "generated_at": "2026-09-04T15:24:00Z",
+  "note": "No shape keys/rig were authored for this CLO3D-derived torso avatar; empty arrays reflect that, not an export failure.",
+  "morph_names": [],
+  "animation_names": [],
+  "armature_exported": false
+}

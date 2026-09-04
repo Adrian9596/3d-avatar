@@ -1,0 +1,27 @@
+Asset: MakeHuman/MPFB hm08 base mesh
+MPFB version: 2.0.17
+MPFB build: 20260722
+Installed: 2026-08-14
+Source package: Blender Extensions package id "mpfb"
+Installed source path: Blender 5.2 extensions/blender_org/mpfb/data/3dobjs/base.obj
+Source SHA-256: 8e761e6624b8f54536409135d1636da63b32486a90d4897f84e121d144f6fb4c
+
+License header retained from the installed base.obj:
+
+"This asset was explicitly released as CC0 in september 2020."
+
+Copyright holders listed in the source header:
+- Data Collection AB
+- Joel Palmius
+- Jonas Hauquier
+
+Primary legal contact listed in the source header: Data Collection AB.
+
+Official license references checked 2026-08-14:
+- https://static.makehumancommunity.org/about/license.html
+- https://static.makehumancommunity.org/makehuman/faq/can_i_sell_models_created_with_makehuman.html
+
+Scope note: This evidence clears the MPFB/MakeHuman core basemesh only. It does
+not automatically clear future community skins, hair, bra, brief, textures or
+other optional assets. Each added asset requires its own manifest row.
+

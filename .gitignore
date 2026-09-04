@@ -1,0 +1,42 @@
+# Node/Vite generated state
+node_modules/
+dist/
+.vite/
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local environment and editor state
+.env
+.env.*
+!.env.example
+.DS_Store
+*.swp
+*.swo
+*.tmp
+*.log
+
+# Blender recovery/backup output; the canonical .blend remains tracked
+*.blend1
+*.blend2
+*.blend@
+*.blend~
+blender.crash.txt
+
+# Local visual-diff scratch space; reviewed QA evidence remains tracked
+qa/**/diff-work/
+qa/**/tmp/
+
+# Local pre-change safety snapshots; git history is the real record
+backups/
+
+
+# Agent worktrees (separate git repos)
+.claude/worktrees/
+
+# Local Claude Code session state (machine-specific paths, runtime locks)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-04T23:12:59+00:00",
+  "purpose": "Cup volume checked against spherical caps, whose volume is arithmetic.",
+  "budget_pct": 1.0,
+  "method": "closed_surface_divergence",
+  "worst_error_pct": 0.0641,
+  "worst_error_pct_of_superseded_projection_method": 7.2682,
+  "cases": [
+    {
+      "case": "hemisphere",
+      "analytic_ml": 759.214,
+      "closed_surface_ml": 758.789,
+      "closed_surface_error_pct": -0.056,
+      "projection_ml": 758.787,
+      "projection_error_pct": -0.0562,
+      "watertight": true,
+      "rim_gap_mean_mm": 0.92
+    },
+    {
+      "case": "shallow cap (60\u00b0)",
+      "analytic_ml": 225.001,
+      "closed_surface_ml": 224.884,
+      "closed_surface_error_pct": -0.0519,
+      "projection_ml": 224.881,
+      "projection_error_pct": -0.0534,
+      "watertight": true,
+      "rim_gap_mean_mm": 0.614
+    },
+    {
+      "case": "deep cap (120\u00b0), overhanging",
+      "analytic_ml": 1371.462,
+      "closed_surface_ml": 1370.583,
+      "closed_surface_error_pct": -0.0641,
+      "projection_ml": 1271.781,
+      "projection_error_pct": -7.2682,
+      "watertight": true,
+      "rim_gap_mean_mm": 1.227
+    }
+  ],
+  "checks": [
+    {
+      "name": "hemisphere matches the analytic cap volume",
+      "status": "PASS",
+      "detail": "analytic 759.214ml vs closed-surface 758.789ml \u2014 -0.0560% (projection -0.06%)"
+    },
+    {
+      "name": "shallow cap (60\u00b0) matches the analytic cap volume",
+      "status": "PASS",
+      "detail": "analytic 225.001ml vs closed-surface 224.884ml \u2014 -0.0519% (projection -0.05%)"
+    },
+    {
+      "name": "deep cap (120\u00b0), overhanging matches the analytic cap volume",
+      "status": "PASS",
+      "detail": "analytic 1371.462ml vs closed-surface 1370.583ml \u2014 -0.0641% (projection -7.27%)"
+    },
+    {
+      "name": "a flat disc encloses no volume",
+      "status": "PASS",
+      "detail": "no volume"
+    }
+  ],
+  "decision": "CUP_VOLUME_OK"
+}

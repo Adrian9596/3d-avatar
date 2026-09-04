@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-04T23:12:56Z",
+  "purpose": "Accuracy of the surface-path routine against an analytic geodesic, and the continuity property the control points depend on.",
+  "settings": {
+    "schedule": [
+      {
+        "spacing_mm": 32,
+        "iterations": 40
+      },
+      {
+        "spacing_mm": 16,
+        "iterations": 40
+      },
+      {
+        "spacing_mm": 8,
+        "iterations": 40
+      }
+    ]
+  },
+  "budgets": {
+    "accuracy_mm": 2,
+    "continuity_mm": 0.2
+  },
+  "worst_accuracy_error_mm": 0.057,
+  "worst_continuity_jump_mm": 0.1166,
+  "cylinder_accuracy": [
+    {
+      "theta": 0.8,
+      "dy_mm": 100,
+      "analytic_mm": 128.0625,
+      "measured_mm": 128.0547,
+      "error_mm": -0.008,
+      "error_pct": -0.006,
+      "on_surface": true,
+      "samples": 17
+    },
+    {
+      "theta": 1.2,
+      "dy_mm": 150,
+      "analytic_mm": 192.0937,
+      "measured_mm": 192.0818,
+      "error_mm": -0.012,
+      "error_pct": -0.006,
+      "on_surface": true,
+      "samples": 25
+    },
+    {
+      "theta": 2,
+      "dy_mm": 50,
+      "analytic_mm": 206.1553,
+      "measured_mm": 206.098,
+      "error_mm": -0.057,
+      "error_pct": -0.028,
+      "on_surface": true,
+      "samples": 27
+    }
+  ],
+  "avatar_continuity": [
+    {
+      "case": "across the chest",
+      "single_mm": 200.8068,
+      "piecewise_mm": 200.7771,
+      "jump_mm": -0.0296,
+      "jump_pct": -0.0148,
+      "on_surface": true
+    },
+    {
+      "case": "apex down to the fold",
+      "single_mm": 74.0492,
+      "piecewise_mm": 74.0493,
+      "jump_mm": 0.0001,
+      "jump_pct": 0.0001,
+      "on_surface": true
+    },
+    {
+      "case": "shoulder to waist, front",
+      "single_mm": 228.611,
+      "piecewise_mm": 228.4944,
+      "jump_mm": -0.1166,
+      "jump_pct": -0.051,
+      "on_surface": true
+    },
+    {
+      "case": "front to side",
+      "single_mm": 214.7083,
+      "piecewise_mm": 214.71,
+      "jump_mm": 0.0018,
+      "jump_pct": 0.0008,
+      "on_surface": true
+    }
+  ],
+  "checks": [
+    {
+      "name": "cylinder geodesic theta=0.8 matches the analytic helix",
+      "status": "PASS",
+      "detail": "analytic 128.0625mm vs measured 128.0547mm — Δ -0.008mm (-0.006%)"
+    },
+    {
+      "name": "cylinder geodesic theta=1.2 matches the analytic helix",
+      "status": "PASS",
+      "detail": "analytic 192.0937mm vs measured 192.0818mm — Δ -0.012mm (-0.006%)"
+    },
+    {
+      "name": "cylinder geodesic theta=2 matches the analytic helix",
+      "status": "PASS",
+      "detail": "analytic 206.1553mm vs measured 206.098mm — Δ -0.057mm (-0.028%)"
+    },
+    {
+      "name": "adding control points does not move the reading — across the chest",
+      "status": "PASS",
+      "detail": "A→B 200.8068mm vs A→h1→h2→B 200.7771mm — jump -0.0296mm"
+    },
+    {
+      "name": "adding control points does not move the reading — apex down to the fold",
+      "status": "PASS",
+      "detail": "A→B 74.0492mm vs A→h1→h2→B 74.0493mm — jump 0.0001mm"
+    },
+    {
+      "name": "adding control points does not move the reading — shoulder to waist, front",
+      "status": "PASS",
+      "detail": "A→B 228.611mm vs A→h1→h2→B 228.4944mm — jump -0.1166mm"
+    },
+    {
+      "name": "adding control points does not move the reading — front to side",
+      "status": "PASS",
+      "detail": "A→B 214.7083mm vs A→h1→h2→B 214.71mm — jump 0.0018mm"
+    },
+    {
+      "name": "the same run measured twice is identical",
+      "status": "PASS",
+      "detail": "200.8068mm"
+    }
+  ],
+  "decision": "SURFACE_PATH_OK"
+}

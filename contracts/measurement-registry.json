@@ -1,0 +1,557 @@
+{
+  "schema_version": 1,
+  "asset_id": "avatar_master",
+  "asset": "assets/export/avatar_master.glb",
+  "notes": [
+    "This registry is the contract for every measurement the tool reports. Code reads it; nothing measures a POM that is not declared here.",
+    "POM ids are PROVISIONAL. Open decision 2 in MEASUREMENT_PLAN.md asks which house code set is canonical; remapping is a rename in this file plus the label map.",
+    "A POM with status 'blocked' must never produce a number anywhere in the UI, the evidence file, or an export.",
+    "Girth is the perimeter of the convex hull of a horizontal section, because a tape bridges concavities instead of sinking into them. See MEASUREMENT_PLAN.md section 4.1.",
+    "No value carries a soft-tissue compression allowance: every tape_tension here is loose_body.",
+    "Surface-path POMs use the shortest path along the surface (scripts/surface_path.mjs and .py). That model is gated by npm run validate:surface-path against an analytic cylinder geodesic and for continuity.",
+    "Status 'blocked_until_manual' means the POM is measurable but its landmark cannot be detected honestly; it yields a value only once a person places that landmark in qa/avatar_master/landmarks.manual.json, and the value is then recorded as manual.",
+    "house_code is the factory-facing POM code and is deliberately null until the canonical house code set is confirmed (open decision 2 in MEASUREMENT_PLAN.md). The exporter falls back to the internal id and marks the sheet PROVISIONAL CODES, so a sheet can never quietly carry an invented code."
+  ],
+  "expected_materials": {
+    "torso": "Mara:body3",
+    "arms": "Mara:arm2",
+    "cuts": "Skin_Cut"
+  },
+  "measurement_surface": [
+    "Mara:body3"
+  ],
+  "axes": {
+    "up": "Y",
+    "front": "+Z",
+    "unit": "meter",
+    "comment": "The GLB is Y-up with the body facing +Z, so a horizontal section is taken at constant Y and its 2D coordinates are (x, z). Front-most = maximum z."
+  },
+  "scan": {
+    "from_m": 1.05,
+    "to_m": 1.56,
+    "step_m": 0.005,
+    "comment": "Covers waist to the base of the neck. Sections above y=1.39m are unreliable because the torso surface is open at the armhole (plan section 4.3), so no POM is declared above it."
+  },
+  "reporting": {
+    "precision_mm": 1,
+    "inch_denominator": 8,
+    "comment": "The algorithm resolves ~0.1mm but the definitions are worth about a millimetre; reporting finer would be false precision."
+  },
+  "parity": {
+    "tolerance_mm": 0.5,
+    "comment": "Maximum allowed disagreement between the Python authority pass and the JavaScript engine the viewer uses. Enforced by scripts/test_measurement_parity.mjs."
+  },
+  "calibration": {
+    "cylinder_radius_m": 0.1,
+    "cylinder_facets": 96,
+    "max_error_mm": 0.5,
+    "comment": "Slicing a cylinder of exactly known girth proves the sectioning maths. Expected error is the inscribed-polygon error, about -0.11mm at 96 facets."
+  },
+  "landmarks": [
+    {
+      "id": "BUST_APEX_L",
+      "label_en": "Bust apex, left",
+      "rule": "max_forward_reach_side",
+      "side": "x_negative",
+      "comment": "Detected per side so apex-to-apex and an asymmetry figure are available."
+    },
+    {
+      "id": "BUST_APEX_R",
+      "label_en": "Bust apex, right",
+      "rule": "max_forward_reach_side",
+      "side": "x_positive"
+    },
+    {
+      "id": "BUST_LEVEL",
+      "label_en": "Bust point level",
+      "rule": "mean_height_of_apex_pair",
+      "comment": "Averaging the two apex heights keeps the bust section symmetric rather than following whichever breast protrudes more."
+    },
+    {
+      "id": "UNDERBUST_FOLD",
+      "label_en": "Inframammary fold",
+      "rule": "min_forward_reach_below_apex",
+      "search_from_m": 1.1,
+      "comment": "Below the apex the body's forward reach falls to a local minimum where the breast leaves the chest wall, then grows again over the abdomen."
+    },
+    {
+      "id": "WAIST_LEVEL",
+      "label_en": "Waist level",
+      "rule": "min_girth_below_fold",
+      "search_from_m": 1.1,
+      "comment": "Narrowest girth definition, which ISO 8559-1 permits where no natural waist landmark is available. This torso has no iliac crest to reference."
+    },
+    {
+      "id": "HPS_L",
+      "label_en": "High point shoulder, left",
+      "rule": "manual_only",
+      "comment": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
+    },
+    {
+      "id": "HPS_R",
+      "label_en": "High point shoulder, right",
+      "rule": "manual_only",
+      "comment": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
+    },
+    {
+      "id": "ROOT_INNER_L",
+      "label_en": "Breast root, inner end (left)",
+      "rule": "manual_only",
+      "comment": "The breast root is a design decision as much as a geometric fact: where a wire sits at the inner and outer ends is chosen by the TD, not read off the mesh. Only the bottom of the root is derived automatically (the fold section directly below the apex). Place ROOT_INNER and ROOT_OUTER for the side you need and the arc becomes measurable."
+    },
+    {
+      "id": "ROOT_OUTER_L",
+      "label_en": "Breast root, outer end (left)",
+      "rule": "manual_only",
+      "comment": "The breast root is a design decision as much as a geometric fact: where a wire sits at the inner and outer ends is chosen by the TD, not read off the mesh. Only the bottom of the root is derived automatically (the fold section directly below the apex). Place ROOT_INNER and ROOT_OUTER for the side you need and the arc becomes measurable."
+    },
+    {
+      "id": "ROOT_BOTTOM_L",
+      "label_en": "Breast root, bottom (left)",
+      "rule": "fold_section_below_apex",
+      "comment": "Derived: the point on the underbust fold section directly below the apex, the same point cup depth starts from."
+    },
+    {
+      "id": "ROOT_INNER_R",
+      "label_en": "Breast root, inner end (right)",
+      "rule": "manual_only",
+      "comment": "The breast root is a design decision as much as a geometric fact: where a wire sits at the inner and outer ends is chosen by the TD, not read off the mesh. Only the bottom of the root is derived automatically (the fold section directly below the apex). Place ROOT_INNER and ROOT_OUTER for the side you need and the arc becomes measurable."
+    },
+    {
+      "id": "ROOT_OUTER_R",
+      "label_en": "Breast root, outer end (right)",
+      "rule": "manual_only",
+      "comment": "The breast root is a design decision as much as a geometric fact: where a wire sits at the inner and outer ends is chosen by the TD, not read off the mesh. Only the bottom of the root is derived automatically (the fold section directly below the apex). Place ROOT_INNER and ROOT_OUTER for the side you need and the arc becomes measurable."
+    },
+    {
+      "id": "ROOT_BOTTOM_R",
+      "label_en": "Breast root, bottom (right)",
+      "rule": "fold_section_below_apex",
+      "comment": "Derived: the point on the underbust fold section directly below the apex, the same point cup depth starts from."
+    },
+    {
+      "id": "ROOT_TOP_L",
+      "label_en": "Breast root, top (left)",
+      "rule": "manual_only",
+      "comment": "The upper edge of the breast root, closing the loop that the cup volume is measured inside. Like the inner and outer ends it is a design decision, not a mesh feature."
+    },
+    {
+      "id": "ROOT_TOP_R",
+      "label_en": "Breast root, top (right)",
+      "rule": "manual_only",
+      "comment": "The upper edge of the breast root, closing the loop that the cup volume is measured inside. Like the inner and outer ends it is a design decision, not a mesh feature."
+    },
+    {
+      "id": "CF_UNDERBUST",
+      "label_en": "Centre front at the underbust",
+      "rule": "fold_section_centre_front",
+      "comment": "Where the gore sits. On the fold section: the point nearest the centre line, front-most. Derived from the underbust fold section. No tunable threshold: the point is picked by an extreme along the section, so nothing about the answer depends on a chosen number."
+    },
+    {
+      "id": "CB_UNDERBUST",
+      "label_en": "Centre back at the underbust",
+      "rule": "fold_section_centre_back",
+      "comment": "Where the band closes. On the fold section: the point nearest the centre line, back-most. Derived from the underbust fold section. No tunable threshold: the point is picked by an extreme along the section, so nothing about the answer depends on a chosen number."
+    },
+    {
+      "id": "SIDE_UNDERBUST_L",
+      "label_en": "Side point at the underbust, left",
+      "rule": "fold_section_extreme_x",
+      "side": "x_negative",
+      "comment": "Where the wire ends and the wing begins. Derived from the underbust fold section. No tunable threshold: the point is picked by an extreme along the section, so nothing about the answer depends on a chosen number."
+    },
+    {
+      "id": "SIDE_UNDERBUST_R",
+      "label_en": "Side point at the underbust, right",
+      "rule": "fold_section_extreme_x",
+      "side": "x_positive",
+      "comment": "Where the wire ends and the wing begins. Derived from the underbust fold section. No tunable threshold: the point is picked by an extreme along the section, so nothing about the answer depends on a chosen number."
+    },
+    {
+      "id": "UNDERARM_L",
+      "label_en": "Underarm, left",
+      "rule": "armhole_boundary_lowest_point",
+      "side": "x_negative",
+      "comment": "The lowest point of the armhole. The torso surface is open at the armhole, so its boundary loops are a real geometric feature: of the four, the highest is the neck, the lowest is the waist, and the remaining two are the armholes. Threshold-free by construction \u2014 unlike the HPS rule that was rejected for reading back its own cutoff."
+    },
+    {
+      "id": "UNDERARM_R",
+      "label_en": "Underarm, right",
+      "rule": "armhole_boundary_lowest_point",
+      "side": "x_positive",
+      "comment": "See UNDERARM_L."
+    }
+  ],
+  "poms": [
+    {
+      "id": "BODY_WAIST_GIRTH",
+      "label_en": "Waist girth",
+      "label_vi": "V\u00f2ng eo",
+      "standard": "ISO 8559-1:2017 waist girth",
+      "method": "plane_section",
+      "tape_model": "convex_hull",
+      "tape_tension": "loose_body",
+      "landmark": "WAIST_LEVEL",
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "auto",
+      "label_short": "Waist",
+      "house_code": null
+    },
+    {
+      "id": "BODY_UNDERBUST_GIRTH",
+      "label_en": "Underbust girth",
+      "label_vi": "V\u00f2ng ch\u00e2n ng\u1ef1c",
+      "standard": "ISO 8559-1:2017 underbust girth",
+      "method": "plane_section",
+      "tape_model": "convex_hull",
+      "tape_tension": "loose_body",
+      "landmark": "UNDERBUST_FOLD",
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "auto",
+      "label_short": "Underbust (fold)",
+      "house_code": null
+    },
+    {
+      "id": "BODY_BUST_GIRTH",
+      "label_en": "Bust girth",
+      "label_vi": "V\u00f2ng ng\u1ef1c",
+      "standard": "ISO 8559-1:2017 bust girth, at the level of the bust points",
+      "method": "plane_section",
+      "tape_model": "convex_hull",
+      "tape_tension": "loose_body",
+      "landmark": "BUST_LEVEL",
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "needs_review",
+      "review_reason": "Open decision 1 in MEASUREMENT_PLAN.md. Measured at apex level per ISO, NOT at the largest girth found: on this body the maximum girth sits 20mm above the apex because the ribcage broadens toward the armpits, a 1.1cm difference from wording alone. DIAG_MAX_TORSO_GIRTH reports the other reading for comparison.",
+      "label_short": "Bust (apex level)",
+      "house_code": null
+    },
+    {
+      "id": "BODY_APEX_TO_APEX",
+      "label_en": "Bust point to bust point",
+      "label_vi": "Kho\u1ea3ng c\u00e1ch hai \u0111\u1ec9nh ng\u1ef1c",
+      "standard": "house POM, straight line",
+      "method": "euclidean",
+      "landmarks": [
+        "BUST_APEX_L",
+        "BUST_APEX_R"
+      ],
+      "tolerance_mm": 1.0,
+      "status": "auto",
+      "label_short": "Apex to apex",
+      "house_code": null
+    },
+    {
+      "id": "BODY_BUST_POINT_HEIGHT",
+      "label_en": "Bust point height above the mesh origin",
+      "method": "landmark_height",
+      "landmark": "BUST_LEVEL",
+      "tolerance_mm": 1.0,
+      "status": "diagnostic",
+      "comment": "Not a garment POM. Reported because it anchors every other reading, and because the mesh has no feet, so it cannot be expressed as a height above the floor.",
+      "label_short": "Bust point height",
+      "house_code": null
+    },
+    {
+      "id": "DIAG_MAX_TORSO_GIRTH",
+      "label_en": "Largest torso girth found",
+      "method": "plane_section",
+      "tape_model": "convex_hull",
+      "surface": "torso",
+      "status": "diagnostic",
+      "comment": "Diagnostic only. Shows how far the largest girth drifts from the apex level; a large gap means the bust definition matters for this body.",
+      "label_short": "Max girth",
+      "house_code": null
+    },
+    {
+      "id": "BODY_BAND_FRONT_L",
+      "label_en": "Band front, centre front to side (left)",
+      "label_vi": "N\u1eeda tr\u01b0\u1edbc d\u00e2y ng\u1ef1c, tr\u00e1i",
+      "label_short": "Band front L",
+      "standard": "house POM, along the underbust line",
+      "method": "section_arc",
+      "tape_model": "section_arc",
+      "tape_tension": "loose_body",
+      "landmarks": [
+        "UNDERBUST_FOLD",
+        "CF_UNDERBUST",
+        "SIDE_UNDERBUST_L"
+      ],
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "auto",
+      "house_code": null,
+      "comment": "Measured along the underbust section itself, not as a free shortest path: a band follows the underbust line, so the arc of that section is the right model here."
+    },
+    {
+      "id": "BODY_UNDERARM_TO_FOLD_L",
+      "label_en": "Wing height, underarm to the underbust side point (left)",
+      "label_vi": "Chi\u1ec1u cao c\u00e1nh, tr\u00e1i",
+      "label_short": "Wing height L",
+      "standard": "house POM, over the surface",
+      "method": "surface_path",
+      "tape_model": "shortest_surface_path",
+      "tape_tension": "loose_body",
+      "landmarks": [
+        "UNDERARM_L",
+        "SIDE_UNDERBUST_L"
+      ],
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "auto",
+      "house_code": null,
+      "comment": "How tall the side wing has to be before it reaches the armhole."
+    },
+    {
+      "id": "BODY_BAND_FRONT_R",
+      "label_en": "Band front, centre front to side (right)",
+      "label_vi": "N\u1eeda tr\u01b0\u1edbc d\u00e2y ng\u1ef1c, ph\u1ea3i",
+      "label_short": "Band front R",
+      "standard": "house POM, along the underbust line",
+      "method": "section_arc",
+      "tape_model": "section_arc",
+      "tape_tension": "loose_body",
+      "landmarks": [
+        "UNDERBUST_FOLD",
+        "CF_UNDERBUST",
+        "SIDE_UNDERBUST_R"
+      ],
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "auto",
+      "house_code": null,
+      "comment": "Measured along the underbust section itself, not as a free shortest path: a band follows the underbust line, so the arc of that section is the right model here."
+    },
+    {
+      "id": "BODY_UNDERARM_TO_FOLD_R",
+      "label_en": "Wing height, underarm to the underbust side point (right)",
+      "label_vi": "Chi\u1ec1u cao c\u00e1nh, ph\u1ea3i",
+      "label_short": "Wing height R",
+      "standard": "house POM, over the surface",
+      "method": "surface_path",
+      "tape_model": "shortest_surface_path",
+      "tape_tension": "loose_body",
+      "landmarks": [
+        "UNDERARM_R",
+        "SIDE_UNDERBUST_R"
+      ],
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "auto",
+      "house_code": null,
+      "comment": "How tall the side wing has to be before it reaches the armhole."
+    },
+    {
+      "id": "BODY_UNDERBUST_TO_APEX_L",
+      "label_en": "Cup depth, underbust to apex (left)",
+      "label_vi": "Chi\u1ec1u s\u00e2u cup, tr\u00e1i",
+      "label_short": "Cup depth L",
+      "standard": "house POM, over the surface",
+      "method": "surface_path",
+      "tape_model": "shortest_surface_path",
+      "tape_tension": "loose_body",
+      "landmarks": [
+        "UNDERBUST_FOLD",
+        "BUST_APEX_L"
+      ],
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "auto",
+      "comment": "From the point on the underbust fold section directly below the apex, up to the apex, along the surface.",
+      "house_code": null
+    },
+    {
+      "id": "BODY_UNDERBUST_TO_APEX_R",
+      "label_en": "Cup depth, underbust to apex (right)",
+      "label_vi": "Chi\u1ec1u s\u00e2u cup, ph\u1ea3i",
+      "label_short": "Cup depth R",
+      "standard": "house POM, over the surface",
+      "method": "surface_path",
+      "tape_model": "shortest_surface_path",
+      "tape_tension": "loose_body",
+      "landmarks": [
+        "UNDERBUST_FOLD",
+        "BUST_APEX_R"
+      ],
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "auto",
+      "house_code": null
+    },
+    {
+      "id": "BODY_HPS_TO_APEX_L",
+      "label_en": "HPS to apex (left)",
+      "label_short": "HPS\u2192apex L",
+      "standard": "house POM, over the surface",
+      "method": "surface_path",
+      "tape_model": "shortest_surface_path",
+      "tape_tension": "loose_body",
+      "landmarks": [
+        "HPS_L",
+        "BUST_APEX_L"
+      ],
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "blocked_until_manual",
+      "unblocked_by": [
+        "HPS_L",
+        "BUST_APEX_L"
+      ],
+      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced.",
+      "house_code": null
+    },
+    {
+      "id": "BODY_HPS_TO_APEX_R",
+      "label_en": "HPS to apex (right)",
+      "label_short": "HPS\u2192apex R",
+      "standard": "house POM, over the surface",
+      "method": "surface_path",
+      "tape_model": "shortest_surface_path",
+      "tape_tension": "loose_body",
+      "landmarks": [
+        "HPS_R",
+        "BUST_APEX_R"
+      ],
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "blocked_until_manual",
+      "unblocked_by": [
+        "HPS_R",
+        "BUST_APEX_R"
+      ],
+      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced.",
+      "house_code": null
+    },
+    {
+      "id": "BREAST_ROOT_ARC_L",
+      "label_en": "Breast root arc, wire length (left)",
+      "label_vi": "Chi\u1ec1u d\u00e0i ch\u00e2n g\u1ecdng, tr\u00e1i",
+      "label_short": "Root arc L",
+      "standard": "house POM, over the surface",
+      "method": "surface_path",
+      "tape_model": "shortest_surface_path",
+      "tape_tension": "loose_body",
+      "landmarks": [
+        "ROOT_INNER_L",
+        "ROOT_BOTTOM_L",
+        "ROOT_OUTER_L"
+      ],
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "blocked_until_manual",
+      "unblocked_by": [
+        "ROOT_INNER_L",
+        "ROOT_OUTER_L"
+      ],
+      "blocked_reason": "The breast root is a design decision as much as a geometric fact: where a wire sits at the inner and outer ends is chosen by the TD, not read off the mesh. Only the bottom of the root is derived automatically (the fold section directly below the apex). Place ROOT_INNER and ROOT_OUTER for the side you need and the arc becomes measurable.",
+      "house_code": null,
+      "comment": "Inner end to bottom to outer end, along the surface; the sum is the wire length."
+    },
+    {
+      "id": "BREAST_ROOT_ARC_R",
+      "label_en": "Breast root arc, wire length (right)",
+      "label_vi": "Chi\u1ec1u d\u00e0i ch\u00e2n g\u1ecdng, ph\u1ea3i",
+      "label_short": "Root arc R",
+      "standard": "house POM, over the surface",
+      "method": "surface_path",
+      "tape_model": "shortest_surface_path",
+      "tape_tension": "loose_body",
+      "landmarks": [
+        "ROOT_INNER_R",
+        "ROOT_BOTTOM_R",
+        "ROOT_OUTER_R"
+      ],
+      "surface": "torso",
+      "tolerance_mm": 1.0,
+      "status": "blocked_until_manual",
+      "unblocked_by": [
+        "ROOT_INNER_R",
+        "ROOT_OUTER_R"
+      ],
+      "blocked_reason": "The breast root is a design decision as much as a geometric fact: where a wire sits at the inner and outer ends is chosen by the TD, not read off the mesh. Only the bottom of the root is derived automatically (the fold section directly below the apex). Place ROOT_INNER and ROOT_OUTER for the side you need and the arc becomes measurable.",
+      "house_code": null,
+      "comment": "Inner end to bottom to outer end, along the surface; the sum is the wire length."
+    },
+    {
+      "id": "CUP_VOLUME_L",
+      "label_en": "Cup volume (left)",
+      "label_vi": "Th\u1ec3 t\u00edch cup, tr\u00e1i",
+      "label_short": "Cup volume L",
+      "unit": "ml",
+      "method": "enclosed_volume_closed",
+      "landmarks": [
+        "ROOT_INNER_L",
+        "ROOT_OUTER_L",
+        "ROOT_TOP_L",
+        "ROOT_BOTTOM_L",
+        "BUST_APEX_L"
+      ],
+      "status": "blocked_until_manual",
+      "house_code": null,
+      "blocked_reason": "Cup volume is measured inside a CLOSED root loop: inner -> bottom -> outer -> top -> inner, each leg a shortest surface path. The loop is a design decision, so three of its four points are placed by hand; the bottom is derived. Place ROOT_INNER, ROOT_OUTER and ROOT_TOP for the side you need.",
+      "validated_by": "scripts/test_cup_volume.py \u2014 analytic spherical caps, including an overhanging one",
+      "parity": "analytic_only",
+      "parity_reason": "Computed in the Python authority pass only. It is validated against analytic spherical caps to 0.064% rather than by cross-implementation parity, so the JavaScript lanes produce no value and the parity gate skips it by declaration rather than by accident.",
+      "unblocked_by": [
+        "ROOT_INNER_L",
+        "ROOT_OUTER_L",
+        "ROOT_TOP_L"
+      ],
+      "tolerance_ml": 5.0,
+      "sensitivity": "SENSITIVITY, measured: moving ROOT_TOP by \u00b115mm swings this value from 192.9ml to 271.2ml \u2014 about \u00b118%. The routine itself is accurate to 0.064% against analytic spherical caps, so the number is dominated by WHERE the root loop is placed, not by the maths. Whoever places the loop owns the result; record the loop with the value."
+    },
+    {
+      "id": "CUP_VOLUME_R",
+      "label_en": "Cup volume (right)",
+      "label_vi": "Th\u1ec3 t\u00edch cup, ph\u1ea3i",
+      "label_short": "Cup volume R",
+      "unit": "ml",
+      "method": "enclosed_volume_closed",
+      "landmarks": [
+        "ROOT_INNER_R",
+        "ROOT_OUTER_R",
+        "ROOT_TOP_R",
+        "ROOT_BOTTOM_R",
+        "BUST_APEX_R"
+      ],
+      "status": "blocked_until_manual",
+      "house_code": null,
+      "blocked_reason": "Cup volume is measured inside a CLOSED root loop: inner -> bottom -> outer -> top -> inner, each leg a shortest surface path. The loop is a design decision, so three of its four points are placed by hand; the bottom is derived. Place ROOT_INNER, ROOT_OUTER and ROOT_TOP for the side you need.",
+      "validated_by": "scripts/test_cup_volume.py \u2014 analytic spherical caps, including an overhanging one",
+      "parity": "analytic_only",
+      "parity_reason": "Computed in the Python authority pass only. It is validated against analytic spherical caps to 0.064% rather than by cross-implementation parity, so the JavaScript lanes produce no value and the parity gate skips it by declaration rather than by accident.",
+      "unblocked_by": [
+        "ROOT_INNER_R",
+        "ROOT_OUTER_R",
+        "ROOT_TOP_R"
+      ],
+      "tolerance_ml": 5.0,
+      "sensitivity": "SENSITIVITY, measured: moving ROOT_TOP by \u00b115mm swings this value from 192.9ml to 271.2ml \u2014 about \u00b118%. The routine itself is accurate to 0.064% against analytic spherical caps, so the number is dominated by WHERE the root loop is placed, not by the maths. Whoever places the loop owns the result; record the loop with the value."
+    },
+    {
+      "id": "BODY_ACROSS_BACK",
+      "label_en": "Across back",
+      "method": "surface_path",
+      "status": "blocked",
+      "blocked_reason": "Crosses the armpit. The torso surface is open above y=1.39m because the arms are a separate surface meeting it at the armhole, so a section there is not a closed loop. Needs a stitched measurement surface or a free geodesic.",
+      "house_code": null
+    },
+    {
+      "id": "BODY_HIP_GIRTH",
+      "label_en": "Hip girth",
+      "method": "plane_section",
+      "status": "blocked",
+      "blocked_reason": "The mesh ends at y=0.995m. There is no hip geometry to measure; this needs an avatar exported with legs.",
+      "house_code": null
+    }
+  ],
+  "declared_limits": [
+    "No soft-tissue compression allowance: these are loose-tape body dimensions, so a snug band measurement reads smaller.",
+    "Mesh geometry only. Nothing here is a TD-approved measurement record or a size verdict.",
+    "Plane sections above y=1.39m are invalid because the torso surface is open at the armhole.",
+    "No hip and no stature: the mesh has no legs and no head."
+  ]
+}

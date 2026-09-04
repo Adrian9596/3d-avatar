@@ -1,0 +1,429 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-04T23:12:55+00:00",
+  "asset": {
+    "file": "assets/export/avatar_master.glb",
+    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4",
+    "unit": "meter",
+    "up_axis": "Y",
+    "front_axis": "+Z",
+    "generator": "Khronos glTF Blender I/O v5.2.39"
+  },
+  "registry": {
+    "file": "contracts/measurement-registry.json",
+    "sha256": "056c64938801ff5a9d63de9ed99528cbaa6225fdf77e17ef97a46876cba8e18c",
+    "schema_version": 1
+  },
+  "tool": {
+    "script": "scripts/measure_avatar.py",
+    "python": "3.9.6",
+    "implementation": "independent of scripts/measure_core.mjs by design"
+  },
+  "scan": {
+    "from_m": 1.05,
+    "to_m": 1.56,
+    "step_m": 0.005,
+    "comment": "Covers waist to the base of the neck. Sections above y=1.39m are unreliable because the torso surface is open at the armhole (plan section 4.3), so no POM is declared above it."
+  },
+  "reporting": {
+    "precision_mm": 1,
+    "inch_denominator": 8
+  },
+  "calibration": {
+    "cylinder_true_mm": 628.319,
+    "cylinder_measured_mm": 628.206,
+    "error_mm": -0.112,
+    "facets": 96,
+    "note": "Expected error is the inscribed-polygon error, not a defect."
+  },
+  "landmark_overrides": {
+    "file": null,
+    "applied": false
+  },
+  "landmarks": {
+    "BUST_APEX_L": {
+      "xyz_m": [
+        -0.0804,
+        1.33,
+        0.1399
+      ],
+      "source": "auto",
+      "rule": "max_forward_reach_side"
+    },
+    "BUST_APEX_R": {
+      "xyz_m": [
+        0.0804,
+        1.33,
+        0.1399
+      ],
+      "source": "auto",
+      "rule": "max_forward_reach_side"
+    },
+    "BUST_LEVEL": {
+      "y_m": 1.33,
+      "source": "auto",
+      "rule": "mean_height_of_apex_pair"
+    },
+    "UNDERBUST_FOLD": {
+      "y_m": 1.27,
+      "source": "auto",
+      "rule": "min_forward_reach_below_apex"
+    },
+    "CF_UNDERBUST": {
+      "xyz_m": [
+        -0.0,
+        1.27,
+        0.1011
+      ],
+      "source": "auto",
+      "rule": "fold_section_centre_front"
+    },
+    "CB_UNDERBUST": {
+      "xyz_m": [
+        -0.0,
+        1.27,
+        -0.1083
+      ],
+      "source": "auto",
+      "rule": "fold_section_centre_back"
+    },
+    "SIDE_UNDERBUST_L": {
+      "xyz_m": [
+        -0.1447,
+        1.27,
+        -0.0026
+      ],
+      "source": "auto",
+      "rule": "fold_section_extreme_x"
+    },
+    "SIDE_UNDERBUST_R": {
+      "xyz_m": [
+        0.1447,
+        1.27,
+        -0.0026
+      ],
+      "source": "auto",
+      "rule": "fold_section_extreme_x"
+    },
+    "UNDERARM_L": {
+      "xyz_m": [
+        -0.1706,
+        1.3892,
+        -0.0647
+      ],
+      "source": "auto",
+      "rule": "armhole_boundary_lowest_point"
+    },
+    "UNDERARM_R": {
+      "xyz_m": [
+        0.1706,
+        1.3892,
+        -0.0647
+      ],
+      "source": "auto",
+      "rule": "armhole_boundary_lowest_point"
+    },
+    "HPS_L": {
+      "xyz_m": null,
+      "source": "auto",
+      "rule": "manual_only"
+    },
+    "HPS_R": {
+      "xyz_m": null,
+      "source": "auto",
+      "rule": "manual_only"
+    },
+    "WAIST_LEVEL": {
+      "y_m": 1.195,
+      "source": "auto",
+      "rule": "min_girth_below_fold"
+    }
+  },
+  "poms": [
+    {
+      "id": "BODY_WAIST_GIRTH",
+      "label_en": "Waist girth",
+      "status": "auto",
+      "method": "plane_section",
+      "value_mm": 768.5,
+      "value_cm": 76.9,
+      "value_in": "30 1/4\"",
+      "at_y_m": 1.195,
+      "hull_vs_contour_mm": 1.8,
+      "tape_tension": "loose_body",
+      "landmark_source": "auto"
+    },
+    {
+      "id": "BODY_UNDERBUST_GIRTH",
+      "label_en": "Underbust girth",
+      "status": "auto",
+      "method": "plane_section",
+      "value_mm": 830.9,
+      "value_cm": 83.1,
+      "value_in": "32 3/4\"",
+      "at_y_m": 1.27,
+      "hull_vs_contour_mm": 1.2,
+      "tape_tension": "loose_body",
+      "landmark_source": "auto"
+    },
+    {
+      "id": "BODY_BUST_GIRTH",
+      "label_en": "Bust girth",
+      "status": "needs_review",
+      "method": "plane_section",
+      "value_mm": 1013.5,
+      "value_cm": 101.3,
+      "value_in": "39 7/8\"",
+      "at_y_m": 1.33,
+      "hull_vs_contour_mm": 19.4,
+      "tape_tension": "loose_body",
+      "landmark_source": "auto",
+      "review_reason": "Open decision 1 in MEASUREMENT_PLAN.md. Measured at apex level per ISO, NOT at the largest girth found: on this body the maximum girth sits 20mm above the apex because the ribcage broadens toward the armpits, a 1.1cm difference from wording alone. DIAG_MAX_TORSO_GIRTH reports the other reading for comparison."
+    },
+    {
+      "id": "BODY_APEX_TO_APEX",
+      "label_en": "Bust point to bust point",
+      "status": "auto",
+      "method": "euclidean",
+      "value_mm": 160.7,
+      "value_cm": 16.1,
+      "value_in": "6 3/8\"",
+      "at_y_m": 1.33,
+      "landmark_source": "auto"
+    },
+    {
+      "id": "BODY_BUST_POINT_HEIGHT",
+      "label_en": "Bust point height above the mesh origin",
+      "status": "diagnostic",
+      "method": "landmark_height",
+      "value_mm": 1330.0,
+      "value_cm": 133.0,
+      "value_in": "52 3/8\"",
+      "at_y_m": 1.33,
+      "landmark_source": "auto"
+    },
+    {
+      "id": "DIAG_MAX_TORSO_GIRTH",
+      "label_en": "Largest torso girth found",
+      "status": "diagnostic",
+      "method": "plane_section",
+      "value_mm": 1024.5,
+      "value_cm": 102.4,
+      "value_in": "40 3/8\"",
+      "at_y_m": 1.35,
+      "hull_vs_contour_mm": 20.5,
+      "landmark_source": "auto"
+    },
+    {
+      "id": "BODY_BAND_FRONT_L",
+      "label_en": "Band front, centre front to side (left)",
+      "status": "auto",
+      "method": "section_arc",
+      "value_mm": 200.0,
+      "value_cm": 20.0,
+      "value_in": "7 7/8\"",
+      "at_y_m": 1.27,
+      "tape_tension": "loose_body",
+      "landmark_source": "auto"
+    },
+    {
+      "id": "BODY_UNDERARM_TO_FOLD_L",
+      "label_en": "Wing height, underarm to the underbust side point (left)",
+      "status": "auto",
+      "method": "surface_path",
+      "value_mm": 137.2,
+      "value_cm": 13.7,
+      "value_in": "5 3/8\"",
+      "at_y_m": 1.3296,
+      "tape_tension": "loose_body",
+      "landmark_source": "auto"
+    },
+    {
+      "id": "BODY_BAND_FRONT_R",
+      "label_en": "Band front, centre front to side (right)",
+      "status": "auto",
+      "method": "section_arc",
+      "value_mm": 200.0,
+      "value_cm": 20.0,
+      "value_in": "7 7/8\"",
+      "at_y_m": 1.27,
+      "tape_tension": "loose_body",
+      "landmark_source": "auto"
+    },
+    {
+      "id": "BODY_UNDERARM_TO_FOLD_R",
+      "label_en": "Wing height, underarm to the underbust side point (right)",
+      "status": "auto",
+      "method": "surface_path",
+      "value_mm": 137.2,
+      "value_cm": 13.7,
+      "value_in": "5 3/8\"",
+      "at_y_m": 1.3296,
+      "tape_tension": "loose_body",
+      "landmark_source": "auto"
+    },
+    {
+      "id": "BODY_UNDERBUST_TO_APEX_L",
+      "label_en": "Cup depth, underbust to apex (left)",
+      "status": "auto",
+      "method": "surface_path",
+      "value_mm": 82.3,
+      "value_cm": 8.2,
+      "value_in": "3 1/4\"",
+      "at_y_m": 1.3,
+      "tape_tension": "loose_body",
+      "landmark_source": "auto"
+    },
+    {
+      "id": "BODY_UNDERBUST_TO_APEX_R",
+      "label_en": "Cup depth, underbust to apex (right)",
+      "status": "auto",
+      "method": "surface_path",
+      "value_mm": 82.3,
+      "value_cm": 8.2,
+      "value_in": "3 1/4\"",
+      "at_y_m": 1.3,
+      "tape_tension": "loose_body",
+      "landmark_source": "auto"
+    },
+    {
+      "id": "BODY_HPS_TO_APEX_L",
+      "label_en": "HPS to apex (left)",
+      "status": "blocked_until_manual",
+      "method": "surface_path",
+      "unblocked_by": [
+        "HPS_L",
+        "BUST_APEX_L"
+      ],
+      "value_mm": null,
+      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
+    },
+    {
+      "id": "BODY_HPS_TO_APEX_R",
+      "label_en": "HPS to apex (right)",
+      "status": "blocked_until_manual",
+      "method": "surface_path",
+      "unblocked_by": [
+        "HPS_R",
+        "BUST_APEX_R"
+      ],
+      "value_mm": null,
+      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
+    },
+    {
+      "id": "BREAST_ROOT_ARC_L",
+      "label_en": "Breast root arc, wire length (left)",
+      "status": "blocked_until_manual",
+      "method": "surface_path",
+      "unblocked_by": [
+        "ROOT_INNER_L",
+        "ROOT_OUTER_L"
+      ],
+      "value_mm": null,
+      "blocked_reason": "The breast root is a design decision as much as a geometric fact: where a wire sits at the inner and outer ends is chosen by the TD, not read off the mesh. Only the bottom of the root is derived automatically (the fold section directly below the apex). Place ROOT_INNER and ROOT_OUTER for the side you need and the arc becomes measurable."
+    },
+    {
+      "id": "BREAST_ROOT_ARC_R",
+      "label_en": "Breast root arc, wire length (right)",
+      "status": "blocked_until_manual",
+      "method": "surface_path",
+      "unblocked_by": [
+        "ROOT_INNER_R",
+        "ROOT_OUTER_R"
+      ],
+      "value_mm": null,
+      "blocked_reason": "The breast root is a design decision as much as a geometric fact: where a wire sits at the inner and outer ends is chosen by the TD, not read off the mesh. Only the bottom of the root is derived automatically (the fold section directly below the apex). Place ROOT_INNER and ROOT_OUTER for the side you need and the arc becomes measurable."
+    },
+    {
+      "id": "CUP_VOLUME_L",
+      "label_en": "Cup volume (left)",
+      "status": "blocked_until_manual",
+      "method": "enclosed_volume_closed",
+      "unblocked_by": [
+        "ROOT_INNER_L",
+        "ROOT_OUTER_L",
+        "ROOT_TOP_L"
+      ],
+      "value_mm": null,
+      "blocked_reason": "Cup volume is measured inside a CLOSED root loop: inner -> bottom -> outer -> top -> inner, each leg a shortest surface path. The loop is a design decision, so three of its four points are placed by hand; the bottom is derived. Place ROOT_INNER, ROOT_OUTER and ROOT_TOP for the side you need."
+    },
+    {
+      "id": "CUP_VOLUME_R",
+      "label_en": "Cup volume (right)",
+      "status": "blocked_until_manual",
+      "method": "enclosed_volume_closed",
+      "unblocked_by": [
+        "ROOT_INNER_R",
+        "ROOT_OUTER_R",
+        "ROOT_TOP_R"
+      ],
+      "value_mm": null,
+      "blocked_reason": "Cup volume is measured inside a CLOSED root loop: inner -> bottom -> outer -> top -> inner, each leg a shortest surface path. The loop is a design decision, so three of its four points are placed by hand; the bottom is derived. Place ROOT_INNER, ROOT_OUTER and ROOT_TOP for the side you need."
+    },
+    {
+      "id": "BODY_ACROSS_BACK",
+      "label_en": "Across back",
+      "status": "blocked",
+      "method": "surface_path",
+      "value_mm": null,
+      "blocked_reason": "Crosses the armpit. The torso surface is open above y=1.39m because the arms are a separate surface meeting it at the armhole, so a section there is not a closed loop. Needs a stitched measurement surface or a free geodesic."
+    },
+    {
+      "id": "BODY_HIP_GIRTH",
+      "label_en": "Hip girth",
+      "status": "blocked",
+      "method": "plane_section",
+      "value_mm": null,
+      "blocked_reason": "The mesh ends at y=0.995m. There is no hip geometry to measure; this needs an avatar exported with legs."
+    }
+  ],
+  "asymmetry": {
+    "flag_threshold_mm": 5.0,
+    "any_flagged": false,
+    "pairs": [
+      {
+        "pair": "cup depth",
+        "left_id": "BODY_UNDERBUST_TO_APEX_L",
+        "right_id": "BODY_UNDERBUST_TO_APEX_R",
+        "left_mm": 82.3,
+        "right_mm": 82.3,
+        "delta_mm": -0.0,
+        "flagged": false
+      },
+      {
+        "pair": "bust apex, mirrored",
+        "left_id": "BUST_APEX_L",
+        "right_id": "BUST_APEX_R",
+        "span_delta_mm": -0.0,
+        "height_delta_mm": 0.0,
+        "projection_delta_mm": 0.0,
+        "flagged": false
+      }
+    ],
+    "note": "A flagged pair is not automatically a defect: it can be a real asymmetry in the body or a landmark placed carelessly on one side. It is reported so a person decides, rather than being averaged away."
+  },
+  "qc": {
+    "measurement_surface": [
+      "Mara:body3"
+    ],
+    "materials_present": [
+      "Mara:arm2",
+      "Mara:body3",
+      "Skin_Cut"
+    ],
+    "triangles_measured": 11288,
+    "sections_scanned": 103,
+    "scan_step_mm": 5.0,
+    "apex_forward_reach_delta_mm": 0.0,
+    "apex_height_delta_mm": 0.0,
+    "apex_span_symmetry_mm": -0.0
+  },
+  "declared_limits": [
+    "No soft-tissue compression allowance: these are loose-tape body dimensions, so a snug band measurement reads smaller.",
+    "Mesh geometry only. Nothing here is a TD-approved measurement record or a size verdict.",
+    "Plane sections above y=1.39m are invalid because the torso surface is open at the armhole.",
+    "No hip and no stature: the mesh has no legs and no head."
+  ],
+  "decision": "MEASURED_NOT_APPROVED",
+  "failures": []
+}

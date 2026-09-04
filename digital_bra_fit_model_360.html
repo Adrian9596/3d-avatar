@@ -1,0 +1,1454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Digital Bra Fit Model — Avatar Preview</title>
+<style>
+:root{--bg:#f4f1ec;--panel:rgba(255,255,255,.94);--line:rgba(35,31,27,.12);--text:#211e1b;--muted:#746e68;--accent:#352f2a;--warn:#875b22;--warn-bg:#fff4df;--ok:#2f654b}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+button{font:inherit}
+.app{height:100%;position:relative;overflow:hidden;background:radial-gradient(circle at 50% 35%,#fbfaf7 0,#f0ece5 72%,#e9e4dc 100%)}
+.topbar{position:absolute;inset:0 0 auto;height:62px;display:flex;align-items:center;padding:0 18px;z-index:20;pointer-events:none}
+.top-left,.top-right{display:flex;align-items:center;gap:8px;pointer-events:auto}.top-right{margin-left:auto}
+.pill,.icon{border:1px solid var(--line);background:var(--panel);box-shadow:0 4px 18px rgba(42,34,27,.05);backdrop-filter:blur(12px)}
+.pill{min-height:36px;border-radius:999px;padding:0 12px;display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#403a35}
+.status-pill{color:var(--warn);background:rgba(255,246,228,.94)}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#c28a3f;box-shadow:0 0 0 3px rgba(194,138,63,.14)}
+.icon{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:#4c4640}
+.icon:hover,.icon:focus-visible,.bottom-nav button:hover,.text-btn:hover{background:#fff;outline:none}
+.viewport{position:absolute;inset:0}
+#canvas{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+#canvas:active{cursor:grabbing}
+.fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:74px 20px 95px;filter:saturate(.94)}
+.loading{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;min-width:240px;text-align:center;color:#5d5650;pointer-events:none;transition:opacity .2s}
+.loading[hidden]{display:none}.loading strong{display:block;font-size:13px;margin-bottom:8px}.loading span{font-size:11px;color:#8a837d}
+.spinner{width:24px;height:24px;border:2px solid rgba(53,47,42,.15);border-top-color:#5b5149;border-radius:50%;margin:0 auto 13px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.tip{position:absolute;left:50%;top:72px;transform:translateX(-50%);z-index:15;font-size:11px;color:#827b74;background:rgba(255,255,255,.72);padding:7px 10px;border:1px solid rgba(53,47,42,.07);border-radius:999px;pointer-events:none;white-space:nowrap}
+.panel,.pop{position:absolute;z-index:30;background:var(--panel);border:1px solid var(--line);box-shadow:0 18px 50px rgba(43,35,29,.11);backdrop-filter:blur(18px)}
+.panel{left:18px;top:72px;width:268px;border-radius:18px;padding:15px;opacity:0;pointer-events:none;transform:translateY(-5px);transition:.18s ease}
+.panel.open{opacity:1;pointer-events:auto;transform:none}
+.pop{right:18px;top:72px;width:238px;border-radius:16px;padding:13px;display:none}.pop.open{display:block}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}.panel-title,.pop-title{font-size:12px;font-weight:750}.pop-title{margin-bottom:9px}
+.close{border:0;background:transparent;color:#847d76;cursor:pointer;font-size:18px;line-height:1}
+.notice{border:1px solid #ecd9b8;background:var(--warn-bg);border-radius:12px;padding:10px;font-size:10px;line-height:1.5;color:#765024;margin-bottom:10px}
+.contract-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}.contract-item{border:1px solid rgba(53,47,42,.09);border-radius:9px;padding:7px 8px;font-size:10px;color:#6f6861;background:rgba(255,255,255,.55)}.contract-item span{display:block;color:#a09a94;font-size:9px;margin-top:2px}
+.measure-row,.display-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(53,47,42,.07);font-size:11px}.measure-row:first-of-type,.display-row:first-of-type{border-top:0}.measure-row b{font-size:10px;color:var(--warn);font-weight:650;text-align:right}
+.toggle{border:1px solid var(--line);border-radius:999px;background:#ece9e5;color:#766f68;padding:4px 8px;font-size:9px;cursor:pointer;min-width:42px}.toggle[aria-pressed="true"]{background:var(--accent);color:#fff}
+.note{font-size:10px;color:#928b84;line-height:1.5;margin-top:8px}
+.measure-panel{position:absolute;left:18px;top:72px;z-index:25;width:296px;border-radius:16px;padding:13px;background:var(--panel);border:1px solid var(--line);box-shadow:0 14px 40px rgba(43,35,29,.1);backdrop-filter:blur(16px)}
+.mtable{width:100%;border-collapse:collapse;font-size:10.5px}
+.mtable th{text-align:left;font-weight:650;color:#8d867f;font-size:8.5px;text-transform:uppercase;letter-spacing:.06em;padding:0 0 6px;border-bottom:1px solid rgba(53,47,42,.1)}
+.mtable th.n,.mtable td.h,.mtable td.val,.mtable td.in{text-align:right}
+.mtable td{padding:7px 0;border-top:1px solid rgba(53,47,42,.07);color:#4f4943}
+.mtable tbody tr{cursor:pointer}
+.mtable tbody tr:hover td{background:rgba(53,47,42,.035);color:#211e1b}
+.mtable tbody tr[aria-selected="true"] td{background:rgba(53,47,42,.075);color:#211e1b}
+.mtable td.h,.mtable td.val,.mtable td.in{font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:8px}
+.mtable td.h{color:#8d867f}
+.mtable td.val{font-weight:700}
+.mtable td.in{color:#7d766f}
+.mtable tr.landmark td.val{font-weight:500;color:#7d766f}
+.mtable td em{font-style:normal;color:#a8760f;font-weight:700}
+.mnote em{font-style:normal;color:#a8760f;font-weight:700}
+.mnote{margin-top:9px;font-size:9px;line-height:1.55;color:#948c85}
+.mnote b{color:#6f6861;font-weight:700}
+.mtools{display:flex;gap:5px;margin-top:10px;flex-wrap:wrap}
+.mtools button{border:1px solid var(--line);background:#ece9e5;color:#5f5851;border-radius:999px;padding:5px 9px;font-size:9.5px;cursor:pointer}
+.mtools button:hover{background:#fff}
+.mtools button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:transparent}
+.mtools button:disabled{opacity:.4;cursor:default}
+.mtools .swatch{width:7px;height:7px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle}
+.strokes{margin-top:9px;border-top:1px solid rgba(53,47,42,.09);padding-top:7px}
+.stroke-row{display:flex;align-items:center;gap:7px;font-size:10px;color:#4f4943;padding:4px 0}
+.stroke-row i{width:7px;height:7px;border-radius:2px;background:#2f4f6f;flex:none}
+.stroke-row b{font-variant-numeric:tabular-nums;font-weight:700}
+.stroke-row .lname{color:#4f4943;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stroke-row .lname[contenteditable="true"]{outline:1px solid #2f4f6f;border-radius:3px;padding:0 3px;overflow:visible}
+.stroke-row span{color:#8d867f;font-variant-numeric:tabular-nums;margin-left:auto}
+.stroke-row button{border:0;background:transparent;color:#9c948d;cursor:pointer;font-size:13px;line-height:1;padding:0 2px}
+.stroke-row button:hover{color:#43352b}
+.stroke-row{cursor:pointer;border-radius:7px;padding:4px 5px}
+.stroke-row:hover{background:rgba(53,47,42,.04)}
+.stroke-row[data-selected="true"]{background:rgba(47,79,111,.1)}
+.stroke-row[data-active="true"]{cursor:default;color:#8d867f}
+.stroke-row[data-active="true"] i{background:#f0a02a}
+.section-tool{position:absolute;right:18px;top:50%;transform:translateY(-50%);z-index:25;display:none;flex-direction:column;align-items:center;gap:8px}
+.section-tool.open{display:flex}
+.section-tool input[type=range]{writing-mode:vertical-lr;direction:rtl;width:26px;height:230px;accent-color:#a8760f}
+.section-readout{position:absolute;right:56px;top:50%;transform:translateY(-50%);z-index:25;background:rgba(168,118,15,.95);color:#fff;border-radius:12px;padding:8px 11px;font-size:10px;line-height:1.6;font-variant-numeric:tabular-nums;white-space:nowrap;box-shadow:0 8px 22px rgba(90,62,10,.26);display:none}
+.section-readout.open{display:block}
+.section-readout b{font-size:12px}
+.lm-list{margin-top:9px;border-top:1px solid rgba(53,47,42,.09);padding-top:7px;max-height:196px;overflow-y:auto}
+.lm-group{font-size:8px;text-transform:uppercase;letter-spacing:.07em;color:#a8a09a;margin:6px 0 2px}
+.lm-row{display:flex;align-items:center;gap:6px;font-size:9.5px;color:#4f4943;padding:3px 5px;border-radius:6px;cursor:pointer}
+.lm-row:hover{background:rgba(53,47,42,.04)}
+.lm-row[aria-selected="true"]{background:rgba(240,160,42,.18)}
+.lm-row b{font-variant-numeric:tabular-nums;font-weight:700;margin-left:auto}
+.lm-row .badge{font-size:7.5px;text-transform:uppercase;letter-spacing:.04em;padding:1px 3px;border-radius:3px;background:#e7e3de;color:#7d766f}
+.lm-row .badge.manual{background:#f0a02a;color:#3a2a10}
+.lm-row .badge.needed{background:#f3ded9;color:#9c3b28}
+.lm-row button{border:0;background:transparent;color:#9c948d;cursor:pointer;font-size:11px;line-height:1;padding:0 2px}
+.lm-row button:hover{color:#43352b}
+.lm-hint{font-size:9px;color:#a8760f;margin:6px 0 0;line-height:1.5}
+.pen-labels{position:absolute;inset:0;z-index:22;pointer-events:none}
+.mlabel{position:absolute;transform:translate(-50%,-50%);background:rgba(47,79,111,.95);color:#fff;border-radius:999px;padding:4px 9px;font-size:10px;font-variant-numeric:tabular-nums;white-space:nowrap;box-shadow:0 6px 18px rgba(30,45,62,.26)}
+#canvas.pen{cursor:crosshair}
+@media(max-width:740px){.measure-panel{left:10px;right:10px;width:auto}}
+.bottom-nav{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:20;display:flex;gap:2px;padding:4px;border:1px solid var(--line);background:var(--panel);border-radius:999px;box-shadow:0 10px 30px rgba(44,35,28,.08);backdrop-filter:blur(14px)}
+.bottom-nav button{border:0;background:transparent;border-radius:999px;padding:8px 13px;font-size:11px;color:#756e68;cursor:pointer;white-space:nowrap}.bottom-nav button.active{background:var(--accent);color:#fff}
+.text-btn{position:absolute;left:18px;bottom:22px;z-index:20;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:9px 13px;font-size:11px;color:#514a44;cursor:pointer;box-shadow:0 9px 25px rgba(43,35,29,.07)}
+.asset-tag{position:absolute;left:50%;bottom:70px;transform:translateX(-50%);font-size:9px;color:#948c85;letter-spacing:.07em;text-transform:uppercase;pointer-events:none;white-space:nowrap}
+.error-card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:16;width:min(390px,calc(100% - 32px));padding:15px;border-radius:15px;background:rgba(255,250,242,.96);border:1px solid #e6cfa9;color:#704e28;text-align:center;box-shadow:0 18px 50px rgba(60,42,20,.12)}.error-card[hidden]{display:none}.error-card strong{font-size:13px}.error-card p{font-size:11px;line-height:1.5;margin:7px 0 0}
+@media(max-width:740px){.topbar{padding:0 10px}.status-pill span:last-child{display:none}.status-pill::after{content:'DRAFT';font-size:10px;font-weight:750}.panel{left:10px;right:10px;width:auto}.pop{right:10px;left:10px;width:auto}.text-btn{left:10px;bottom:72px}.bottom-nav{bottom:18px}.bottom-nav button{padding:8px 10px}.asset-tag{bottom:112px}.tip{top:66px}.contract-list{grid-template-columns:1fr 1fr}}
+</style>
+<script type="importmap">
+{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}
+</script>
+</head>
+<body>
+<main class="app" id="app">
+  <header class="topbar">
+    <div class="top-left">
+      <div class="pill"><strong>Avatar</strong><span style="color:#98918a">preview</span></div>
+      <div class="pill status-pill" title="Baked PBR skin is applied; no approved measurement record exists for this body"><i class="status-dot"></i><span>DRAFT · NO MEASUREMENT RECORD</span></div>
+    </div>
+    <div class="top-right">
+      <button class="icon" id="measureBtn" aria-label="Show or hide the measurement panel" aria-expanded="true">⌁</button>
+      <button class="icon" id="viewBtn" aria-label="Open display controls" aria-expanded="false">◐</button>
+    </div>
+  </header>
+
+  <section class="viewport" aria-label="Interactive 3D avatar prototype">
+    <canvas id="canvas"></canvas>
+    <img class="fallback" id="fallbackImage" src="assets/export/avatar_master_reference_render.png" alt="Static avatar fallback render" hidden>
+  </section>
+  <div class="loading" id="loading" role="status"><i class="spinner"></i><strong>Loading draft GLB</strong><span id="loadingDetail">Preparing viewer…</span></div>
+  <div class="error-card" id="errorCard" role="alert" hidden><strong>Interactive GLB could not load</strong><p id="errorMessage">A static draft view is shown. Serve this folder through localhost and retry.</p></div>
+  <div class="tip" id="tip">Drag to orbit · wheel/pinch to zoom · use view presets</div>
+  <div class="pen-labels" id="penLabels" aria-hidden="true"></div>
+  <div class="section-readout" id="sectionReadout"></div>
+  <div class="section-tool" id="sectionTool">
+    <input type="range" id="sectionSlider" min="1050" max="1560" step="1" value="1330"
+           aria-label="Measure a horizontal section at any height">
+  </div>
+  <div class="asset-tag" id="assetTag">avatar_master.glb · loading</div>
+  <output id="prototypeDiagnostics" hidden aria-hidden="true"></output>
+
+  <aside class="measure-panel" id="measurePanel" aria-label="Mesh measurements">
+    <div class="panel-head">
+      <div class="panel-title">Mesh measurements</div>
+      <button class="close" id="closeMeasure" aria-label="Hide measurements">×</button>
+    </div>
+    <table class="mtable">
+      <thead><tr><th>Point</th><th class="n">Cm</th><th class="n">Inch</th></tr></thead>
+      <tbody id="measureRows"><tr><td colspan="3" class="h">Measuring…</td></tr></tbody>
+    </table>
+    <div class="mtools">
+      <button id="tapeToggle" aria-pressed="true"><i class="swatch" style="background:#d93a2b"></i>Tape lines</button>
+      <button id="penToggle" aria-pressed="false"><i class="swatch" style="background:#2f4f6f"></i>Pen</button>
+      <button id="penFinish" disabled>Finish line</button>
+      <button id="penUndo" disabled>Undo point</button>
+      <button id="penClear" disabled>Clear</button>
+      <button id="penExport" disabled>Export lines</button>
+    </div>
+    <div class="mtools">
+      <button id="sectionToggle" aria-pressed="false"><i class="swatch" style="background:#a8760f"></i>Section</button>
+      <button id="landmarkToggle" aria-pressed="false"><i class="swatch" style="background:#f0a02a"></i>Landmarks</button>
+      <button id="landmarkSave" disabled>Save</button>
+      <button id="landmarkReset" disabled>Reset</button>
+    </div>
+    <div class="lm-list" id="landmarkList" hidden></div>
+    <div class="strokes" id="strokeList" hidden></div>
+  </aside>
+
+  <button class="text-btn" id="editBtn" aria-expanded="false">Shape contract</button>
+  <aside class="panel" id="shapePanel" aria-label="Shape contract status">
+    <div class="panel-head"><div class="panel-title">Semantic shape controls</div><button class="close" id="closeShape" aria-label="Close">×</button></div>
+    <div class="notice"><strong>Unavailable for this avatar.</strong><br>This mesh is a static CLO3D export with no shape-key morph targets. Shape controls stay disabled rather than pretending to affect the body.</div>
+  </aside>
+
+  <aside class="pop" id="viewPop" aria-label="Display controls">
+    <div class="pop-title">Display</div>
+    <div class="display-row"><span>Body</span><button class="toggle" data-role="BODY" aria-pressed="true">On</button></div>
+    <div class="display-row"><span>Wireframe</span><button class="toggle" data-role="WIREFRAME" aria-pressed="false">Off</button></div>
+    <div class="note">This avatar has no separate garment meshes yet — body only.</div>
+  </aside>
+
+  <nav class="bottom-nav" aria-label="Camera view presets">
+    <button class="active" data-view="front">Front</button>
+    <button data-view="three-quarter">45°</button>
+    <button data-view="side">Side</button>
+    <button data-view="back">Back</button>
+    <button data-view="reset">Reset</button>
+  </nav>
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+// The measurement engine is a shared module: the Node parity test imports this
+// same file, so "the viewer agrees with the test" holds by construction.
+import { DEFAULT_SCAN, measureSection, scanSurface, findLandmarks, computePoms, inchFraction,
+  applyLandmarkOverrides, pomProvenance, computeSurfacePoms, findArmholes,
+  findFoldLandmarks } from './scripts/measure_core.mjs';
+import { buildGrid, closestOnMesh, surfaceRun, pointAtFraction } from './scripts/surface_path.mjs';
+
+const ASSET_URL='assets/export/avatar_master.glb';
+const ASSET_VERSION='0.2.0-clo3d-textured.1';
+const ASSET_SHA='0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4';
+const canvas=document.getElementById('canvas');
+const loading=document.getElementById('loading');
+const loadingDetail=document.getElementById('loadingDetail');
+const errorCard=document.getElementById('errorCard');
+const errorMessage=document.getElementById('errorMessage');
+const fallbackImage=document.getElementById('fallbackImage');
+const assetTag=document.getElementById('assetTag');
+
+const loadStartedAt=performance.now();
+const prototypeState={status:'LOADING',assetUrl:ASSET_URL,version:ASSET_VERSION,sha256:ASSET_SHA,roleCounts:{BODY:0,BIKINI_TOP:0,BIKINI_BRIEF:0},roleVisibility:{BODY:true,BIKINI_TOP:true,BIKINI_BRIEF:true},wireframe:false,meshCount:0,morphNames:[],armaturePresent:false,loadMs:null,camera:null,error:null};
+window.__avatarPrototype=prototypeState;
+const diagnosticOutput=document.getElementById('prototypeDiagnostics');
+function syncDiagnostics(){diagnosticOutput.textContent=JSON.stringify(prototypeState);document.documentElement.dataset.prototypeStatus=prototypeState.status}
+syncDiagnostics();
+
+let renderer,scene,camera,controls,avatarRoot,modelCenter=new THREE.Vector3(0,.85,0),modelSize=new THREE.Vector3(1,1.7,.5),modelRadius=1.05,cameraGoal=null;
+const roleMeshes={BODY:[],BIKINI_TOP:[],BIKINI_BRIEF:[]};
+
+function fail(message){
+  prototypeState.status='ERROR';prototypeState.error=String(message);
+  prototypeState.loadMs=Math.round(performance.now()-loadStartedAt);syncDiagnostics();
+  loading.hidden=true;canvas.hidden=true;fallbackImage.hidden=false;errorCard.hidden=false;
+  errorMessage.textContent=String(message)+' A static draft view is shown instead.';
+  assetTag.textContent='avatar_master.glb · fallback image';
+}
+
+function setBusyDetail(text){loadingDetail.textContent=text}
+
+function initScene(){
+  if(!window.WebGLRenderingContext)throw new Error('WebGL is not available in this browser.');
+  renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  // PBR Neutral keeps skin tone accurate; ACES desaturates warm midtones toward white.
+  renderer.toneMapping=THREE.NeutralToneMapping;renderer.toneMappingExposure=1.0;
+  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(28,1,.01,100);
+  controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.07;controls.minPolarAngle=.35;controls.maxPolarAngle=Math.PI-.35;controls.minDistance=.06;controls.maxDistance=7;
+  // Image-based studio lighting carries the skin shading; the directionals only
+  // shape it, so the body is not blown out to a flat off-white.
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+  scene.environmentIntensity=0.85;
+  const key=new THREE.DirectionalLight(0xfff4e8,1.5);key.position.set(2.6,4.1,3.4);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.bias=-0.0005;scene.add(key);
+  const fill=new THREE.DirectionalLight(0xdbe5ef,0.45);fill.position.set(-3,2,2);scene.add(fill);
+  const rim=new THREE.DirectionalLight(0xffe7d2,0.7);rim.position.set(1.5,2,-3);scene.add(rim);
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(2.2,64),new THREE.ShadowMaterial({color:0x554a42,opacity:.16}));ground.rotation.x=-Math.PI/2;ground.position.y=-.002;ground.receiveShadow=true;ground.name='PrototypeGround';scene.add(ground);
+  window.addEventListener('resize',resize);resize();
+}
+
+function resize(){
+  if(!renderer||!camera)return;const w=canvas.clientWidth||1,h=canvas.clientHeight||1;
+  renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
+  lineMaterials.forEach(material=>material.resolution.set(w,h));
+}
+
+function roleFor(object){return object.userData?.object_role||object.parent?.userData?.object_role||null}
+
+function prepareModel(root){
+  Object.values(roleMeshes).forEach(list=>list.length=0);
+  const morphs=new Set();let armatures=0;
+  root.traverse(object=>{
+    if(object.isBone)armatures++;
+    if(!object.isMesh)return;
+    prototypeState.meshCount++;
+    object.castShadow=true;object.receiveShadow=true;
+    const role=roleFor(object);if(role&&roleMeshes[role])roleMeshes[role].push(object);
+    if(object.morphTargetDictionary)Object.keys(object.morphTargetDictionary).forEach(name=>morphs.add(name));
+    if(object.morphTargetInfluences)object.morphTargetInfluences.fill(0);
+    const mats=Array.isArray(object.material)?object.material:[object.material];
+    // Flat cards (lashes/brows) and open garment shells must render both
+    // faces; forcing FrontSide hides half the hair cards.
+    mats.filter(Boolean).forEach(mat=>{mat.side=role==='BODY'||role==='EYE_L'||role==='EYE_R'?THREE.FrontSide:THREE.DoubleSide;mat.needsUpdate=true});
+  });
+  prototypeState.morphNames=[...morphs];prototypeState.armaturePresent=armatures>0;
+  prototypeState.roleCounts=Object.fromEntries(Object.entries(roleMeshes).map(([role,meshes])=>[role,meshes.length]));
+  const box=new THREE.Box3().setFromObject(root),sphere=new THREE.Sphere();box.getBoundingSphere(sphere);
+  modelCenter.copy(sphere.center);box.getSize(modelSize);modelRadius=Math.max(sphere.radius,.6);
+  // Allow close-up inspection (lashes/brows) instead of clamping at body scale.
+  controls.target.copy(modelCenter);controls.minDistance=.06;controls.maxDistance=modelRadius*5;
+  setView('front',false);
+}
+
+/* ---------------------------------------------------------------------------
+   Measurement engine — runs live on the loaded torso geometry.
+
+   Girth is the perimeter of the CONVEX HULL of a horizontal cross-section, not
+   the perimeter of the raw contour. A tape measure bridges concavities (the
+   cleavage gap, the spinal groove) instead of sinking into them; on this body
+   the raw contour over-reports the full bust by ~20mm. Calibrated against a
+   cylinder of known girth: 628.21mm measured vs 628.32mm true (-0.11mm).
+
+   Arms must be excluded: a horizontal plane at bust height also cuts both arms.
+   They are a separate glTF primitive, so filtering by material name is exact.
+
+   Axes: the GLB is Y-up, the body faces +Z, so a section is taken at constant Y
+   and its 2D coordinates are (x, z). Front-most = maximum z.
+--------------------------------------------------------------------------- */
+const REGISTRY_URL='contracts/measurement-registry.json';
+let registry=null,torsoTris=null,measureScan=[],tapeGroup=null;
+let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
+let sectionOpen=false,sectionGroup=null;
+let landmarksVisible=false,placingLandmark=null,landmarkGroup=null;
+let foldMarks={},armholes={};
+// Hand-placed landmarks are persisted per browser, and Save writes the file the
+// authority pass reads — a correction here becomes corrected evidence, not a
+// local illusion.
+let overrides={landmarks:{}};
+try{const stored=localStorage.getItem('landmarkOverrides');if(stored)overrides=JSON.parse(stored)}catch(error){/* private mode */}
+let measureRowData=[],selectedTapeIndex=-1,tapesVisible=true;
+try{tapesVisible=localStorage.getItem('tapesVisible')!=='0'}catch(error){/* private mode */}
+
+function collectSurfaceTriangles(root,materialNames){
+  root.updateMatrixWorld(true);
+  const wanted=new Set(materialNames);
+  const out=[],v=new THREE.Vector3();
+  root.traverse(object=>{
+    if(!object.isMesh)return;
+    const mats=Array.isArray(object.material)?object.material:[object.material];
+    if(!mats.some(m=>m&&wanted.has(m.name)))return;
+    const pos=object.geometry.attributes.position,idx=object.geometry.index;
+    const count=idx?idx.count:pos.count;
+    for(let i=0;i<count;i++){
+      v.fromBufferAttribute(pos,idx?idx.getX(i):i).applyMatrix4(object.matrixWorld);
+      out.push(v.x,v.y,v.z);
+    }
+  });
+  return new Float32Array(out);
+}
+
+async function loadRegistry(){
+  try{
+    const response=await fetch(REGISTRY_URL,{cache:'no-store'});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    return await response.json();
+  }catch(error){
+    // Degrade to the engine defaults rather than showing nothing, and say so.
+    return {
+      fallback:String(error&&error.message||error),
+      measurement_surface:['Mara:body3'],
+      scan:DEFAULT_SCAN,
+      reporting:{inch_denominator:8},
+      landmarks:[],
+      poms:[
+        {id:'BODY_WAIST_GIRTH',label_short:'Waist',method:'plane_section',status:'auto'},
+        {id:'BODY_UNDERBUST_GIRTH',label_short:'Underbust (fold)',method:'plane_section',status:'auto'},
+        {id:'BODY_BUST_GIRTH',label_short:'Bust (apex level)',method:'plane_section',status:'needs_review'},
+        {id:'DIAG_MAX_TORSO_GIRTH',label_short:'Max girth',method:'plane_section',status:'diagnostic'},
+        {id:'BODY_APEX_TO_APEX',label_short:'Apex to apex',method:'euclidean',status:'auto'},
+      ],
+    };
+  }
+}
+
+/* --- line drawing ---------------------------------------------------------
+   WebGL ignores gl.lineWidth, so plain THREE.Line is always a 1px hairline.
+   Line2 draws screen-space-width strips instead, which is what makes a tape
+   readable on the body and in a screenshot. Every LineMaterial needs its
+   resolution kept in sync with the canvas. ----------------------------------*/
+const TAPE_COLOR=0xd93a2b,INK_COLOR=0x2f4f6f;
+const lineMaterials=new Set();
+
+function makeLine(points,{color,width,opacity=1,depthTest=true,order=0}){
+  const geometry=new LineGeometry();
+  const flat=[];
+  for(const p of points)flat.push(p.x,p.y,p.z);
+  geometry.setPositions(flat);
+  const material=new LineMaterial({color,linewidth:width,transparent:opacity<1,opacity,depthTest,dashed:false});
+  material.resolution.set(canvas.clientWidth||1,canvas.clientHeight||1);
+  lineMaterials.add(material);
+  const line=new Line2(geometry,material);
+  line.computeLineDistances();
+  line.renderOrder=order;
+  return line;
+}
+
+function disposeGroup(group){
+  if(!group)return;
+  group.traverse(o=>{
+    if(o.geometry)o.geometry.dispose();
+    if(o.material){lineMaterials.delete(o.material);o.material.dispose()}
+  });
+  scene.remove(group);
+}
+
+// The tape ring, nudged 1.5mm clear of the skin so it does not z-fight.
+function ringPoints(section){
+  let cx=0,cz=0;
+  for(const q of section.ring){cx+=q[0];cz+=q[1]}
+  cx/=section.ring.length;cz/=section.ring.length;
+  const pts=section.ring.map(([x,z])=>{
+    const dx=x-cx,dz=z-cz,L=Math.hypot(dx,dz)||1;
+    return new THREE.Vector3(x+dx/L*0.0015,section.y,z+dz/L*0.0015);
+  });
+  pts.push(pts[0].clone());
+  return pts;
+}
+
+function clearTape(){disposeGroup(tapeGroup);tapeGroup=null}
+
+/* Draws the measured tapes in red. `tapesVisible` shows all of them at once;
+   the row selected in the table is drawn heavier, with a faint see-through
+   copy so the half hidden behind the body still reads as one loop. */
+function redrawTapes(){
+  clearTape();
+  if(!measureRowData.length)return;
+  tapeGroup=new THREE.Group();tapeGroup.name='MeasurementTapes';
+  measureRowData.forEach((row,index)=>{
+    const selected=index===selectedTapeIndex;
+    if(!tapesVisible&&!selected)return;
+    const pts=row.path
+      ? row.path.map(a=>{
+          const radial=Math.hypot(a[0],a[2])||1;
+          return new THREE.Vector3(a[0]*(1+0.0015/radial),a[1],a[2]*(1+0.0015/radial));
+        })
+      : ringPoints(row.section);
+    tapeGroup.add(makeLine(pts,{color:TAPE_COLOR,width:selected?3.2:2,opacity:selected?1:.6}));
+    if(selected){
+      tapeGroup.add(makeLine(pts,{color:TAPE_COLOR,width:1.6,opacity:.25,depthTest:false,order:3}));
+    }
+  });
+  scene.add(tapeGroup);
+}
+
+const CM=v=>(v*100).toFixed(1);
+const M=v=>v.toFixed(3);
+const STATUS_MARK={needs_review:'?',diagnostic:'·'};
+
+function renderMeasurements(marks,poms,elapsedMs){
+  const tbody=document.getElementById('measureRows');
+  if(!marks||!poms){
+    tbody.innerHTML='<tr><td colspan="3" class="h">Unavailable — the measurement surface '
+      +registry.measurement_surface.join(', ')+' is not in this asset.</td></tr>';
+    return;
+  }
+  // The registry decides what is reported and in what order; nothing is
+  // measured or shown that it does not declare.
+  // Visible absence beats silent omission: a POM that is measurable but waiting
+  // on a hand-placed landmark is listed, greyed, with the reason on hover.
+  const rows=registry.poms
+    .filter(spec=>['plane_section','surface_path','section_arc'].includes(spec.method)
+      &&(poms[spec.id]||spec.status==='blocked_until_manual'))
+    .map(spec=>({spec,result:poms[spec.id]||null}));
+  tbody.innerHTML='';
+  measureRowData=[];
+  selectedTapeIndex=-1;
+  rows.forEach(({spec,result},index)=>{
+    const isPath=spec.method!=='plane_section';
+    const section=(isPath||!result)?null:measureSection(torsoTris,result.at_y);
+    const tr=document.createElement('tr');
+    if(spec.status==='diagnostic'||!result)tr.className='landmark';
+    if(!result){
+      tr.innerHTML=`<td>${spec.label_short||spec.label_en} <em>⊘</em></td>`
+        +`<td class="val">—</td><td class="in">—</td>`;
+      tr.title=`Waiting on a hand-placed landmark (${(spec.unblocked_by||[]).join(', ')}). `
+        +(spec.blocked_reason||'');
+      tbody.appendChild(tr);
+      return;
+    }
+    tr.setAttribute('aria-selected','false');
+    const mark=STATUS_MARK[spec.status]||'';
+    const provenance=marks&&marks.source?pomProvenance(spec.id,marks.source):'auto';
+    const manualMark=provenance==='auto'?'':' <em title="depends on a hand-placed landmark">✎</em>';
+    tr.title=(provenance==='auto'?'':`Depends on a hand-placed landmark (${provenance}). `)
+      +(spec.review_reason||spec.comment||spec.label_en||'');
+    tr.innerHTML=`<td>${spec.label_short||spec.label_en}${mark?' <em>'+mark+'</em>':''}${manualMark}</td>`
+      +`<td class="val">${CM(result.value)}</td>`
+      +`<td class="in">${inchFraction(result.value,registry.reporting.inch_denominator)}</td>`;
+    tr.addEventListener('click',()=>{
+      selectedTapeIndex=selectedTapeIndex===index?-1:index;
+      tbody.querySelectorAll('tr').forEach((r,i)=>r.setAttribute('aria-selected',String(i===selectedTapeIndex)));
+      redrawTapes();
+    });
+    tbody.appendChild(tr);
+    // a girth POM draws as a ring, a surface-path POM as its own polyline
+    if(isPath&&result.points)measureRowData.push({label:spec.label_short,path:result.points});
+    else if(section)measureRowData.push({label:spec.label_short,section});
+  });
+  redrawTapes();
+
+}
+
+async function runMeasurements(root){
+  const started=performance.now();
+  registry=await loadRegistry();
+  torsoTris=collectSurfaceTriangles(root,registry.measurement_surface);
+  if(!torsoTris.length){renderMeasurements(null,null,0);return}
+  measureScan=scanSurface(torsoTris,registry.scan);
+  const foldRule=(registry.landmarks||[]).find(l=>l.id==='UNDERBUST_FOLD')||{};
+  autoMarks=findLandmarks(measureScan,foldRule);
+  // surface-path POMs need the nearest-surface grid over the measurement surface
+  measureGrid=buildGrid(torsoTris);
+  autoHps={};   // HPS is manual-only on this asset; see the registry entry
+  armholes=findArmholes(torsoTris);
+  const slider=document.getElementById('sectionSlider');
+  slider.min=Math.round(registry.scan.from_m*1000);
+  slider.max=Math.round(registry.scan.to_m*1000);
+  if(autoMarks)slider.value=Math.round(autoMarks.bustLevel*1000);
+  recomputeMeasurements(Math.round(performance.now()-started));
+}
+
+// Landmarks change far more often than geometry, so the scan is reused and only
+// the landmark-dependent work re-runs. That is what keeps a correction instant.
+function recomputeMeasurements(elapsedMs){
+  const started=performance.now();
+  marks=applyLandmarkOverrides(autoMarks,overrides);
+  hps={...autoHps};
+  const manualPoints={};
+  for(const [id,spec] of Object.entries(overrides.landmarks||{})){
+    if(Array.isArray(spec.xyz_m)&&spec.xyz_m.length===3){
+      manualPoints[id]={x:spec.xyz_m[0],y:spec.xyz_m[1],z:spec.xyz_m[2]};
+      if(id==='HPS_L')hps.hpsL=manualPoints[id];
+      if(id==='HPS_R')hps.hpsR=manualPoints[id];
+    }
+  }
+  foldMarks=marks&&marks.fold?findFoldLandmarks(torsoTris,marks.fold.y):{};
+  poms=marks?computePoms(torsoTris,measureScan,marks):null;
+  if(poms&&measureGrid)Object.assign(poms,computeSurfacePoms(
+    measureGrid,torsoTris,marks,{hps,manualPoints,foldLandmarks:foldMarks,armholes}));
+  const elapsed=elapsedMs??Math.round(performance.now()-started);
+  renderMeasurements(marks,poms,elapsed);
+  renderLandmarkList();
+  redrawLandmarks();
+  prototypeState.registrySha=null;
+  prototypeState.measurements=poms
+    ? Object.fromEntries(Object.entries(poms).map(([id,r])=>[id,{
+        value_mm:+(r.value*1000).toFixed(1),at_y:+r.at_y.toFixed(4),
+      }]))
+    : null;
+  prototypeState.landmarks=marks
+    ? {
+        BUST_APEX_L:[+marks.apexL.x.toFixed(4),+marks.apexL.y.toFixed(4),+marks.apexL.z.toFixed(4)],
+        BUST_APEX_R:[+marks.apexR.x.toFixed(4),+marks.apexR.y.toFixed(4),+marks.apexR.z.toFixed(4)],
+        BUST_LEVEL:+marks.bustLevel.toFixed(4),
+        UNDERBUST_FOLD:marks.fold?+marks.fold.y.toFixed(4):null,
+        WAIST_LEVEL:marks.waist?+marks.waist.y.toFixed(4):null,
+      }
+    : null;
+  prototypeState.landmarkSource=marks?marks.source:null;
+  prototypeState.measureMs=elapsed;
+  syncDiagnostics();
+}
+
+/* ---- landmarks: markers, hand placement, and a saved override file --------
+   Detected landmarks can be corrected and manual-only ones placed. The file
+   Save writes is the same one scripts/measure_avatar.py reads, so a correction
+   here becomes corrected evidence rather than a viewer-local illusion. ------ */
+const LANDMARK_GROUPS=[
+  {group:'Bust',rows:[
+    {id:'BUST_APEX_L',label:'Bust apex L',kind:'point'},
+    {id:'BUST_APEX_R',label:'Bust apex R',kind:'point'},
+    {id:'BUST_LEVEL',label:'Bust level',kind:'level'},
+    {id:'UNDERBUST_FOLD',label:'Underbust fold',kind:'level'},
+    {id:'WAIST_LEVEL',label:'Waist level',kind:'level'},
+  ]},
+  {group:'Band and wing',rows:[
+    {id:'CF_UNDERBUST',label:'Centre front (gore)',kind:'point'},
+    {id:'CB_UNDERBUST',label:'Centre back',kind:'point'},
+    {id:'SIDE_UNDERBUST_L',label:'Side point L',kind:'point'},
+    {id:'SIDE_UNDERBUST_R',label:'Side point R',kind:'point'},
+    {id:'UNDERARM_L',label:'Underarm L',kind:'point'},
+    {id:'UNDERARM_R',label:'Underarm R',kind:'point'},
+  ]},
+  {group:'Place by hand',rows:[
+    {id:'HPS_L',label:'HPS L',kind:'point',manualOnly:true},
+    {id:'HPS_R',label:'HPS R',kind:'point',manualOnly:true},
+    {id:'ROOT_INNER_L',label:'Root inner L',kind:'point',manualOnly:true},
+    {id:'ROOT_OUTER_L',label:'Root outer L',kind:'point',manualOnly:true},
+    {id:'ROOT_TOP_L',label:'Root top L',kind:'point',manualOnly:true},
+    {id:'ROOT_INNER_R',label:'Root inner R',kind:'point',manualOnly:true},
+    {id:'ROOT_OUTER_R',label:'Root outer R',kind:'point',manualOnly:true},
+    {id:'ROOT_TOP_R',label:'Root top R',kind:'point',manualOnly:true},
+  ]},
+];
+const LANDMARK_ROWS=LANDMARK_GROUPS.flatMap(g=>g.rows);
+const LANDMARK_COLOR=0xf0a02a;
+
+function landmarkValue(id){
+  const manual=(overrides.landmarks||{})[id];
+  if(manual&&Array.isArray(manual.xyz_m))
+    return {x:manual.xyz_m[0],y:manual.xyz_m[1],z:manual.xyz_m[2]};
+  if(manual&&Number.isFinite(manual.y_m))return {y:manual.y_m};
+  if(!marks)return null;
+  if(id==='BUST_APEX_L')return marks.apexL;
+  if(id==='BUST_APEX_R')return marks.apexR;
+  if(id==='BUST_LEVEL')return {y:marks.bustLevel};
+  if(id==='UNDERBUST_FOLD')return marks.fold;
+  if(id==='WAIST_LEVEL')return marks.waist;
+  if(id==='CF_UNDERBUST')return foldMarks.cfUnderbust;
+  if(id==='CB_UNDERBUST')return foldMarks.cbUnderbust;
+  if(id==='SIDE_UNDERBUST_L')return foldMarks.sideL;
+  if(id==='SIDE_UNDERBUST_R')return foldMarks.sideR;
+  if(id==='UNDERARM_L')return armholes.armholeL;
+  if(id==='UNDERARM_R')return armholes.armholeR;
+  return null;
+}
+
+// A level landmark is a height, not a point, so it is marked where a fitter
+// would read it: the front-most place on that section.
+function landmarkPosition(id){
+  const value=landmarkValue(id);
+  if(!value)return null;
+  if(Number.isFinite(value.x))return new THREE.Vector3(value.x,value.y,value.z);
+  const section=measureSection(torsoTris,value.y);
+  if(!section)return null;
+  let front=null;
+  for(const q of section.ring)if(!front||q[1]>front[1])front=q;
+  return front?new THREE.Vector3(front[0],value.y,front[1]):null;
+}
+
+function redrawLandmarks(){
+  disposeGroup(landmarkGroup);landmarkGroup=null;
+  if(!landmarksVisible||!marks)return;
+  landmarkGroup=new THREE.Group();landmarkGroup.name='Landmarks';
+  for(const row of LANDMARK_ROWS){
+    const position=landmarkPosition(row.id);
+    if(!position)continue;
+    const picked=placingLandmark===row.id;
+    const manual=Boolean((overrides.landmarks||{})[row.id]);
+    const dot=new THREE.Mesh(
+      new THREE.SphereGeometry(picked?0.008:0.0055,14,10),
+      new THREE.MeshBasicMaterial({color:picked?0xd93a2b:manual?0xf0a02a:0xc9922f}));
+    const outward=new THREE.Vector3(position.x,0,position.z);
+    if(outward.lengthSq()>1e-9)position.addScaledVector(outward.normalize(),0.003);
+    dot.position.copy(position);
+    landmarkGroup.add(dot);
+  }
+  scene.add(landmarkGroup);
+}
+
+function renderLandmarkList(){
+  const list=document.getElementById('landmarkList');
+  const anyManual=Object.keys(overrides.landmarks||{}).length>0;
+  document.getElementById('landmarkSave').disabled=!anyManual;
+  document.getElementById('landmarkReset').disabled=!anyManual;
+  if(!landmarksVisible||!marks){list.hidden=true;list.innerHTML='';return}
+  list.hidden=false;
+  list.innerHTML='';
+  for(const {group,rows} of LANDMARK_GROUPS){
+    const heading=document.createElement('p');
+    heading.className='lm-group';heading.textContent=group;
+    list.appendChild(heading);
+    for(const row of rows){
+      const value=landmarkValue(row.id);
+      const manual=Boolean((overrides.landmarks||{})[row.id]);
+      const element=document.createElement('div');
+      element.className='lm-row';
+      element.setAttribute('aria-selected',String(placingLandmark===row.id));
+      const badge=manual?'manual':row.manualOnly?'needed':'auto';
+      const text=value
+        ? (Number.isFinite(value.x)
+            ? `${(value.y*100).toFixed(1)} · x ${(value.x*100).toFixed(1)}`
+            : `${(value.y*100).toFixed(1)}`)
+        : 'not placed';
+      element.innerHTML=`<span>${row.label}</span>`
+        +`<span class="badge ${badge==='auto'?'':badge}">${badge}</span><b>${text}</b>`;
+      element.addEventListener('click',event=>{
+        if(event.target.tagName==='BUTTON')return;
+        placingLandmark=placingLandmark===row.id?null:row.id;
+        renderLandmarkList();redrawLandmarks();
+      });
+      if(manual){
+        const clear=document.createElement('button');
+        clear.textContent='×';clear.setAttribute('aria-label','Return this landmark to automatic');
+        clear.addEventListener('click',()=>{
+          delete overrides.landmarks[row.id];persistOverrides();recomputeMeasurements();
+        });
+        element.appendChild(clear);
+      }
+      list.appendChild(element);
+    }
+  }
+  const hint=document.createElement('p');
+  hint.className='lm-hint';hint.id='landmarkHint';
+  const row=LANDMARK_ROWS.find(r=>r.id===placingLandmark);
+  hint.textContent=row
+    ? (row.kind==='point'
+        ? `Click the body to place ${row.label}.`
+        : `Click the body to set the height of ${row.label}; only the height is used.`)
+    : (anyManual
+        ? 'Save writes qa/avatar_master/landmarks.manual.json — the file the authority pass reads.'
+        : 'Values in cm. Click a row, then click the body to place or correct it.');
+  list.appendChild(hint);
+}
+
+function persistOverrides(){
+  try{localStorage.setItem('landmarkOverrides',JSON.stringify(overrides))}catch(error){/* private mode */}
+}
+
+function placeLandmark(id,point){
+  const row=LANDMARK_ROWS.find(r=>r.id===id);
+  if(!row)return;
+  overrides.landmarks=overrides.landmarks||{};
+  overrides.landmarks[id]=row.kind==='point'
+    ? {xyz_m:[+point.x.toFixed(5),+point.y.toFixed(5),+point.z.toFixed(5)]}
+    : {y_m:+point.y.toFixed(5)};
+  persistOverrides();
+  placingLandmark=null;
+  recomputeMeasurements();
+}
+
+function saveLandmarks(){
+  const payload={
+    schema_version:1,
+    asset:ASSET_URL.replace(/^.*\//,''),
+    asset_sha256:ASSET_SHA,
+    recorded_at:new Date().toISOString().replace(/\.\d{3}Z$/,'Z'),
+    author:'placed in the viewer',
+    landmarks:overrides.landmarks,
+  };
+  const text=JSON.stringify(payload,null,2)+'\n';
+  const blob=new Blob([text],{type:'application/json'});
+  const link=document.createElement('a');
+  link.href=URL.createObjectURL(blob);
+  link.download='landmarks.manual.json';
+  document.body.appendChild(link);link.click();link.remove();
+  try{navigator.clipboard.writeText(text)}catch(error){/* no clipboard permission */}
+  console.log('landmarks.manual.json — save into qa/avatar_master/\n'+text);
+  const hint=document.getElementById('landmarkHint');
+  if(hint)hint.textContent='Saved and copied. Put it in qa/avatar_master/, then run npm run validate:measurements.';
+}
+
+/* ---- live section: measure any height, not only the named landmarks ------- */
+function drawSection(y){
+  disposeGroup(sectionGroup);sectionGroup=null;
+  const readout=document.getElementById('sectionReadout');
+  if(!sectionOpen||!torsoTris){readout.classList.remove('open');return}
+  const section=measureSection(torsoTris,y);
+  if(!section){readout.classList.remove('open');return}
+  let cx=0,cz=0;
+  for(const q of section.ring){cx+=q[0];cz+=q[1]}
+  cx/=section.ring.length;cz/=section.ring.length;
+  const points=section.ring.map(([x,z])=>{
+    const dx=x-cx,dz=z-cz,L=Math.hypot(dx,dz)||1;
+    return new THREE.Vector3(x+dx/L*0.002,y,z+dz/L*0.002);
+  });
+  points.push(points[0].clone());
+  sectionGroup=new THREE.Group();sectionGroup.name='LiveSection';
+  sectionGroup.add(makeLine(points,{color:0xa8760f,width:2.6}));
+  sectionGroup.add(makeLine(points,{color:0xa8760f,width:1.4,opacity:.25,depthTest:false,order:3}));
+  scene.add(sectionGroup);
+  const denom=registry.reporting.inch_denominator;
+  readout.classList.add('open');
+  readout.innerHTML=`<b>${(section.girth*100).toFixed(1)}cm</b> ${inchFraction(section.girth,denom)}`
+    +`<br>y = ${y.toFixed(3)}m`
+    +`<br>hull vs contour ${((section.contour-section.girth)*1000).toFixed(1)}mm`;
+  prototypeState.liveSection={y:+y.toFixed(4),girth_mm:+(section.girth*1000).toFixed(1)};
+  syncDiagnostics();
+}
+
+/* --- pen: drafting measured lines on the body -----------------------------
+   Click to pin an anchor on the surface, drag an anchor to correct it, and the
+   run between two anchors follows the BODY, not a chord through it.
+
+   How the run is found. For anchors A and B we build the plane that contains
+   both and "stands up" on the surface: its normal is cross(B-A, average surface
+   normal). Intersecting the mesh with that plane yields a curve lying on the
+   skin and passing through both anchors; the shorter arc between them is the
+   path a tape would take. It is camera-independent — rotating the view never
+   changes a measurement — and it reuses the same sectioning maths the automatic
+   tapes use. The section is welded into a graph and walked with Dijkstra, so a
+   plane that also clips an arm simply has no route through that loop.
+
+   Limit: the plane path still dips through a concavity where a real tape would
+   bridge it. Sound for drafting runs across the torso; not a substitute for the
+   hull tape on a full girth.
+--------------------------------------------------------------------------- */
+const raycaster=new THREE.Raycaster();
+const ANCHOR_LIFT=0.0018,ANCHOR_RADIUS=0.0055,HANDLE_RADIUS=0.0038,HANDLE_COLOR=0x1f8a70;
+let penMode=false,avatarTris=null,penGroup=null,anchorGroup=null;
+let draftLines=[],activeLine=null,selectedLine=-1,selectedAnchor=null,draggingAnchor=null;
+let pointerDownAt=null;
+
+function collectAllTriangles(root){
+  root.updateMatrixWorld(true);
+  const out=[],v=new THREE.Vector3();
+  root.traverse(object=>{
+    if(!object.isMesh)return;
+    const pos=object.geometry.attributes.position,idx=object.geometry.index;
+    const count=idx?idx.count:pos.count;
+    for(let i=0;i<count;i++){
+      v.fromBufferAttribute(pos,idx?idx.getX(i):i).applyMatrix4(object.matrixWorld);
+      out.push(v.x,v.y,v.z);
+    }
+  });
+  return new Float32Array(out);
+}
+
+function surfaceHit(clientX,clientY){
+  if(!avatarRoot)return null;
+  const rect=canvas.getBoundingClientRect();
+  raycaster.setFromCamera(new THREE.Vector2(
+    ((clientX-rect.left)/rect.width)*2-1,
+    -((clientY-rect.top)/rect.height)*2+1),camera);
+  const hits=raycaster.intersectObject(avatarRoot,true);
+  if(!hits.length)return null;
+  const hit=hits[0];
+  const normal=hit.face?hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
+                       :new THREE.Vector3(0,0,1);
+  return {point:hit.point.clone(),normal};
+}
+
+/* One path model, and only one. See scripts/surface_path.mjs for why: the
+   shortest path along the surface is the only definition whose SUB-PATHS are
+   themselves shortest paths, which is what makes the reading continuous when a
+   segment gains control points. The earlier pair of models (plane section for a
+   straight run, projected Bezier for a bent one) moved the number by ~3% at the
+   moment of switching, before anything had been shaped. */
+const toArr=v=>[v.x,v.y,v.z];
+const toVec=a=>new THREE.Vector3(a[0],a[1],a[2]);
+let penGrid=null;
+
+function surfaceAnchor(arr){
+  const hit=closestOnMesh(penGrid,arr);
+  return {point:toVec(hit?hit.point:arr),normal:toVec(hit?hit.normal:[0,0,1])};
+}
+
+// Path points already lie on the skin, so nudge them radially outward from the
+// body axis to keep the drawn line from z-fighting.
+function liftPath(points){
+  return points.map(a=>{
+    const radial=Math.hypot(a[0],a[2]);
+    if(radial<1e-6)return toVec(a);
+    return new THREE.Vector3(a[0]*(1+ANCHOR_LIFT/radial),a[1],a[2]*(1+ANCHOR_LIFT/radial));
+  });
+}
+
+function nearestIndex(points,q){
+  let best=0,bestDistance=Infinity;
+  for(let i=0;i<points.length;i++){
+    const d=(points[i][0]-q[0])**2+(points[i][1]-q[1])**2+(points[i][2]-q[2])**2;
+    if(d<bestDistance){bestDistance=d;best=i}
+  }
+  return best;
+}
+
+/* Split the A->B run at the two waypoints and hand each piece to its leg as a
+   seed. The legs then relax from where the parent already was, so the sum
+   reproduces the parent's length instead of re-deriving it. */
+function splitThree(points,h1,h2){
+  let i1=Math.max(1,Math.min(points.length-3,nearestIndex(points,h1)));
+  let i2=Math.max(i1+1,Math.min(points.length-2,nearestIndex(points,h2)));
+  return [points.slice(0,i1+1),points.slice(i1,i2+1),points.slice(i2)];
+}
+
+function runBetween(from,to,seed){
+  return surfaceRun(penGrid,toArr(from.point),toArr(to.point),{
+    normalA:toArr(from.normal),normalB:toArr(to.normal),
+    seed:seed&&seed.length>1?seed:undefined,
+  });
+}
+
+/* Park the two control points at a third and two thirds of arc length ALONG the
+   run, which is exactly what makes A->h1->h2->B measure the same as A->B. */
+function initHandles(seg){
+  const run=runBetween(seg.a,seg.b);
+  const h1=pointAtFraction(run.points,1/3);
+  const h2=pointAtFraction(run.points,2/3);
+  seg.handles=[surfaceAnchor(h1),surfaceAnchor(h2)];
+  seg.seeds=splitThree(run.points,h1,h2);
+}
+
+function computeSegment(seg){
+  if(!seg.handles)initHandles(seg);
+  const nodes=[seg.a,seg.handles[0],seg.handles[1],seg.b];
+  const legs=[];
+  seg.length=0;
+  seg.approximated=false;
+  for(let i=1;i<nodes.length;i++){
+    const run=runBetween(nodes[i-1],nodes[i],seg.seeds&&seg.seeds[i-1]);
+    legs.push(run.points);
+    seg.length+=run.length;
+    if(!run.onSurface)seg.approximated=true;
+  }
+  seg.seeds=legs;
+  seg.legs=legs;
+  // one polyline for drawing, dropping the duplicated joins
+  const joined=legs[0].slice();
+  for(let i=1;i<legs.length;i++)joined.push(...legs[i].slice(1));
+  seg.drawPoints=liftPath(joined);
+}
+
+// Right-click a control point: re-park both onto a freshly measured A->B run.
+function resetSegment(seg){
+  seg.handles=null;
+  seg.seeds=null;
+  computeSegment(seg);
+}
+
+// instrumentation for the automated checks in tasks/ and for diagnosing a
+// segment that will not follow the surface
+window.__penDebug={
+  surfaceRun:(a,b)=>surfaceRun(penGrid,a,b),
+  closestOnMesh:p=>closestOnMesh(penGrid,p),
+  gridCells:()=>penGrid?penGrid.cells.size:0,
+  triangleCount:()=>avatarTris?avatarTris.length/9:0,
+  // screen positions of every pin and control point, so a UI test can aim
+  dots:()=>{
+    if(!anchorGroup||!camera)return [];
+    const rect=canvas.getBoundingClientRect(),v=new THREE.Vector3();
+    return anchorGroup.children.map(dot=>{
+      v.copy(dot.position).project(camera);
+      return {
+        kind:dot.userData.handle?'handle':'anchor',
+        screen:[Math.round((v.x*0.5+0.5)*rect.width),Math.round((-v.y*0.5+0.5)*rect.height)],
+      };
+    });
+  },
+};
+
+function segmentPairs(line){
+  const pairs=[];
+  for(let i=1;i<line.anchors.length;i++)pairs.push([line.anchors[i-1],line.anchors[i]]);
+  if(line.closed&&line.anchors.length>2)pairs.push([line.anchors[line.anchors.length-1],line.anchors[0]]);
+  return pairs;
+}
+
+function rebuildLine(line,only){
+  if(!line.segmentMap)line.segmentMap=new Map();
+  line.runs=[];
+  line.length=0;
+  line.approximated=false;
+  line.segments=[];
+  for(const [a,b] of segmentPairs(line)){
+    // keyed by the anchor OBJECT, so handle edits survive inserting or
+    // deleting other points
+    let seg=line.segmentMap.get(a);
+    if(!seg){seg={handles:null,seeds:null};line.segmentMap.set(a,seg)}
+    const moved=seg.a!==a||seg.b!==b;
+    seg.a=a;seg.b=b;seg.line=line;
+    if(moved)seg.handles=null;          // an endpoint moved: re-park the handles
+    if(!only||seg===only||!seg.drawPoints)computeSegment(seg);
+    line.segments.push(seg);
+    line.runs.push(seg.drawPoints);
+    line.length+=seg.length;
+    if(seg.approximated)line.approximated=true;
+  }
+  return line;
+}
+
+function chordSpan(line){
+  if(line.anchors.length<2)return 0;
+  if(line.closed)return 0;
+  return line.anchors[0].point.distanceTo(line.anchors[line.anchors.length-1].point);
+}
+
+function redrawDraft(){
+  disposeGroup(penGroup);disposeGroup(anchorGroup);
+  penGroup=new THREE.Group();penGroup.name='DraftLines';
+  anchorGroup=new THREE.Group();anchorGroup.name='DraftAnchors';
+  const all=activeLine?draftLines.concat([activeLine]):draftLines;
+  all.forEach(line=>{
+    const isActive=line===activeLine;
+    const isSelected=draftLines.indexOf(line)===selectedLine;
+    const width=isActive||isSelected?3:2.2;
+    const opacity=isActive||isSelected?1:.62;
+    for(const run of line.runs){
+      if(run.length<2)continue;
+      penGroup.add(makeLine(run,{color:INK_COLOR,width,opacity}));
+      penGroup.add(makeLine(run,{color:INK_COLOR,width:width*0.6,opacity:.18,depthTest:false,order:3}));
+    }
+    if(isActive||isSelected){
+      line.anchors.forEach(anchor=>{
+        const isPicked=anchor===selectedAnchor;
+        const dot=new THREE.Mesh(
+          new THREE.SphereGeometry(isPicked?ANCHOR_RADIUS*1.35:ANCHOR_RADIUS,14,10),
+          new THREE.MeshBasicMaterial({color:isPicked?0xf0a02a:INK_COLOR}));
+        dot.position.copy(anchor.point).addScaledVector(anchor.normal,ANCHOR_LIFT);
+        dot.userData.anchor=anchor;dot.userData.line=line;
+        anchorGroup.add(dot);
+      });
+      // two control points per segment, with guides back to their anchors so
+      // the Bezier relationship is legible
+      (line.segments||[]).forEach(seg=>{
+        if(!seg.handles)return;
+        seg.handles.forEach((handle,slot)=>{
+          const isPicked=handle===selectedAnchor;
+          const dot=new THREE.Mesh(
+            new THREE.SphereGeometry(isPicked?HANDLE_RADIUS*1.35:HANDLE_RADIUS,12,9),
+            new THREE.MeshBasicMaterial({color:isPicked?0xf0a02a:HANDLE_COLOR}));
+          dot.position.copy(handle.point).addScaledVector(handle.normal,ANCHOR_LIFT*1.6);
+          dot.userData.handle=handle;dot.userData.seg=seg;dot.userData.line=line;
+          anchorGroup.add(dot);
+          const root=slot===0?seg.a:seg.b;
+          penGroup.add(makeLine(
+            [root.point.clone().addScaledVector(root.normal,ANCHOR_LIFT),
+             handle.point.clone().addScaledVector(handle.normal,ANCHOR_LIFT*1.6)],
+            {color:HANDLE_COLOR,width:1.2,opacity:.5,depthTest:false,order:2}));
+        });
+      });
+    }
+  });
+  scene.add(penGroup);scene.add(anchorGroup);
+  renderDraftLabels();
+}
+
+// Length labels are HTML, re-projected every frame so they track the geometry.
+function renderDraftLabels(){
+  const host=document.getElementById('penLabels');
+  host.innerHTML='';
+  const all=activeLine?draftLines.concat([activeLine]):draftLines;
+  all.forEach(line=>{line.labelEl=null});
+  all.forEach(line=>{
+    if(!line.labelVisible&&line!==activeLine)return;
+    if(!line.runs.length||line.length<=0)return;
+    const label=document.createElement('div');
+    label.className='mlabel';
+    label.textContent=`${(line.length*100).toFixed(1)}cm · ${inchFraction(line.length)}`
+      +(line.approximated?' ·straight':'');
+    host.appendChild(label);
+    line.labelEl=label;
+  });
+  positionDraftLabels();
+}
+
+function positionDraftLabels(){
+  if(!camera)return;
+  const all=activeLine?draftLines.concat([activeLine]):draftLines;
+  const projected=new THREE.Vector3();
+  all.forEach(line=>{
+    if(!line.labelEl)return;
+    const runs=line.runs.filter(r=>r.length>1);
+    if(!runs.length){line.labelEl.style.display='none';return}
+    const run=runs[Math.floor(runs.length/2)];
+    projected.copy(run[Math.floor(run.length/2)]).project(camera);
+    if(projected.z>1){line.labelEl.style.display='none';return}
+    line.labelEl.style.display='block';
+    line.labelEl.style.left=((projected.x*0.5+0.5)*canvas.clientWidth)+'px';
+    // lifted clear of the curve so it never hides the control points
+    line.labelEl.style.top=((-projected.y*0.5+0.5)*canvas.clientHeight-20)+'px';
+  });
+}
+
+function renderDraftList(){
+  const list=document.getElementById('strokeList');
+  const hasLines=draftLines.length>0;
+  document.getElementById('penUndo').disabled=!(activeLine&&activeLine.anchors.length)&&!hasLines;
+  document.getElementById('penClear').disabled=!hasLines&&!activeLine;
+  document.getElementById('penFinish').disabled=!(activeLine&&activeLine.anchors.length>1);
+  document.getElementById('penExport').disabled=!hasLines;
+  if(!hasLines&&!activeLine){list.hidden=true;list.innerHTML='';return}
+  list.hidden=false;
+  list.innerHTML='';
+  draftLines.forEach((line,index)=>{
+    const row=document.createElement('div');
+    row.className='stroke-row';
+    if(index===selectedLine)row.dataset.selected='true';
+    const span=chordSpan(line);
+    row.title=(line.approximated
+      ?'Part of this line could not follow the surface and is measured straight. '
+      :'Shortest path along the surface through its control points. ')
+      +(span?`Straight line end to end: ${(span*100).toFixed(1)}cm (${inchFraction(span)})`:'Closed loop');
+    row.innerHTML=`<i></i><span class="lname">${line.name||('Line '+(index+1))}</span>`
+      +`<b>${(line.length*100).toFixed(1)}cm</b><span>${inchFraction(line.length)}</span>`;
+    row.addEventListener('click',event=>{
+      if(event.target.tagName==='BUTTON')return;
+      selectedLine=selectedLine===index?-1:index;selectedAnchor=null;
+      redrawDraft();renderDraftList();
+    });
+    // Renamed in place rather than through window.prompt(): prompt is blocked in
+    // embedded browser contexts and the handler simply threw there.
+    const nameEl=row.querySelector('.lname');
+    const commit=()=>{
+      const next=nameEl.textContent.trim();
+      nameEl.contentEditable='false';
+      if(next&&next!==line.name){line.name=next;renderDraftList()}
+      else nameEl.textContent=line.name||('Line '+(index+1));
+    };
+    const rename=document.createElement('button');
+    rename.textContent='✎';rename.setAttribute('aria-label','Rename this line');
+    rename.addEventListener('click',()=>{
+      nameEl.contentEditable='true';
+      nameEl.focus();
+      const range=document.createRange();range.selectNodeContents(nameEl);
+      const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
+    });
+    nameEl.addEventListener('blur',commit);
+    nameEl.addEventListener('keydown',event=>{
+      if(event.key==='Enter'){event.preventDefault();nameEl.blur()}
+      if(event.key==='Escape'){nameEl.textContent=line.name||('Line '+(index+1));nameEl.blur()}
+    });
+    row.appendChild(rename);
+    const label=document.createElement('button');
+    label.textContent=line.labelVisible?'◉':'◎';
+    label.setAttribute('aria-label','Show or hide this measurement on the body');
+    label.addEventListener('click',()=>{line.labelVisible=!line.labelVisible;redrawDraft();renderDraftList()});
+    const remove=document.createElement('button');
+    remove.textContent='×';remove.setAttribute('aria-label','Delete this line');
+    remove.addEventListener('click',()=>{
+      draftLines.splice(index,1);
+      if(selectedLine===index)selectedLine=-1;
+      redrawDraft();renderDraftList();syncDraftState();
+    });
+    row.appendChild(label);row.appendChild(remove);
+    list.appendChild(row);
+  });
+  if(activeLine){
+    const row=document.createElement('div');
+    row.className='stroke-row';row.dataset.active='true';
+    row.innerHTML=activeLine.anchors.length>1
+      ?`<i></i><b>${(activeLine.length*100).toFixed(1)}cm</b><span>drafting…</span>`
+      :`<i></i><span>click the body to pin the next point</span>`;
+    list.appendChild(row);
+  }
+}
+
+function syncDraftState(){
+  prototypeState.draftLines=draftLines.map(line=>({
+    anchors:line.anchors.length,closed:line.closed,
+    length_mm:+(line.length*1000).toFixed(1),
+    on_surface:!line.approximated,
+    segments:(line.segments||[]).map(seg=>({
+      length_mm:+(seg.length*1000).toFixed(1),points:(seg.drawPoints||[]).length,
+    })),
+  }));
+  syncDiagnostics();
+}
+
+function newDraftLine(){
+  activeLine={anchors:[],runs:[],length:0,closed:false,labelVisible:true,approximated:false,
+    name:'Line '+(draftLines.length+1)};
+  selectedLine=-1;selectedAnchor=null;
+}
+
+function finishDraftLine(){
+  if(activeLine&&activeLine.anchors.length>1){
+    draftLines.push(activeLine);
+    selectedLine=draftLines.length-1;
+  }
+  activeLine=null;selectedAnchor=null;
+  if(penMode)newDraftLine();
+  redrawDraft();renderDraftList();syncDraftState();
+}
+
+function setPenMode(on){
+  penMode=on;
+  document.getElementById('penToggle').setAttribute('aria-pressed',String(on));
+  canvas.classList.toggle('pen',on);
+  document.getElementById('tip').textContent=on
+    ?'Pen: click to pin points · drag a teal control point to shape the run · right-click it to re-centre · Enter to finish'
+    :'Drag to orbit · wheel/pinch to zoom · use view presets';
+  if(on){
+    if(!avatarTris&&avatarRoot)avatarTris=collectAllTriangles(avatarRoot);
+    if(!penGrid&&avatarTris)penGrid=buildGrid(avatarTris);
+    if(!activeLine)newDraftLine();
+  }else{
+    if(activeLine&&activeLine.anchors.length>1)draftLines.push(activeLine);
+    activeLine=null;selectedAnchor=null;
+  }
+  redrawDraft();renderDraftList();syncDraftState();
+}
+
+/* Pins and control points are picked in SCREEN space within a pixel radius,
+   not by raycasting their spheres. A 3.8mm control point is under 6px across at
+   normal viewing distance, so ray picking demanded pixel-perfect aim and the
+   drag fell through to the camera instead. */
+const PICK_RADIUS_PX=15;
+function anchorAt(clientX,clientY){
+  if(!anchorGroup||!anchorGroup.children.length||!camera)return null;
+  const rect=canvas.getBoundingClientRect();
+  const px=clientX-rect.left,py=clientY-rect.top;
+  const projected=new THREE.Vector3();
+  let best=null,bestDistance=PICK_RADIUS_PX;
+  for(const dot of anchorGroup.children){
+    projected.copy(dot.position).project(camera);
+    if(projected.z>1)continue;
+    const sx=(projected.x*0.5+0.5)*rect.width;
+    const sy=(-projected.y*0.5+0.5)*rect.height;
+    const distance=Math.hypot(sx-px,sy-py);
+    // a tie goes to the control point: it is the smaller target
+    if(distance<bestDistance||(distance===bestDistance&&dot.userData.handle)){
+      bestDistance=distance;best=dot.userData;
+    }
+  }
+  return best;
+}
+
+function deleteAnchor(line,anchor){
+  const index=line.anchors.indexOf(anchor);
+  if(index<0)return;
+  line.anchors.splice(index,1);
+  if(line.anchors.length<2&&line!==activeLine){
+    const at=draftLines.indexOf(line);
+    if(at>=0)draftLines.splice(at,1);
+    selectedLine=-1;
+  }else{
+    if(line.anchors.length<3)line.closed=false;
+    rebuildLine(line);
+  }
+  selectedAnchor=null;
+  redrawDraft();renderDraftList();syncDraftState();
+}
+
+canvas.addEventListener('pointerdown',event=>{
+  if(placingLandmark){pointerDownAt={x:event.clientX,y:event.clientY};return}
+  if(!penMode)return;
+  const picked=anchorAt(event.clientX,event.clientY);
+  if(picked){
+    // grabbing a pin or a control point: move it instead of orbiting
+    draggingAnchor=picked;
+    selectedAnchor=picked.anchor||picked.handle;
+    if(picked.line!==activeLine)selectedLine=draftLines.indexOf(picked.line);
+    controls.enabled=false;
+    canvas.setPointerCapture(event.pointerId);
+    redrawDraft();
+    return;
+  }
+  pointerDownAt={x:event.clientX,y:event.clientY};
+});
+
+canvas.addEventListener('pointermove',event=>{
+  if(!draggingAnchor)return;
+  const hit=surfaceHit(event.clientX,event.clientY);
+  if(!hit)return;
+  if(draggingAnchor.handle){
+    // dragging a control point turns that one segment into a curve; only that
+    // segment is recomputed, which is what keeps the readout real-time
+    draggingAnchor.handle.point.copy(hit.point);
+    draggingAnchor.handle.normal.copy(hit.normal);
+    rebuildLine(draggingAnchor.line,draggingAnchor.seg);
+  }else{
+    draggingAnchor.anchor.point.copy(hit.point);
+    draggingAnchor.anchor.normal.copy(hit.normal);
+    rebuildLine(draggingAnchor.line);
+  }
+  redrawDraft();renderDraftList();
+});
+
+canvas.addEventListener('pointerup',event=>{
+  if(draggingAnchor){
+    if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);
+    draggingAnchor=null;controls.enabled=true;
+    renderDraftList();syncDraftState();
+    return;
+  }
+  if(!pointerDownAt)return;
+  const moved=Math.hypot(event.clientX-pointerDownAt.x,event.clientY-pointerDownAt.y);
+  const landmarkBeingPlaced=placingLandmark;
+  pointerDownAt=null;
+  if(moved>5)return;                       // that was an orbit, not a click
+  if(landmarkBeingPlaced){
+    const target=surfaceHit(event.clientX,event.clientY);
+    if(target)placeLandmark(landmarkBeingPlaced,target.point);
+    return;
+  }
+  if(!penMode)return;
+  const hit=surfaceHit(event.clientX,event.clientY);
+  if(!hit)return;
+  if(!activeLine)newDraftLine();
+  // clicking the first pin again closes the loop
+  if(activeLine.anchors.length>2){
+    const first=activeLine.anchors[0];
+    if(first.point.distanceTo(hit.point)<ANCHOR_RADIUS*2.2){
+      activeLine.closed=true;rebuildLine(activeLine);finishDraftLine();return;
+    }
+  }
+  activeLine.anchors.push({point:hit.point.clone(),normal:hit.normal.clone()});
+  rebuildLine(activeLine);
+  redrawDraft();renderDraftList();
+});
+
+canvas.addEventListener('contextmenu',event=>{
+  if(!penMode)return;
+  const picked=anchorAt(event.clientX,event.clientY);
+  if(!picked)return;
+  event.preventDefault();
+  if(picked.handle){
+    // right-clicking a control point straightens that segment back onto the
+    // shortest surface run
+    resetSegment(picked.seg);
+    rebuildLine(picked.line,picked.seg);
+    selectedAnchor=null;
+    redrawDraft();renderDraftList();syncDraftState();
+    return;
+  }
+  deleteAnchor(picked.line,picked.anchor);
+});
+
+window.addEventListener('keydown',event=>{
+  if(!penMode)return;
+  if(event.key==='Enter'||event.key==='Escape'){finishDraftLine()}
+  else if((event.key==='Delete'||event.key==='Backspace')&&selectedAnchor){
+    const owner=(activeLine&&activeLine.anchors.includes(selectedAnchor))
+      ?activeLine:draftLines.find(l=>l.anchors.includes(selectedAnchor));
+    if(owner)deleteAnchor(owner,selectedAnchor);
+  }
+});
+
+function directionFor(view){
+  if(view==='three-quarter')return new THREE.Vector3(1,0,1).normalize();
+  if(view==='side')return new THREE.Vector3(1,0,0);
+  if(view==='back')return new THREE.Vector3(0,0,-1);
+  return new THREE.Vector3(0,0,1);
+}
+
+function setView(view,animate=true){
+  if(!camera||!controls)return;
+  const verticalFov=THREE.MathUtils.degToRad(camera.fov),fitHeight=modelSize.y/(2*Math.tan(verticalFov/2));
+  const fitWidth=Math.max(modelSize.x,modelSize.z)/(2*Math.tan(verticalFov/2)*camera.aspect);
+  const distance=Math.max(fitHeight,fitWidth)*1.30,dir=directionFor(view==='reset'?'front':view);
+  const target=modelCenter.clone();const destination=target.clone().addScaledVector(dir,distance);destination.y+=modelRadius*.03;
+  if(animate)cameraGoal={position:destination,target};else{camera.position.copy(destination);controls.target.copy(target);camera.lookAt(target);controls.update()}
+  document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.toggle('active',button.dataset.view===(view==='reset'?'front':view)));
+}
+
+function loadAvatar(){
+  const loader=new GLTFLoader();
+  // Cache-buster tied to the declared SHA: a new asset release changes
+  // ASSET_SHA, forcing the browser past its heuristic GLB cache.
+  loader.load(ASSET_URL+'?sha='+ASSET_SHA,gltf=>{
+    avatarRoot=gltf.scene;avatarRoot.name='avatar_master';scene.add(avatarRoot);prepareModel(avatarRoot);runMeasurements(avatarRoot);
+    prototypeState.status='READY';prototypeState.loadMs=Math.round(performance.now()-loadStartedAt);syncDiagnostics();loading.hidden=true;
+    assetTag.textContent=`avatar_master.glb · ${ASSET_VERSION} · ${prototypeState.meshCount} meshes`;
+  },event=>{
+    if(event.total){const p=Math.min(100,Math.round(event.loaded/event.total*100));setBusyDetail(`${p}% · ${(event.loaded/1048576).toFixed(1)} MB`)}else setBusyDetail(`${(event.loaded/1048576).toFixed(1)} MB received`);
+  },error=>fail(error?.message||'The GLB request failed.'));
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  if(cameraGoal){
+    camera.position.lerp(cameraGoal.position,.11);controls.target.lerp(cameraGoal.target,.11);
+    if(camera.position.distanceTo(cameraGoal.position)<.003){camera.position.copy(cameraGoal.position);controls.target.copy(cameraGoal.target);cameraGoal=null}
+  }
+  controls?.update();
+  positionDraftLabels();
+  if(camera&&controls)prototypeState.camera={position:camera.position.toArray().map(value=>+value.toFixed(5)),target:controls.target.toArray().map(value=>+value.toFixed(5)),distance:+camera.position.distanceTo(controls.target).toFixed(5)};
+  syncDiagnostics();
+  renderer?.render(scene,camera);
+}
+
+document.querySelectorAll('.bottom-nav button').forEach(button=>button.addEventListener('click',()=>setView(button.dataset.view)));
+canvas.addEventListener('pointerdown',()=>{cameraGoal=null;document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.remove('active'))});
+
+document.querySelectorAll('.toggle').forEach(button=>button.addEventListener('click',()=>{
+  const role=button.dataset.role,next=button.getAttribute('aria-pressed')!=='true';button.setAttribute('aria-pressed',String(next));button.textContent=next?'On':'Off';
+  if(role==='WIREFRAME'){
+    avatarRoot?.traverse(object=>{if(object.isMesh){const mats=Array.isArray(object.material)?object.material:[object.material];mats.filter(Boolean).forEach(mat=>{mat.wireframe=next;mat.needsUpdate=true})}});
+    prototypeState.wireframe=next;
+  }else{roleMeshes[role]?.forEach(object=>object.visible=next);prototypeState.roleVisibility[role]=next}
+  syncDiagnostics();
+}));
+
+const shapePanel=document.getElementById('shapePanel'),editBtn=document.getElementById('editBtn'),closeShape=document.getElementById('closeShape');
+const measureBtn=document.getElementById('measureBtn'),measurePanel=document.getElementById('measurePanel'),closeMeasure=document.getElementById('closeMeasure');
+const viewBtn=document.getElementById('viewBtn'),viewPop=document.getElementById('viewPop');
+
+// The measurement panel starts open and remembers the choice per browser.
+function setMeasurePanel(open){
+  measurePanel.hidden=!open;
+  measureBtn.setAttribute('aria-expanded',String(open));
+  try{localStorage.setItem('measurePanelOpen',open?'1':'0')}catch(error){/* private mode */}
+}
+let measureOpen=true;
+try{measureOpen=localStorage.getItem('measurePanelOpen')!=='0'}catch(error){/* private mode */}
+setMeasurePanel(measureOpen);
+measureBtn.addEventListener('click',()=>setMeasurePanel(measurePanel.hidden));
+closeMeasure.addEventListener('click',()=>setMeasurePanel(false));
+
+const tapeToggle=document.getElementById('tapeToggle'),penToggle=document.getElementById('penToggle');
+tapeToggle.setAttribute('aria-pressed',String(tapesVisible));
+tapeToggle.addEventListener('click',()=>{
+  tapesVisible=!tapesVisible;
+  tapeToggle.setAttribute('aria-pressed',String(tapesVisible));
+  try{localStorage.setItem('tapesVisible',tapesVisible?'1':'0')}catch(error){/* private mode */}
+  redrawTapes();
+});
+penToggle.addEventListener('click',()=>setPenMode(!penMode));
+
+const sectionToggle=document.getElementById('sectionToggle');
+const sectionSlider=document.getElementById('sectionSlider');
+sectionToggle.addEventListener('click',()=>{
+  sectionOpen=!sectionOpen;
+  sectionToggle.setAttribute('aria-pressed',String(sectionOpen));
+  document.getElementById('sectionTool').classList.toggle('open',sectionOpen);
+  drawSection(Number(sectionSlider.value)/1000);
+});
+sectionSlider.addEventListener('input',()=>drawSection(Number(sectionSlider.value)/1000));
+const landmarkToggle=document.getElementById('landmarkToggle');
+landmarkToggle.addEventListener('click',()=>{
+  landmarksVisible=!landmarksVisible;
+  landmarkToggle.setAttribute('aria-pressed',String(landmarksVisible));
+  if(!landmarksVisible)placingLandmark=null;
+  renderLandmarkList();redrawLandmarks();
+});
+document.getElementById('landmarkSave').addEventListener('click',saveLandmarks);
+document.getElementById('landmarkReset').addEventListener('click',()=>{
+  overrides={landmarks:{}};persistOverrides();placingLandmark=null;recomputeMeasurements();
+});
+document.getElementById('penFinish').addEventListener('click',()=>finishDraftLine());
+document.getElementById('penUndo').addEventListener('click',()=>{
+  if(activeLine&&activeLine.anchors.length){
+    activeLine.anchors.pop();activeLine.closed=false;rebuildLine(activeLine);
+  }else if(draftLines.length){
+    draftLines.pop();selectedLine=-1;
+  }
+  redrawDraft();renderDraftList();syncDraftState();
+});
+/* Draft lines leave the tool as evidence, not as a screenshot: anchors, control
+   points and length, pinned to the asset SHA so a reader can tell which body
+   they were measured on. */
+document.getElementById('penExport').addEventListener('click',()=>{
+  const payload={
+    schema_version:1,
+    asset:ASSET_URL.replace(/^.*\//,''),
+    asset_sha256:ASSET_SHA,
+    recorded_at:new Date().toISOString().replace(/\.\d{3}Z$/,'Z'),
+    path_model:'shortest_surface_path',
+    unit:'meter',
+    declared_limits:[
+      'Drafted by hand in the viewer. Not a registry POM and not an approved measurement record.',
+      'Loose-tape surface length: no soft-tissue compression allowance.',
+    ],
+    lines:draftLines.map((line,index)=>({
+      name:line.name||('Line '+(index+1)),
+      closed:line.closed,
+      length_mm:+(line.length*1000).toFixed(1),
+      length_in:inchFraction(line.length,registry.reporting.inch_denominator),
+      on_surface:!line.approximated,
+      anchors:line.anchors.map(a=>[+a.point.x.toFixed(5),+a.point.y.toFixed(5),+a.point.z.toFixed(5)]),
+      control_points:(line.segments||[]).flatMap(seg=>(seg.handles||[]).map(
+        h=>[+h.point.x.toFixed(5),+h.point.y.toFixed(5),+h.point.z.toFixed(5)])),
+      segments:(line.segments||[]).map(seg=>({length_mm:+(seg.length*1000).toFixed(1)})),
+    })),
+  };
+  const text=JSON.stringify(payload,null,2)+'\n';
+  const blob=new Blob([text],{type:'application/json'});
+  const link=document.createElement('a');
+  link.href=URL.createObjectURL(blob);
+  link.download='draft-lines.json';
+  document.body.appendChild(link);link.click();link.remove();
+  try{navigator.clipboard.writeText(text)}catch(error){/* no clipboard permission */}
+  console.log('draft-lines.json — save into qa/avatar_master/\n'+text);
+});
+document.getElementById('penClear').addEventListener('click',()=>{
+  draftLines=[];selectedLine=-1;selectedAnchor=null;
+  if(penMode)newDraftLine();else activeLine=null;
+  redrawDraft();renderDraftList();syncDraftState();
+});
+
+editBtn.addEventListener('click',()=>{const open=!shapePanel.classList.contains('open');shapePanel.classList.toggle('open',open);editBtn.setAttribute('aria-expanded',String(open))});
+closeShape.addEventListener('click',()=>{shapePanel.classList.remove('open');editBtn.setAttribute('aria-expanded','false')});
+viewBtn.addEventListener('click',()=>{const open=!viewPop.classList.contains('open');viewPop.classList.toggle('open',open);viewBtn.setAttribute('aria-expanded',String(open))});
+
+try{initScene();loadAvatar();animate()}catch(error){fail(error?.message||error)}
+</script>
+</body>
+</html>
