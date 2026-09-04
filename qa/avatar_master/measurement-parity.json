@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-04T23:12:55Z",
+  "generated_at": "2026-09-04T23:20:51Z",
   "purpose": "Asserts the Python authority pass and the JavaScript engine the viewer uses agree.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
