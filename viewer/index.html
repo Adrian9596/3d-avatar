@@ -12,7 +12,8 @@
     <header class="topbar">
       <div class="identity"><strong>Avatar</strong><span>platform viewer</span></div>
       <div class="status"><i></i>DRAFT · NO MEASUREMENT RECORD</div>
-      <button id="resetView" class="round" aria-label="Reset camera">↺</button>
+      <button id="resetView" class="round" aria-label="Reset camera (0)" title="Reset camera (0)">↺</button>
+      <button id="faceView" class="round" aria-label="Face the selected pin along its surface normal (F)" title="Face the selected pin (F)">◎</button>
     </header>
 
     <section class="viewport" aria-label="Interactive 3D avatar">
@@ -50,7 +51,7 @@
           <button id="penClear" disabled>Clear</button><button id="penExport" disabled>Export</button>
         </div>
         <div class="strokes" id="penList" hidden></div>
-        <p id="penHint" class="notice">Click the body to pin points · drag a teal control point to shape the run · right-click it to re-centre, or an anchor to remove · Enter to finish.</p>
+        <p id="penHint" class="notice">Click the body to pin points · drag empty skin to orbit · drag a pin to move it · right-click a control point to re-centre, an anchor to remove · Enter finishes, C closes · ? lists the keys.</p>
       </section>
       <section>
         <h2>Display</h2>
@@ -62,6 +63,7 @@
     </aside>
 
     <div class="pen-labels" id="penLabels" aria-hidden="true"></div>
+    <div id="keySheet" class="keys" hidden role="dialog" aria-label="Keyboard shortcuts"></div>
     <div id="assetTag" class="asset-tag">avatar_master.glb · loading</div>
     <output id="viewerDiagnostics" hidden aria-hidden="true"></output>
   </main>

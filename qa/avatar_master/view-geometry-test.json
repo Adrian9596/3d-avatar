@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T09:39:24Z",
+  "purpose": "The maths behind the grazing guard, the F key and the turntable, against analytic answers.",
+  "module": {
+    "file": "scripts/view_geometry.mjs",
+    "sha256": "f9b3886049caca9b35f7458805114216cb1a0b94457b901a5b5d34db1e476787"
+  },
+  "viewer_framing": {
+    "distance_m": 1.575,
+    "fov_deg": 28,
+    "pixel_height": 900,
+    "footprint_table": [
+      {
+        "incidence_deg": 0,
+        "mm_per_px": 0.87
+      },
+      {
+        "incidence_deg": 60,
+        "mm_per_px": 1.75
+      },
+      {
+        "incidence_deg": 75,
+        "mm_per_px": 3.37
+      },
+      {
+        "incidence_deg": 85,
+        "mm_per_px": 10.01
+      }
+    ],
+    "zoomed_0p35m_mm_per_px": 0.194
+  },
+  "thresholds_deg": {
+    "warn": 60,
+    "alert": 75,
+    "note": "display thresholds; they change no recorded value"
+  },
+  "declared_limits": [
+    "Footprint is what one pixel covers on a plane at the hit point; a curved surface inside that pixel is not modelled.",
+    "The pose facing a normal is clamped to the controls' polar limits, so a point on top of the shoulder is faced as squarely as the camera may."
+  ],
+  "checks": [
+    {
+      "name": "footprint facing = 2·d·tan(fov/2)/H",
+      "status": "PASS",
+      "detail": "0.87 mm/px (analytic 0.873)"
+    },
+    {
+      "name": "footprint grows as 1/cos(incidence)",
+      "status": "PASS",
+      "detail": "60°: 1.75 · 75°: 3.37 · 85°: 10.01 mm/px"
+    },
+    {
+      "name": "footprint at 90° is infinite, never NaN",
+      "status": "PASS",
+      "detail": "grazing exactly edge-on"
+    },
+    {
+      "name": "zooming to 0.35 m gives 0.19 mm/px",
+      "status": "PASS",
+      "detail": "0.194 mm/px"
+    },
+    {
+      "name": "incidence is orientation-free",
+      "status": "PASS",
+      "detail": "a normal pointing into the body reads the same"
+    },
+    {
+      "name": "incidence of a 60° view is 60°",
+      "status": "PASS",
+      "detail": "60.000000°"
+    },
+    {
+      "name": "incidence is bounded to [0°, 90°]",
+      "status": "PASS",
+      "detail": "opposed and perpendicular directions"
+    },
+    {
+      "name": "placement records distance, incidence and footprint",
+      "status": "PASS",
+      "detail": "{\"method\":\"click\",\"distance_m\":1.575,\"incidence_deg\":0,\"footprint_mm_px\":0.87}"
+    },
+    {
+      "name": "poseFacing looks along −normal at the asked distance",
+      "status": "PASS",
+      "detail": "direction error 1.11e-16"
+    },
+    {
+      "name": "poseFacing clamps a near-vertical normal to the polar limits",
+      "status": "PASS",
+      "detail": "polar 0.3500 rad (limit 0.35)"
+    },
+    {
+      "name": "24 turntable steps of 15° compose to the identity",
+      "status": "PASS",
+      "detail": "max drift 5.33e-15 m"
+    },
+    {
+      "name": "turntable keeps the distance to the target",
+      "status": "PASS",
+      "detail": "1.516575 m"
+    },
+    {
+      "name": "turntable never breaches the polar clamp",
+      "status": "PASS",
+      "detail": "polar 0.3500 rad after 300° of pitch"
+    },
+    {
+      "name": "framingDistance matches the lanes' former preset maths",
+      "status": "PASS",
+      "detail": "1.5746 m for the avatar's box at 1400×900"
+    },
+    {
+      "name": "grazing levels switch at the declared thresholds",
+      "status": "PASS",
+      "detail": "60° warn, 75° alert — display only"
+    }
+  ],
+  "decision": "VIEW_GEOMETRY_VERIFIED"
+}

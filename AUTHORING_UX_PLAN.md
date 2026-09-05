@@ -3,7 +3,7 @@
 Orbit while drafting · a pen that snaps · landmark placement that says how well it was placed ·
 template drafts from landmarks.
 
-Status: **research; nothing built.** Written 2026-09-05 against `assets/export/avatar_master.glb`
+Status: **Phase A built (2026-09-05); Phases B–D planned.** Written 2026-09-05 against `assets/export/avatar_master.glb`
 (SHA-256 `0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4`). §4 records what a
 numerical spike found on that body; §5–§8 propose what to build from it, §10–§11 how it will be
 gated, §14 the keyboard and pointer map, and §15 the concrete work plan, phase by phase. Companion to `MEASUREMENT_PLAN.md` (landmarks, POMs) and `PATTERN_2D_DXF_PLAN.md`
@@ -449,46 +449,52 @@ Rules the map follows:
 | `P` | Pen on / off |
 | `L` | Landmarks panel on / off *(prototype)* |
 | `T` | Tape lines on / off |
-| `X` | Section tool on / off |
-| `1` `2` `3` `4` | Front · three-quarter · side · back |
-| `0` / `Home` | Reset view (frame the body) |
-| `←` `→` | Turntable ±15° about the body's vertical (`Shift`: 5°) — nothing selected |
-| `↑` `↓` | Elevation ±15° (`Shift`: 5°) — nothing selected |
+| `X` | Section tool on / off *(prototype)* |
+| `1` | Front view |
+| `2` | Three-quarter view |
+| `3` | Side view |
+| `4` | Back view |
+| `0 / Home` | Reset view (frame the body) |
+| `←` | Turntable 15° left about the body's vertical (Shift: 5°) — nothing selected |
+| `→` | Turntable 15° right (Shift: 5°) — nothing selected |
+| `↑` | Elevation +15° (Shift: 5°) — nothing selected |
+| `↓` | Elevation −15° (Shift: 5°) — nothing selected |
 | `F` | Face the selected point along its surface normal; nothing selected, the point under the cursor |
-| `Z` | Loupe on / off |
-| `N` | Snapping on / off |
+| `Z` | Loupe on / off *(planned, Phase B)* |
+| `N` | Snapping on / off *(planned, Phase B)* |
 | `?` | Shortcut sheet |
 | `Esc` | Deselect; nothing selected → leave the current tool; sheet open → close it |
 
-### Pen (pointer grammar in §5.1)
+### Pen
 
 | Key | Action |
 |---|---|
 | `Enter` | Finish the line |
 | `C` | Close the loop and finish (≥ 3 anchors) |
-| `Backspace` / `Delete` | Delete the selected point; nothing selected → undo the last pinned point |
-| `⌘/Ctrl+Z` · `⌘/Ctrl+Shift+Z` | Undo · redo (pin, move, snap, delete, close, rename, mirror) |
-| `←` `→` `↑` `↓` with a point selected | Nudge 1 px along the skin (`Shift`: 10 px) |
-| hold `Shift` while pinning | Level snap: same height as the previous anchor |
-| hold `Alt` while pinning | Mirror snap: mirror of the selected line's last anchor |
+| `Backspace / Delete` | Delete the selected point; nothing selected → undo the last pinned point |
+| `⌘/Ctrl+Z` | Undo (pin, move, snap, delete, close, rename, mirror) *(planned, Phase B)* |
+| `⌘/Ctrl+Shift+Z` | Redo *(planned, Phase B)* |
+| `← → ↑ ↓` | Nudge the selected point 1 px along the skin (Shift: 10 px) *(planned, Phase B)* |
+| hold `Shift` while pinning | Level snap while pinning: same height as the previous anchor *(planned, Phase B)* |
+| hold `Alt` while pinning | Mirror snap while pinning: mirror of the selected line's last anchor *(planned, Phase B)* |
 | `R` | Re-centre the control points of the selected segment (whole line if none) |
-| `M` | Mirror the selected line to the other side |
-| `[` `]` | Select previous / next line |
+| `M` | Mirror the selected line to the other side *(planned, Phase B)* |
+| `[` | Select the previous line |
+| `]` | Select the next line |
 | `I` | Show / hide the selected line's on-body label |
-| `Shift+E` | Export `draft-lines.json` |
+| `Shift+E` | Export draft-lines.json |
 
 ### Landmarks *(prototype)*
 
 | Key | Action |
 |---|---|
-| `Space` | Place next: select the next `needed` landmark in the guided order and frame it |
-| `[` `]` | Previous / next landmark row |
-| click · drag | Place · place with live preview, release commits |
-| `←` `→` `↑` `↓` | Nudge the selected landmark 1 px along the skin (`Shift`: 10 px) |
-| `M` | Accept the mirror of the opposite side for the selected row (offer, recorded `manual_mirrored`) |
-| `Backspace` | Return the selected landmark to automatic |
-| `Shift+S` | Save `landmarks.manual.json` |
-| `Esc` | Cancel placement (keeps the row selected); again → deselect |
+| `Space` | Place next: select the next needed landmark in the guided order and frame it *(planned, Phase C)* |
+| `[` | Previous landmark row *(planned, Phase C)* |
+| `]` | Next landmark row *(planned, Phase C)* |
+| `← → ↑ ↓` | Nudge the selected landmark 1 px along the skin (Shift: 10 px) *(planned, Phase C)* |
+| `M` | Accept the mirror of the opposite side for the selected row (an offer, recorded manual_mirrored) *(planned, Phase C)* |
+| `Backspace` | Return the selected landmark to automatic *(planned, Phase C)* |
+| `Shift+S` | Save landmarks.manual.json |
 
 ### Pattern block *(prototype)*
 
@@ -496,9 +502,8 @@ Rules the map follows:
 |---|---|
 | `Shift+F` | Flatten |
 | `Shift+D` | Export DXF |
-| `Shift+T` | Draft from template — opens the chooser; inside it `1`–`9` pick, `Esc` closes |
-| `Shift+C` | Compare all available templates for the selected side |
-
+| `Shift+T` | Draft from template — opens the chooser; inside it 1–9 pick, Esc closes *(planned, Phase D)* |
+| `Shift+C` | Compare all available templates for the selected side *(planned, Phase D)* |
 Known platform caveats, to be checked in the browser and recorded in the phase's smoke list:
 a bare `Alt` key-up opens the menu bar in Firefox on Windows (mitigation: `preventDefault` on the
 `Alt` key-up while the pen is on); `Space` scrolls the page unless prevented while the canvas has
@@ -512,7 +517,26 @@ the browser, and the docs (this plan's status line, `CLAUDE.md` commands, `READM
 updated in the same PR. Function names below are the intended public surface; internals are the
 implementer's.
 
-### Phase A — orbit while drafting, grazing guard, shortcuts
+### Phase A — orbit while drafting, grazing guard, shortcuts — **done 2026-09-05**
+
+What landed: `scripts/view_geometry.mjs` and `scripts/keymap.mjs` with their gates
+(`validate:view-geometry`, `validate:keymap`, both in the chain; lane parity extended); the pen no
+longer parks OrbitControls for the mode — it claims the pointer only while a pin is held, so
+dragging empty skin orbits, a touch long-press is the right-click, and every anchor records
+`placed_with`; both hosts dispatch the keymap, show the `?` sheet, colour the tip past 60°/75°
+and frame through `framingDistance`; *Face* is a button in both lanes. `draft-lines.json` is
+schema 2 (`placed_with` per anchor).
+
+Verified in the browser with synthetic pointer and key events on both lanes (the Browser pane
+was hidden during the session, so real-pointer and touch checks — the OrbitControls damping
+question, the Firefox `Alt` caveat — remain on the smoke list for the next person at a screen):
+with the pen on, a background drag moved the camera 0.18 m and pinned nothing; pressing a pin
+parked the controls for exactly that drag; anchors carried `placed_with` (`click` at 6.7° /
+1.0 mm·px⁻¹, `drag` at 8°); `C` closed a three-anchor loop and the pattern context appeared;
+`F` on a selected pin set a goal whose view direction dotted the pin's normal to 1.0000; `Esc`
+deselected the pin, then the line, then left the pen; `?` listed 18–22 rows per lane and
+context; `1`–`4`, `Home`, arrows, `L`, `Shift+F` dispatched to the right actions; the production
+lane knew no landmark rows.
 
 **A1 `scripts/view_geometry.mjs` (new, pure, shared).**
 `footprintMmPerPx({ distance_m, fov_deg, pixel_height, incidence_rad })`;

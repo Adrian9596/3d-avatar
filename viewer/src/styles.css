@@ -46,3 +46,20 @@
   color: #fff; border-radius: 999px; padding: 4px 9px; font-size: 10px;
   font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 6px 18px rgba(30,45,62,.26); }
 #avatarCanvas.pen { cursor: crosshair; }
+
+/* keyboard sheet (shared map, scripts/keymap.mjs) and the grazing guard colours */
+.round + .round { margin-left: 0; }
+.notice.warn { color: #a8760f; border-color: rgba(168,118,15,.35); }
+.notice.alert { color: #c9302c; border-color: rgba(201,48,44,.35); background: #fff1ef; }
+.keys { position: absolute; left: calc(50% - 160px); top: 50%; transform: translate(-50%, -50%); z-index: 40;
+  width: min(560px, calc(100% - 352px)); max-height: calc(100% - 120px); overflow-y: auto; padding: 14px 16px;
+  border-radius: 16px; background: var(--panel); border: 1px solid var(--line);
+  box-shadow: 0 18px 50px rgba(43,35,29,.14); backdrop-filter: blur(18px); font-size: 11px; color: #4f4943; }
+.keys[hidden] { display: none; }
+.keys .khead { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 750; margin-bottom: 6px; }
+.keys .khead span { font-weight: 400; color: #8d867f; font-size: 10px; }
+.keys h4 { font-size: 8.5px; text-transform: uppercase; letter-spacing: .07em; color: #a8a09a; margin: 10px 0 3px; }
+.keys .krow { display: grid; grid-template-columns: 96px 1fr; gap: 10px; padding: 3px 0; border-top: 1px solid rgba(53,47,42,.06); align-items: baseline; }
+.keys kbd { font: inherit; font-size: 10px; font-variant-numeric: tabular-nums; background: #ece9e5; border: 1px solid var(--line);
+  border-radius: 5px; padding: 1px 6px; color: #352f2a; white-space: nowrap; justify-self: start; }
+@media (max-width: 840px) { .keys { left: 50%; width: min(560px, calc(100% - 32px)); } }

@@ -133,6 +133,28 @@ for (const [label, source] of [['prototype', prototype], ['production', producti
     redefined.length ? `redefines ${redefined.join(', ')}` : 'no pen function is redefined');
 }
 const pen = readFileSync(PEN, 'utf8');
+// One keyboard map and one view-geometry module: the keys, the grazing guard
+// and the F key must mean the same thing in both lanes, so both import them
+// and neither redefines what they export (AUTHORING_UX_PLAN.md §14, §15 A5).
+for (const [label, source] of [['prototype', prototype], ['production', production_main]]) {
+  record(`the ${label} lane dispatches keys through the shared keymap`,
+    /from\s+['"][^'"]*keymap\.mjs['"]/.test(source) && /matchBinding\(/.test(source),
+    'imports scripts/keymap.mjs and calls matchBinding');
+  record(`the ${label} lane frames and turns the camera through the shared view geometry`,
+    /from\s+['"][^'"]*view_geometry\.mjs['"]/.test(source) && /framingDistance\(/.test(source) && /turntable\(/.test(source),
+    'imports scripts/view_geometry.mjs for framingDistance and turntable');
+}
+const INTERACTION_FUNCTIONS = ['matchBinding', 'cheatSheet', 'normalizeEvent', 'footprintMmPerPx', 'incidence', 'placement', 'poseFacing', 'turntable', 'framingDistance'];
+for (const [label, source] of [['prototype', prototype], ['production', production_main]]) {
+  const redefined = INTERACTION_FUNCTIONS.filter((name) => new RegExp(`function\\s+${name}\\s*\\(`).test(source));
+  record(`the ${label} lane does not reimplement the keymap or view geometry`, redefined.length === 0,
+    redefined.length ? `redefines ${redefined.join(', ')}` : 'no interaction function is redefined');
+}
+record('the pen records placement through the shared view geometry',
+  /from\s+['"]\.\/view_geometry\.mjs['"]/.test(pen) && /placement\(/.test(pen) && !/function\s+placement\s*\(/.test(pen),
+  'imports scripts/view_geometry.mjs; placed_with is not computed twice');
+record('the pen binds no keys of its own', !/addEventListener\(\s*["']keydown["']/.test(pen),
+  'keys are the hosts\' through the keymap, so both lanes read the same map');
 record('the pen uses the one path model',
   /from\s+['"]\.\/surface_path\.mjs['"]/.test(pen) && !/Bezier|bezier/.test(pen.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')),
   'imports surface_path.mjs and reintroduces no second path model');

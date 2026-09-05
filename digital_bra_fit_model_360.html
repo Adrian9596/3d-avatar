@@ -26,6 +26,14 @@ button{font:inherit}
 .loading[hidden]{display:none}.loading strong{display:block;font-size:13px;margin-bottom:8px}.loading span{font-size:11px;color:#8a837d}
 .spinner{width:24px;height:24px;border:2px solid rgba(53,47,42,.15);border-top-color:#5b5149;border-radius:50%;margin:0 auto 13px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 .tip{position:absolute;left:50%;top:72px;transform:translateX(-50%);z-index:15;font-size:11px;color:#827b74;background:rgba(255,255,255,.72);padding:7px 10px;border:1px solid rgba(53,47,42,.07);border-radius:999px;pointer-events:none;white-space:nowrap}
+.tip.warn{color:#a8760f;border-color:rgba(168,118,15,.35);background:rgba(255,249,236,.9)}
+.tip.alert{color:#c9302c;border-color:rgba(201,48,44,.35);background:rgba(255,241,239,.92)}
+.keys{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:40;width:min(560px,calc(100% - 32px));max-height:calc(100% - 120px);overflow-y:auto;padding:14px 16px;border-radius:16px;background:var(--panel);border:1px solid var(--line);box-shadow:0 18px 50px rgba(43,35,29,.14);backdrop-filter:blur(18px);font-size:11px;color:#4f4943}
+.keys[hidden]{display:none}
+.keys .khead{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;font-weight:750;margin-bottom:6px}.keys .khead span{font-weight:400;color:#8d867f;font-size:10px}
+.keys h4{font-size:8.5px;text-transform:uppercase;letter-spacing:.07em;color:#a8a09a;margin:10px 0 3px}
+.keys .krow{display:grid;grid-template-columns:96px 1fr;gap:10px;padding:3px 0;border-top:1px solid rgba(53,47,42,.06);align-items:baseline}
+.keys kbd{font:inherit;font-size:10px;font-variant-numeric:tabular-nums;background:#ece9e5;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:#352f2a;white-space:nowrap;justify-self:start}
 .pop{position:absolute;z-index:30;background:var(--panel);border:1px solid var(--line);box-shadow:0 18px 50px rgba(43,35,29,.11);backdrop-filter:blur(18px)}
 .pop{right:18px;top:72px;width:238px;border-radius:16px;padding:13px;display:none}.pop.open{display:block}
 .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}.panel-title,.pop-title{font-size:12px;font-weight:750}.pop-title{margin-bottom:9px}
@@ -136,7 +144,8 @@ button{font:inherit}
   </section>
   <div class="loading" id="loading" role="status"><i class="spinner"></i><strong>Loading draft GLB</strong><span id="loadingDetail">Preparing viewer…</span></div>
   <div class="error-card" id="errorCard" role="alert" hidden><strong>Interactive GLB could not load</strong><p id="errorMessage">A static draft view is shown. Serve this folder through localhost and retry.</p></div>
-  <div class="tip" id="tip">Drag to orbit · wheel/pinch to zoom · use view presets</div>
+  <div class="tip" id="tip">Drag to orbit · wheel/pinch to zoom · use view presets · ? for keys</div>
+  <div class="keys" id="keySheet" hidden role="dialog" aria-label="Keyboard shortcuts"></div>
   <div class="pen-labels" id="penLabels" aria-hidden="true"></div>
   <div class="section-readout" id="sectionReadout"></div>
   <div class="section-tool" id="sectionTool">
@@ -196,6 +205,7 @@ button{font:inherit}
     <button data-view="side">Side</button>
     <button data-view="back">Back</button>
     <button data-view="reset">Reset</button>
+    <button data-action="face" title="Face the selected pin along its surface normal (F)">Face</button>
   </nav>
 </main>
 
@@ -214,6 +224,11 @@ import { DEFAULT_SCAN, measureSection, scanSurface, findLandmarks, computePoms, 
   findFoldLandmarks } from './scripts/measure_core.mjs';
 import { buildGrid, closestOnMesh } from './scripts/surface_path.mjs';
 import { createPenTool } from './scripts/pen_tool.mjs';
+// One keyboard map and one view-geometry module for both lanes
+// (AUTHORING_UX_PLAN.md §14, §5): the keys, the grazing guard and the F key mean
+// the same thing in the production viewer.
+import { matchBinding, cheatSheet, detectPlatform } from './scripts/keymap.mjs';
+import { framingDistance, turntable, grazingLevel } from './scripts/view_geometry.mjs';
 // 2D pattern draft: scripts/pattern_draft.mjs runs the same flattening engine
 // and DXF writer the Node gates run — the viewer adds DOM, not maths
 // (PATTERN_2D_DXF_PLAN.md).
@@ -906,9 +921,9 @@ function setPenMode(on){
   if(!pen)return;
   pen.setEnabled(on);
   document.getElementById('penToggle').setAttribute('aria-pressed',String(on));
-  document.getElementById('tip').textContent=on
-    ?'Pen: click to pin points · drag a teal control point to shape the run · right-click it to re-centre · Enter to finish'
-    :'Drag to orbit · wheel/pinch to zoom · use view presets';
+  setTip(on
+    ?'Pen: click to pin · drag empty skin to orbit · drag a pin to move it · Enter finish · C close · F face · ? keys'
+    :'Drag to orbit · wheel/pinch to zoom · use view presets · ? for keys');
 }
 
 function directionFor(view){
@@ -920,9 +935,7 @@ function directionFor(view){
 
 function setView(view,animate=true){
   if(!camera||!controls)return;
-  const verticalFov=THREE.MathUtils.degToRad(camera.fov),fitHeight=modelSize.y/(2*Math.tan(verticalFov/2));
-  const fitWidth=Math.max(modelSize.x,modelSize.z)/(2*Math.tan(verticalFov/2)*camera.aspect);
-  const distance=Math.max(fitHeight,fitWidth)*1.30,dir=directionFor(view==='reset'?'front':view);
+  const distance=framingDistance({size_m:modelSize.toArray(),fov_deg:camera.fov,aspect:camera.aspect}),dir=directionFor(view==='reset'?'front':view);
   const target=modelCenter.clone();const destination=target.clone().addScaledVector(dir,distance);destination.y+=modelRadius*.03;
   if(animate)cameraGoal={position:destination,target};else{camera.position.copy(destination);controls.target.copy(target);camera.lookAt(target);controls.update()}
   document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.toggle('active',button.dataset.view===(view==='reset'?'front':view)));
@@ -934,7 +947,7 @@ function loadAvatar(){
   // ASSET_SHA, forcing the browser past its heuristic GLB cache.
   loader.load(ASSET_URL+'?sha='+ASSET_SHA,gltf=>{
     avatarRoot=gltf.scene;avatarRoot.name='avatar_master';scene.add(avatarRoot);prepareModel(avatarRoot);
-    pen=createPenTool({scene,canvas,camera,controls,root:avatarRoot,onChange:renderDraftList});
+    pen=createPenTool({scene,canvas,camera,controls,root:avatarRoot,onChange:renderDraftList,onHover:showFootprint});
     window.__pen=pen;   // instrumentation for automated checks (pen.addLine, pen.lineGeometry)
     renderDraftList();runMeasurements(avatarRoot);
     prototypeState.status='READY';prototypeState.loadMs=Math.round(performance.now()-loadStartedAt);syncDiagnostics();loading.hidden=true;
@@ -952,12 +965,12 @@ function animate(){
   }
   controls?.update();
   positionDraftLabels();
-  if(camera&&controls)prototypeState.camera={position:camera.position.toArray().map(value=>+value.toFixed(5)),target:controls.target.toArray().map(value=>+value.toFixed(5)),distance:+camera.position.distanceTo(controls.target).toFixed(5)};
+  if(camera&&controls)prototypeState.camera={position:camera.position.toArray().map(value=>+value.toFixed(5)),target:controls.target.toArray().map(value=>+value.toFixed(5)),distance:+camera.position.distanceTo(controls.target).toFixed(5),orbit_enabled:controls.enabled};
   syncDiagnostics();
   renderer?.render(scene,camera);
 }
 
-document.querySelectorAll('.bottom-nav button').forEach(button=>button.addEventListener('click',()=>setView(button.dataset.view)));
+document.querySelectorAll('.bottom-nav button[data-view]').forEach(button=>button.addEventListener('click',()=>setView(button.dataset.view)));
 canvas.addEventListener('pointerdown',()=>{cameraGoal=null;document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.remove('active'))});
 
 document.querySelectorAll('.toggle').forEach(button=>button.addEventListener('click',()=>{
@@ -1163,6 +1176,97 @@ document.getElementById('penExport').addEventListener('click',()=>{
   try{navigator.clipboard.writeText(text)}catch(error){/* no clipboard permission */}
   console.log('draft-lines.json — save into qa/avatar_master/\n'+text);
 });
+
+/* ---- keyboard, grazing guard, Face, turntable ------------------------------
+   Keys come from scripts/keymap.mjs — the same table the production lane
+   dispatches and the ? sheet is built from; this block only maps binding ids
+   to this lane's actions. The tip shows what a pixel is worth on the skin under
+   the cursor (scripts/view_geometry.mjs): amber past 60°, red past 75°. Those
+   colours change no value — the number is recorded on every anchor as
+   placed_with, and the person decides. --------------------------------------- */
+const PLATFORM=detectPlatform();
+const keySheet=document.getElementById('keySheet');
+const tipEl=document.getElementById('tip');
+let tipBase=tipEl.textContent;
+function setTip(text){tipBase=text;tipEl.textContent=text;tipEl.className='tip'}
+function showFootprint(hover){
+  if(!hover){tipEl.textContent=tipBase;tipEl.className='tip';return}
+  const level=grazingLevel(hover.incidence_deg);
+  tipEl.className='tip'+(level==='ok'?'':' '+level);
+  tipEl.textContent=`${hover.footprint_mm_px} mm/px at ${hover.incidence_deg}°`
+    +(level==='ok'?'':' · turn the body to place this precisely — press F')+' · '+tipBase;
+}
+// Tools are exclusive: landmarks hold the canvas while a row is selected or the
+// pen is off; otherwise the pen does. The pattern block is a layer over either.
+function activeContexts(){
+  const contexts=['always'];
+  if(landmarksVisible&&(placingLandmark||!penEnabled()))contexts.push('landmarks');
+  else if(penEnabled())contexts.push('pen');
+  if(!patternPanel.hidden)contexts.push('pattern');
+  return contexts;
+}
+function toggleKeySheet(force){
+  const open=force===undefined?keySheet.hidden:force;
+  if(!open){keySheet.hidden=true;return}
+  const sections=cheatSheet({contexts:activeContexts(),lane:'prototype',platform:PLATFORM});
+  keySheet.innerHTML='<div class="khead">Keyboard <span>? or Esc closes · keys act on the selection; none selected, on the camera</span></div>'
+    +sections.map(s=>`<h4>${s.title}</h4>`+s.rows.map(r=>`<div class="krow"><kbd>${r.keys}</kbd><span>${r.label}</span></div>`).join('')).join('');
+  keySheet.hidden=false;
+}
+const cameraPose=()=>cameraGoal
+  ?{position:cameraGoal.position.toArray(),target:cameraGoal.target.toArray()}
+  :{position:camera.position.toArray(),target:controls.target.toArray()};
+const toGoal=pose=>({position:new THREE.Vector3(...pose.position),target:new THREE.Vector3(...pose.target)});
+function turnCamera(yawDeg,pitchDeg){
+  if(!camera)return;
+  cameraGoal=toGoal(turntable(cameraPose(),{yaw_rad:yawDeg*Math.PI/180,pitch_rad:pitchDeg*Math.PI/180,
+    polar_limits:{min_rad:controls.minPolarAngle,max_rad:controls.maxPolarAngle}}));
+  document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.remove('active'));
+}
+function facePoint(){
+  const pose=pen?.face();
+  if(!pose){tipEl.textContent='Face: select a pin or hover the body first · '+tipBase;return false}
+  cameraGoal=toGoal(pose);
+  document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.remove('active'));
+  return true;
+}
+function escapeKey(){
+  if(!keySheet.hidden){toggleKeySheet(false);return}
+  if(placingLandmark){setPlacingLandmark(null);renderLandmarkList();redrawLandmarks();return}
+  if(penEnabled()){if(!pen.deselect())setPenMode(false);return}
+  if(landmarksVisible)landmarkToggle.click();
+}
+const clickIfEnabled=id=>{const el=document.getElementById(id);if(el&&!el.disabled)el.click()};
+const KEY_ACTIONS={
+  'pen.toggle':()=>setPenMode(!penEnabled()),
+  'landmarks.toggle':()=>landmarkToggle.click(),
+  'tapes.toggle':()=>tapeToggle.click(),
+  'section.toggle':()=>sectionToggle.click(),
+  'view.front':()=>setView('front'),'view.three-quarter':()=>setView('three-quarter'),
+  'view.side':()=>setView('side'),'view.back':()=>setView('back'),'view.reset':()=>setView('reset'),
+  'camera.yaw-left':b=>turnCamera(b.shift?-5:-15,0),'camera.yaw-right':b=>turnCamera(b.shift?5:15,0),
+  'camera.pitch-up':b=>turnCamera(0,b.shift?5:15),'camera.pitch-down':b=>turnCamera(0,b.shift?-5:-15),
+  'camera.face':()=>facePoint(),
+  'help.toggle':()=>toggleKeySheet(),
+  'escape':()=>escapeKey(),
+  'pen.finish':()=>pen?.finishLine(),'pen.close':()=>pen?.closeLoop(),'pen.delete':()=>pen?.deleteSelected(),
+  'pen.reset-handles':()=>pen?.resetHandles(),
+  'pen.select-previous':()=>pen?.selectAdjacentLine(-1),'pen.select-next':()=>pen?.selectAdjacentLine(1),
+  'pen.toggle-label':()=>pen?.toggleLabelSelected(),'pen.export':()=>clickIfEnabled('penExport'),
+  'landmarks.save':()=>clickIfEnabled('landmarkSave'),
+  'pattern.flatten':()=>clickIfEnabled('patternFlatten'),'pattern.export':()=>clickIfEnabled('patternExport'),
+};
+window.addEventListener('keydown',event=>{
+  const binding=matchBinding(event,{contexts:activeContexts(),hasSelection:Boolean(pen?.hasSelection()),lane:'prototype',platform:PLATFORM});
+  if(!binding||!KEY_ACTIONS[binding.id])return;
+  event.preventDefault();
+  KEY_ACTIONS[binding.id](binding);
+  prototypeState.lastKey=binding.id;
+});
+document.querySelector('.bottom-nav button[data-action="face"]').addEventListener('click',()=>facePoint());
+// instrumentation for automated checks: the live camera, the controls and the goal the keys set
+window.__keys={contexts:activeContexts,sheet:()=>cheatSheet({contexts:activeContexts(),lane:'prototype',platform:PLATFORM})};
+window.__view={camera:()=>camera,controls:()=>controls,goal:()=>cameraGoal};
 
 viewBtn.addEventListener('click',()=>{const open=!viewPop.classList.contains('open');viewPop.classList.toggle('open',open);viewBtn.setAttribute('aria-expanded',String(open))});
 

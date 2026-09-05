@@ -7,6 +7,11 @@ import { validateMorphContract } from "./contracts.js";
 import { mountMeasurements, resizeMeasurementLines } from "./measurements.js";
 import { createPenTool } from "../../scripts/pen_tool.mjs";
 import { inchFraction } from "../../scripts/measure_core.mjs";
+// One keyboard map and one view-geometry module for both lanes
+// (AUTHORING_UX_PLAN.md §14, §5): the keys, the grazing guard and the F key mean
+// the same thing here as in the authoring lane.
+import { matchBinding, cheatSheet, detectPlatform } from "../../scripts/keymap.mjs";
+import { framingDistance, turntable, grazingLevel } from "../../scripts/view_geometry.mjs";
 import "./styles.css";
 
 const ASSET_URL = new URL("../../assets/export/avatar_master.glb", import.meta.url).href;
@@ -194,10 +199,7 @@ function directionFor(view) {
 
 function setView(view, animate = true) {
   if (!camera || !controls) return;
-  const verticalFov = THREE.MathUtils.degToRad(camera.fov);
-  const fitHeight = modelSize.y / (2 * Math.tan(verticalFov / 2));
-  const fitWidth = Math.max(modelSize.x, modelSize.z) / (2 * Math.tan(verticalFov / 2) * camera.aspect);
-  const distance = Math.max(fitHeight, fitWidth) * 1.3;
+  const distance = framingDistance({ size_m: modelSize.toArray(), fov_deg: camera.fov, aspect: camera.aspect });
   const target = modelCenter.clone();
   const destination = target.clone().addScaledVector(directionFor(view), distance);
   destination.y += modelRadius * 0.03;
@@ -242,7 +244,7 @@ function loadAvatar() {
     // create a second source of truth — unlike landmark editing, which stays in
     // the authoring lane so there is one place to correct the record.
     pen = createPenTool({
-      scene, canvas, camera, controls, root: avatarRoot, onChange: renderPen,
+      scene, canvas, camera, controls, root: avatarRoot, onChange: renderPen, onHover: showFootprint,
     });
     wirePen();
     renderPen();
@@ -267,6 +269,7 @@ function animate() {
   if (camera && controls) state.camera = {
     position: camera.position.toArray().map((value) => +value.toFixed(5)),
     target: controls.target.toArray().map((value) => +value.toFixed(5)),
+    orbit_enabled: controls.enabled,
   };
   syncDiagnostics();
   renderer?.render(scene, camera);
@@ -374,10 +377,7 @@ function renderPen() {
 
 function wirePen() {
   const toggle = document.querySelector("#penToggle");
-  toggle.addEventListener("click", () => {
-    pen.setEnabled(!pen.enabled);
-    toggle.setAttribute("aria-pressed", String(pen.enabled));
-  });
+  toggle.addEventListener("click", () => setPen(!pen.enabled));
   document.querySelector("#penFinish").addEventListener("click", () => pen.finishLine());
   document.querySelector("#penUndo").addEventListener("click", () => pen.undoPoint());
   document.querySelector("#penClear").addEventListener("click", () => pen.clear());
@@ -399,6 +399,84 @@ function wirePen() {
 
 document.querySelectorAll("#cameraControls button").forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
 document.querySelector("#resetView").addEventListener("click", () => setView("front"));
+document.querySelector("#faceView").addEventListener("click", () => facePoint());
+
+/* ---- keyboard, grazing guard, Face, turntable ------------------------------
+   Keys come from scripts/keymap.mjs, the same table the authoring lane
+   dispatches; this block maps binding ids to this lane's actions. Landmark and
+   pattern rows do not exist here (lane: "production"). The pen hint shows what
+   a pixel is worth on the skin under the cursor: amber past 60°, red past 75° —
+   colours only; the number is recorded on every anchor as placed_with. */
+const PLATFORM = detectPlatform();
+const keySheet = document.querySelector("#keySheet");
+const penHint = document.querySelector("#penHint");
+const hintBase = penHint.textContent;
+function showFootprint(hover) {
+  if (!hover) { penHint.textContent = hintBase; penHint.className = "notice"; return; }
+  const level = grazingLevel(hover.incidence_deg);
+  penHint.className = `notice${level === "ok" ? "" : ` ${level}`}`;
+  penHint.textContent = `${hover.footprint_mm_px} mm/px at ${hover.incidence_deg}° incidence`
+    + (level === "ok" ? "" : " — turn the body to place this precisely (F faces the point)");
+}
+const activeContexts = () => (pen?.enabled ? ["always", "pen"] : ["always"]);
+function toggleKeySheet(force) {
+  const open = force === undefined ? keySheet.hidden : force;
+  if (!open) { keySheet.hidden = true; return; }
+  const sections = cheatSheet({ contexts: activeContexts(), lane: "production", platform: PLATFORM });
+  keySheet.innerHTML = '<div class="khead">Keyboard <span>? or Esc closes · keys act on the selection; none selected, on the camera</span></div>'
+    + sections.map((s) => `<h4>${s.title}</h4>${s.rows.map((r) => `<div class="krow"><kbd>${r.keys}</kbd><span>${r.label}</span></div>`).join("")}`).join("");
+  keySheet.hidden = false;
+}
+const cameraPose = () => (cameraGoal
+  ? { position: cameraGoal.position.toArray(), target: cameraGoal.target.toArray() }
+  : { position: camera.position.toArray(), target: controls.target.toArray() });
+const toGoal = (pose) => ({ position: new THREE.Vector3(...pose.position), target: new THREE.Vector3(...pose.target) });
+function turnCamera(yawDeg, pitchDeg) {
+  if (!camera) return;
+  cameraGoal = toGoal(turntable(cameraPose(), {
+    yaw_rad: (yawDeg * Math.PI) / 180, pitch_rad: (pitchDeg * Math.PI) / 180,
+    polar_limits: { min_rad: controls.minPolarAngle, max_rad: controls.maxPolarAngle },
+  }));
+  document.querySelectorAll("#cameraControls button").forEach((button) => button.classList.remove("active"));
+}
+function facePoint() {
+  const pose = pen?.face();
+  if (!pose) { penHint.textContent = "Face: select a pin or hover the body first."; return false; }
+  cameraGoal = toGoal(pose);
+  document.querySelectorAll("#cameraControls button").forEach((button) => button.classList.remove("active"));
+  return true;
+}
+function setPen(on) {
+  pen.setEnabled(on);
+  document.querySelector("#penToggle").setAttribute("aria-pressed", String(pen.enabled));
+}
+function escapeKey() {
+  if (!keySheet.hidden) { toggleKeySheet(false); return; }
+  if (pen?.enabled && !pen.deselect()) setPen(false);
+}
+const clickIfEnabled = (selector) => { const el = document.querySelector(selector); if (el && !el.disabled) el.click(); };
+const KEY_ACTIONS = {
+  "pen.toggle": () => pen && setPen(!pen.enabled),
+  "tapes.toggle": () => clickIfEnabled("#tapeToggle"),
+  "view.front": () => setView("front"), "view.three-quarter": () => setView("three-quarter"),
+  "view.side": () => setView("side"), "view.back": () => setView("back"), "view.reset": () => setView("front"),
+  "camera.yaw-left": (b) => turnCamera(b.shift ? -5 : -15, 0), "camera.yaw-right": (b) => turnCamera(b.shift ? 5 : 15, 0),
+  "camera.pitch-up": (b) => turnCamera(0, b.shift ? 5 : 15), "camera.pitch-down": (b) => turnCamera(0, b.shift ? -5 : -15),
+  "camera.face": () => facePoint(),
+  "help.toggle": () => toggleKeySheet(),
+  "escape": () => escapeKey(),
+  "pen.finish": () => pen?.finishLine(), "pen.close": () => pen?.closeLoop(), "pen.delete": () => pen?.deleteSelected(),
+  "pen.reset-handles": () => pen?.resetHandles(),
+  "pen.select-previous": () => pen?.selectAdjacentLine(-1), "pen.select-next": () => pen?.selectAdjacentLine(1),
+  "pen.toggle-label": () => pen?.toggleLabelSelected(), "pen.export": () => clickIfEnabled("#penExport"),
+};
+window.addEventListener("keydown", (event) => {
+  const binding = matchBinding(event, { contexts: activeContexts(), hasSelection: Boolean(pen?.hasSelection()), lane: "production", platform: PLATFORM });
+  if (!binding || !KEY_ACTIONS[binding.id]) return;
+  event.preventDefault();
+  KEY_ACTIONS[binding.id](binding);
+  state.lastKey = binding.id;
+});
 canvas.addEventListener("pointerdown", () => { cameraGoal = null; });
 document.querySelectorAll(".toggle-list button").forEach((button) => button.addEventListener("click", () => {
   const role = button.dataset.role;

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T08:15:11Z",
+  "generated_at": "2026-09-05T09:39:24Z",
   "purpose": "Static guard that the prototype and production viewer lanes cannot disagree about a measurement.",
   "registry_sha256": "056c64938801ff5a9d63de9ed99528cbaa6225fdf77e17ef97a46876cba8e18c",
   "checks": [
@@ -93,6 +93,46 @@
       "name": "the production lane does not reimplement the pen",
       "status": "PASS",
       "detail": "no pen function is redefined"
+    },
+    {
+      "name": "the prototype lane dispatches keys through the shared keymap",
+      "status": "PASS",
+      "detail": "imports scripts/keymap.mjs and calls matchBinding"
+    },
+    {
+      "name": "the prototype lane frames and turns the camera through the shared view geometry",
+      "status": "PASS",
+      "detail": "imports scripts/view_geometry.mjs for framingDistance and turntable"
+    },
+    {
+      "name": "the production lane dispatches keys through the shared keymap",
+      "status": "PASS",
+      "detail": "imports scripts/keymap.mjs and calls matchBinding"
+    },
+    {
+      "name": "the production lane frames and turns the camera through the shared view geometry",
+      "status": "PASS",
+      "detail": "imports scripts/view_geometry.mjs for framingDistance and turntable"
+    },
+    {
+      "name": "the prototype lane does not reimplement the keymap or view geometry",
+      "status": "PASS",
+      "detail": "no interaction function is redefined"
+    },
+    {
+      "name": "the production lane does not reimplement the keymap or view geometry",
+      "status": "PASS",
+      "detail": "no interaction function is redefined"
+    },
+    {
+      "name": "the pen records placement through the shared view geometry",
+      "status": "PASS",
+      "detail": "imports scripts/view_geometry.mjs; placed_with is not computed twice"
+    },
+    {
+      "name": "the pen binds no keys of its own",
+      "status": "PASS",
+      "detail": "keys are the hosts' through the keymap, so both lanes read the same map"
     },
     {
       "name": "the pen uses the one path model",

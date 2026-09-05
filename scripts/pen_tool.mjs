@@ -4,12 +4,23 @@ import { LineGeometry } from "three/addons/lines/LineGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 
 import { buildGrid, surfaceRun, pointAtFraction } from "./surface_path.mjs";
+import { placement, poseFacing } from "./view_geometry.mjs";
 
 /**
  * The pen: drafting measured lines on a body, the way a pattern is drafted on a
  * form. Click to pin an anchor, drag an anchor to correct it, drag either of a
  * segment's two control points to shape the run, right-click a control point to
- * re-centre it or an anchor to delete it, Enter to finish a line.
+ * re-centre it or an anchor to delete it. Dragging empty skin ORBITS — the pen
+ * claims the pointer only when it lands on a pin, so the body is turned without
+ * leaving the tool (AUTHORING_UX_PLAN.md §5.1); a touch long-press is the
+ * right-click. Keys are the host's: it dispatches scripts/keymap.mjs bindings to
+ * the actions exposed below, so both lanes read the same map.
+ *
+ * Every anchor records how well it was placed — camera distance, incidence
+ * angle, what one pixel was worth on the skin there (`placed_with`, via
+ * scripts/view_geometry.mjs) — because a point pinned at 80° from 1.6 m is a
+ * different kind of number from one pinned facing at 0.35 m, and the evidence
+ * should be able to tell them apart.
  *
  * This module is SHARED BY BOTH VIEWER LANES on purpose. Copying it into the
  * second lane would give the project two implementations of the same
@@ -35,11 +46,15 @@ const SELECTED_COLOR = 0xf0a02a;
 // normal viewing distance, so ray picking demanded pixel-perfect aim and the
 // drag fell through to the camera instead.
 const PICK_RADIUS_PX = 15;
+// A press that travels less than this is a click; more, and it was an orbit.
+const CLICK_SLOP_PX = 5;
+// A touch held this long without moving is the right-click.
+const LONG_PRESS_MS = 500;
 
 const toArr = (v) => [v.x, v.y, v.z];
 const toVec = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 
-export function createPenTool({ scene, canvas, camera, controls, root, onChange }) {
+export function createPenTool({ scene, canvas, camera, controls, root, onChange, onHover }) {
   const raycaster = new THREE.Raycaster();
   const lineMaterials = new Set();
 
@@ -53,6 +68,8 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
   let selectedAnchor = null;
   let dragging = null;
   let pointerDownAt = null;
+  let hoverHit = null;          // the skin under the cursor, refreshed once per frame
+  let hoverPending = null;
   let lineGroup = null;
   let anchorGroup = null;
 
@@ -116,8 +133,16 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
   const surfaceAnchor = (arr) => {
     const run = surfaceRun(grid, arr, arr);
     const point = run.points[0];
-    return { point: toVec(point), normal: new THREE.Vector3(point[0], 0, point[2]).normalize() };
+    return { point: toVec(point), normal: new THREE.Vector3(point[0], 0, point[2]).normalize(), placed_with: { method: "script" } };
   };
+
+  /** How a point was placed: the camera it was seen from and what a pixel was worth. */
+  function placedWith(hit, method) {
+    return placement({
+      point: toArr(hit.point), normal: toArr(hit.normal), cameraPosition: toArr(camera.position),
+      fov_deg: camera.fov, pixel_height: canvas.clientHeight || 1, method,
+    });
+  }
 
   // path points already lie on the skin, so nudge them radially clear of it
   function liftPath(points) {
@@ -333,21 +358,42 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
 
   function onPointerDown(event) {
     if (!enabled || suspended) return;
+    if (event.button !== 0 && event.pointerType !== "touch") return;   // right/middle are the camera's
     const picked = pickAt(event.clientX, event.clientY);
     if (picked) {
       dragging = picked;
       selectedAnchor = picked.anchor || picked.handle;
       if (picked.line !== activeLine) selectedLine = lines.indexOf(picked.line);
+      // the one moment the pen owns the pointer: OrbitControls saw this
+      // pointerdown too, and stays parked until the pin is released
       controls.enabled = false;
       canvas.setPointerCapture(event.pointerId);
       redraw();
       return;
     }
-    pointerDownAt = { x: event.clientX, y: event.clientY };
+    pointerDownAt = { x: event.clientX, y: event.clientY, time: performance.now(), touch: event.pointerType === "touch" };
+  }
+
+  // Hovering asks the skin what a pixel is worth there, once per frame at most:
+  // the host shows it in its tip (the grazing guard) and `face()` uses it.
+  function scheduleHover(clientX, clientY) {
+    if (hoverPending) { hoverPending.clientX = clientX; hoverPending.clientY = clientY; return; }
+    hoverPending = { clientX, clientY };
+    hoverPending.frame = requestAnimationFrame(() => {
+      const at = hoverPending;
+      hoverPending = null;
+      if (!enabled || suspended || dragging) return;
+      const hit = surfaceHit(at.clientX, at.clientY);
+      hoverHit = hit;
+      onHover?.(hit ? { ...placedWith(hit, "hover"), point: toArr(hit.point) } : null);
+    });
   }
 
   function onPointerMove(event) {
-    if (!dragging) return;
+    if (!dragging) {
+      if (enabled && !suspended && onHover) scheduleHover(event.clientX, event.clientY);
+      return;
+    }
     const hit = surfaceHit(event.clientX, event.clientY);
     if (!hit) return;
     if (dragging.handle) {
@@ -358,10 +404,15 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
     } else {
       dragging.anchor.point.copy(hit.point);
       dragging.anchor.normal.copy(hit.normal);
+      dragging.anchor.placed_with = placedWith(hit, "drag");
       rebuildLine(dragging.line);
     }
     redraw();
     onChange?.();
+  }
+
+  function onPointerLeave() {
+    if (hoverHit) { hoverHit = null; onHover?.(null); }
   }
 
   function onPointerUp(event) {
@@ -369,14 +420,19 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
     if (dragging) {
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
       dragging = null;
-      controls.enabled = !enabled;
+      controls.enabled = true;
       onChange?.();
       return;
     }
     if (!pointerDownAt) return;
-    const moved = Math.hypot(event.clientX - pointerDownAt.x, event.clientY - pointerDownAt.y);
+    const press = pointerDownAt;
     pointerDownAt = null;
-    if (moved > 5 || !enabled) return;         // that was an orbit, not a click
+    const moved = Math.hypot(event.clientX - press.x, event.clientY - press.y);
+    if (moved > CLICK_SLOP_PX || !enabled) return;         // that was an orbit, not a click
+    if (press.touch && performance.now() - press.time > LONG_PRESS_MS) {
+      contextActionAt(event.clientX, event.clientY);       // a long press is the right-click
+      return;
+    }
     const hit = surfaceHit(event.clientX, event.clientY);
     if (!hit) return;
     // clicking the first anchor again closes the loop
@@ -393,56 +449,39 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
         return;
       }
     }
-    activeLine.anchors.push({ point: hit.point.clone(), normal: hit.normal.clone() });
+    activeLine.anchors.push({ point: hit.point.clone(), normal: hit.normal.clone(), placed_with: placedWith(hit, press.touch ? "tap" : "click") });
     if (activeLine.anchors.length > 1) rebuildLine(activeLine);
     redraw();
     onChange?.();
   }
 
-  function onContextMenu(event) {
-    if (!enabled || suspended) return;
-    const picked = pickAt(event.clientX, event.clientY);
-    if (!picked) return;
-    event.preventDefault();
+  /** Right-click (or a touch long-press) on a pin: a control point is re-centred,
+   *  an anchor deleted. Returns whether anything was under the pointer. */
+  function contextActionAt(clientX, clientY) {
+    const picked = pickAt(clientX, clientY);
+    if (!picked) return false;
     if (picked.handle) {
       resetSegment(picked.seg);
       rebuildLine(picked.line, picked.seg);
       selectedAnchor = null;
       redraw();
       onChange?.();
-      return;
+      return true;
     }
     deleteAnchor(picked.line, picked.anchor);
+    return true;
   }
 
-  /** The shortcut handler is on `window`, so keystrokes aimed at a text field
-   *  reach it too. Both lanes rename a line through a contenteditable cell in
-   *  their own panel: without this, Enter while renaming finishes the draft
-   *  that is still being pinned, and Backspace deletes the selected anchor
-   *  instead of a character. */
-  function isTextEntry(node) {
-    if (!node || node.nodeType !== 1) return false;
-    if (node.isContentEditable) return true;
-    const tag = node.tagName;
-    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-  }
-
-  function onKeyDown(event) {
+  function onContextMenu(event) {
     if (!enabled || suspended) return;
-    if (isTextEntry(event.target)) return;
-    if (event.key === "Enter") { finishLine(); return; }
-    if ((event.key === "Delete" || event.key === "Backspace") && selectedAnchor) {
-      const owner = (activeLine && activeLine.anchors.includes(selectedAnchor) && activeLine)
-        || lines.find((l) => l.anchors.includes(selectedAnchor));
-      if (owner) { event.preventDefault(); deleteAnchor(owner, selectedAnchor); }
-    }
+    if (contextActionAt(event.clientX, event.clientY)) event.preventDefault();
   }
 
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
+  canvas.addEventListener("pointerleave", onPointerLeave);
   canvas.addEventListener("contextmenu", onContextMenu);
-  window.addEventListener("keydown", onKeyDown);
 
   /** The unlifted 3D polyline of a finished line: its segments' legs joined,
    *  closing segment included, no repeated points. What the 2D pattern draft
@@ -458,7 +497,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
     return pts;
   }
 
-  return {
+  const api = {
     get enabled() { return enabled; },
     /** A finished line as plain arrays: for the pattern draft and for evidence. */
     lineGeometry(index) {
@@ -469,6 +508,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
         approximated: line.approximated,
         points: linePolyline(line),
         anchors: line.anchors.map((a) => toArr(a.point)),
+        placed_with: line.anchors.map((a) => a.placed_with || null),
         control_points: (line.segments || []).flatMap((seg) => (seg.handles || []).map((h) => toArr(h.point))),
       };
     },
@@ -489,7 +529,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
     },
     /** Hand the canvas to another tool (landmark placement) without losing the
      *  lines already drawn. */
-    setSuspended(on) { suspended = on; if (on) { dragging = null; } controls.enabled = on || !enabled; },
+    setSuspended(on) { suspended = on; if (on) { dragging = null; controls.enabled = true; } },
     setEnabled(on) {
       enabled = on;
       if (on) {
@@ -498,13 +538,81 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
       } else {
         selectedAnchor = null;
         dragging = null;
+        if (hoverHit) { hoverHit = null; onHover?.(null); }
       }
-      controls.enabled = !on;
+      // the camera is never parked for the mode — dragging empty skin orbits
+      controls.enabled = true;
       canvas.classList.toggle("pen", on);
       redraw();
       onChange?.();
     },
     finishLine,
+    /** `C`: close the line being drawn (three anchors or more) and finish it. */
+    closeLoop() {
+      if (!activeLine || activeLine.anchors.length < 3) return false;
+      activeLine.closed = true;
+      rebuildLine(activeLine);
+      finishLine();
+      return true;
+    },
+    hasSelection() { return Boolean(selectedAnchor); },
+    /** The selected pin as plain arrays, or null. */
+    selectedPoint() {
+      return selectedAnchor ? { point: toArr(selectedAnchor.point), normal: toArr(selectedAnchor.normal) } : null;
+    },
+    /** The skin under the cursor as of the last frame, or null. */
+    hoverPoint() { return hoverHit ? { point: toArr(hoverHit.point), normal: toArr(hoverHit.normal) } : null; },
+    /** `F`: where the camera should stand to look at the selected (else hovered)
+     *  pin along its normal, keeping its present distance. Null if neither. */
+    face() {
+      const at = selectedAnchor
+        ? { point: toArr(selectedAnchor.point), normal: toArr(selectedAnchor.normal) }
+        : (hoverHit ? { point: toArr(hoverHit.point), normal: toArr(hoverHit.normal) } : null);
+      if (!at) return null;
+      const distance_m = Math.hypot(camera.position.x - at.point[0], camera.position.y - at.point[1], camera.position.z - at.point[2]);
+      return poseFacing({ point: at.point, normal: at.normal, distance_m });
+    },
+    /** `Esc`: drop the pin selection, else the line selection. Returns whether
+     *  anything was selected, so the host knows whether to leave the tool. */
+    deselect() {
+      if (selectedAnchor) { selectedAnchor = null; redraw(); onChange?.(); return true; }
+      if (selectedLine >= 0) { selectedLine = -1; redraw(); onChange?.(); return true; }
+      return false;
+    },
+    /** `Backspace`: delete the selected anchor (a selected control point is
+     *  re-centred instead); nothing selected, undo the last pinned point. */
+    deleteSelected() {
+      if (!selectedAnchor) { api.undoPoint(); return; }
+      const owner = (activeLine && activeLine.anchors.includes(selectedAnchor) && activeLine)
+        || lines.find((l) => l.anchors.includes(selectedAnchor));
+      if (owner) { deleteAnchor(owner, selectedAnchor); return; }
+      const seg = [activeLine, ...lines].filter(Boolean).flatMap((l) => l.segments || []).find((x) => x.handles && x.handles.includes(selectedAnchor));
+      if (seg) { resetSegment(seg); rebuildLine(seg.line, seg); selectedAnchor = null; redraw(); onChange?.(); }
+    },
+    /** `R`: re-centre the control points of the selected control point's
+     *  segment; with an anchor or a line selected, of the whole line. */
+    resetHandles() {
+      const all = [activeLine, ...lines].filter(Boolean);
+      const seg = selectedAnchor && all.flatMap((l) => l.segments || []).find((x) => x.handles && x.handles.includes(selectedAnchor));
+      if (seg) { resetSegment(seg); rebuildLine(seg.line, seg); selectedAnchor = null; redraw(); onChange?.(); return true; }
+      const line = (selectedAnchor && all.find((l) => l.anchors.includes(selectedAnchor))) || lines[selectedLine];
+      if (!line) return false;
+      for (const x of line.segments || []) resetSegment(x);
+      rebuildLine(line);
+      redraw();
+      onChange?.();
+      return true;
+    },
+    /** `[` / `]`: step the line selection. */
+    selectAdjacentLine(step) {
+      if (!lines.length) return;
+      selectedAnchor = null;
+      selectedLine = selectedLine < 0 ? (step > 0 ? 0 : lines.length - 1) : (selectedLine + step + lines.length) % lines.length;
+      redraw();
+      onChange?.();
+    },
+    /** `I`: the selected line's on-body label. */
+    toggleLabelSelected() { if (lines[selectedLine]) api.toggleLabel(selectedLine); },
     undoPoint() {
       if (activeLine && activeLine.anchors.length) {
         deleteAnchor(activeLine, activeLine.anchors[activeLine.anchors.length - 1]);
@@ -564,6 +672,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
     summary() {
       return {
         enabled,
+        hasSelection: Boolean(selectedAnchor),
         active: activeLine
           ? { anchors: activeLine.anchors.length, length: activeLine.length }
           : null,
@@ -583,7 +692,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
     /** The export payload, pinned to the asset by the caller. */
     toExport({ asset, assetSha, inchDenominator = 8, inchFraction }) {
       return {
-        schema_version: 1,
+        schema_version: 2,
         asset,
         asset_sha256: assetSha,
         recorded_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
@@ -592,6 +701,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
         declared_limits: [
           "Drafted by hand in the viewer. Not a registry POM and not an approved measurement record.",
           "Loose-tape surface length: no soft-tissue compression allowance.",
+          "placed_with records how each anchor was pinned (camera distance, incidence, mm per pixel); it is context, not a correction.",
         ],
         lines: lines.map((line, index) => ({
           name: line.name || `Line ${index + 1}`,
@@ -602,6 +712,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
           anchors: line.anchors.map((a) => [
             Number(a.point.x.toFixed(5)), Number(a.point.y.toFixed(5)), Number(a.point.z.toFixed(5)),
           ]),
+          placed_with: line.anchors.map((a) => a.placed_with || null),
           control_points: (line.segments || []).flatMap((seg) => (seg.handles || []).map((h) => [
             Number(h.point.x.toFixed(5)), Number(h.point.y.toFixed(5)), Number(h.point.z.toFixed(5)),
           ])),
@@ -615,10 +726,12 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointerleave", onPointerLeave);
       canvas.removeEventListener("contextmenu", onContextMenu);
-      window.removeEventListener("keydown", onKeyDown);
+      if (hoverPending?.frame) cancelAnimationFrame(hoverPending.frame);
       disposeGroup(lineGroup);
       disposeGroup(anchorGroup);
     },
   };
+  return api;
 }

@@ -128,6 +128,7 @@ export function lineRecord(line) {
   return {
     name: line.name || null, closed: line.closed, length_mm: Number((line.length * 1000).toFixed(1)),
     anchors: (line.anchors || []).map(r3),
+    placed_with: line.placed_with || null,
     control_points: (line.control_points || []).map(r3),
   };
 }

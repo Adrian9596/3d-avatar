@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T09:39:24Z",
+  "purpose": "One keyboard map for both lanes: conflict-free, browser-safe, and the doc regenerated from it.",
+  "module": {
+    "file": "scripts/keymap.mjs",
+    "sha256": "ec088b9a68581002740389cbf9c965fb30a64c8b80ba6f5349502c2419b5baea"
+  },
+  "keymap_sha256": "41aff0bc632c7e36795d924591c5d775c253e9ad4ba775206ff95ecf603711b4",
+  "bindings": {
+    "total": 43,
+    "active": 27,
+    "planned": 16
+  },
+  "keystrokes": [
+    {
+      "name": "P toggles the pen",
+      "expect": "pen.toggle",
+      "got": "pen.toggle",
+      "ok": true
+    },
+    {
+      "name": "Enter finishes a line in the pen",
+      "expect": "pen.finish",
+      "got": "pen.finish",
+      "ok": true
+    },
+    {
+      "name": "Enter outside the pen does nothing",
+      "expect": null,
+      "got": null,
+      "ok": true
+    },
+    {
+      "name": "arrow with nothing selected turns the camera",
+      "expect": "camera.yaw-left",
+      "got": "camera.yaw-left",
+      "ok": true
+    },
+    {
+      "name": "Shift+arrow still turns the camera (5° step)",
+      "expect": "camera.yaw-left",
+      "got": "camera.yaw-left",
+      "ok": true
+    },
+    {
+      "name": "arrow with a point selected is not the camera",
+      "expect": null,
+      "got": null,
+      "ok": true
+    },
+    {
+      "name": "arrow with a point selected nudges once Phase B lands",
+      "expect": "pen.nudge",
+      "got": "pen.nudge",
+      "ok": true
+    },
+    {
+      "name": "? opens the sheet regardless of Shift",
+      "expect": "help.toggle",
+      "got": "help.toggle",
+      "ok": true
+    },
+    {
+      "name": "Shift+E exports pen lines",
+      "expect": "pen.export",
+      "got": "pen.export",
+      "ok": true
+    },
+    {
+      "name": "plain E is nothing",
+      "expect": null,
+      "got": null,
+      "ok": true
+    },
+    {
+      "name": "Shift+F flattens when the pattern block is up",
+      "expect": "pattern.flatten",
+      "got": "pattern.flatten",
+      "ok": true
+    },
+    {
+      "name": "plain F faces the point",
+      "expect": "camera.face",
+      "got": "camera.face",
+      "ok": true
+    },
+    {
+      "name": "⌘Z on macOS is undo once Phase B lands",
+      "expect": "pen.undo",
+      "got": "pen.undo",
+      "ok": true
+    },
+    {
+      "name": "Ctrl+Z on macOS is not ours (Ctrl+click is a right-click there)",
+      "expect": null,
+      "got": null,
+      "ok": true
+    },
+    {
+      "name": "Ctrl+Z elsewhere is undo once Phase B lands",
+      "expect": "pen.undo",
+      "got": "pen.undo",
+      "ok": true
+    },
+    {
+      "name": "a keystroke in a text field is the field's",
+      "expect": null,
+      "got": null,
+      "ok": true
+    },
+    {
+      "name": "L is unknown to the production lane",
+      "expect": null,
+      "got": null,
+      "ok": true
+    },
+    {
+      "name": "L opens landmarks in the prototype",
+      "expect": "landmarks.toggle",
+      "got": "landmarks.toggle",
+      "ok": true
+    },
+    {
+      "name": "Home resets the view",
+      "expect": "view.reset",
+      "got": "view.reset",
+      "ok": true
+    },
+    {
+      "name": "Space is nothing until Phase C",
+      "expect": null,
+      "got": null,
+      "ok": true
+    }
+  ],
+  "checks": [
+    {
+      "name": "every binding has a unique id",
+      "status": "PASS",
+      "detail": "43 bindings"
+    },
+    {
+      "name": "every binding has a label and at least one key",
+      "status": "PASS",
+      "detail": "labels present"
+    },
+    {
+      "name": "every binding names a known context",
+      "status": "PASS",
+      "detail": "always, pen, landmarks, pattern"
+    },
+    {
+      "name": "planned rows name their phase",
+      "status": "PASS",
+      "detail": "16 planned, 27 active"
+    },
+    {
+      "name": "no keystroke can mean two things at once",
+      "status": "PASS",
+      "detail": "within a tool, and between each tool and the always layer"
+    },
+    {
+      "name": "no binding takes a browser-owned ⌘/Ctrl combination",
+      "status": "PASS",
+      "detail": "⌘/Ctrl + S P W N T L D F R H J K O U Q E left to the browser"
+    },
+    {
+      "name": "the platform modifier is used only for undo/redo",
+      "status": "PASS",
+      "detail": "as §14 says"
+    },
+    {
+      "name": "Shift+letter only produces a file or runs a solve",
+      "status": "PASS",
+      "detail": "exports, flatten, template, compare"
+    },
+    {
+      "name": "the dispatcher resolves the representative keystrokes",
+      "status": "PASS",
+      "detail": "20 keystrokes"
+    },
+    {
+      "name": "the sheet lists active rows of the active contexts for the lane",
+      "status": "PASS",
+      "detail": "22 rows for production always+pen"
+    },
+    {
+      "name": "AUTHORING_UX_PLAN.md §14 tables are generated from KEYMAP",
+      "status": "PASS",
+      "detail": "byte-identical"
+    }
+  ],
+  "decision": "KEYMAP_CONSISTENT"
+}
