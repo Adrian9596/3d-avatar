@@ -90,8 +90,14 @@ jobs:
       - name: glTF validator (zero errors required)
         run: npm run validate:gltf -- assets/export/avatar_master.glb qa/avatar_master/gltf-validator-report.json
 
-      - name: Build the production viewer
-        run: npm run build:viewer
+      # Build exactly the way the deploy does, so a broken publish is caught
+      # on the PR instead of only after merge (deploy-pages runs on push to
+      # main, where nothing is left to block).
+      - name: Build both viewer lanes, as the deploy does
+        run: npm run build:pages
+
+      - name: The published layout must be publishable
+        run: npm run validate:pages-layout
 
       - name: Committed evidence must match this run
         run: npm run validate:evidence-drift -- "${RUNNER_TEMP}/committed-evidence" qa/avatar_master
