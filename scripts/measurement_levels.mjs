@@ -119,18 +119,23 @@ export function outOfRange(y, { scan, maxY }) {
 
 /**
  * Measure every resolved level on this body. Each entry keeps its ring (for
- * drawing) and either a girth or the reason there is none — never both, and
- * never a number where the section is not trustworthy.
+ * drawing, whenever the mesh has one — even a level outside the trustworthy
+ * range usually still has geometry there, just not a girth this project will
+ * report) and either a girth or the reason there is none — never both, and
+ * never a number where the section is not trustworthy. `blocked` and `section`
+ * are independent: a level can be blocked (no girth) while still drawable, and
+ * is only undrawable when the mesh genuinely has no closed section there.
  */
 export function measureLevels(resolved, tri, { scan = null, maxY = null, inchDenominator = 8 } = {}) {
   if (resolved.needs) return resolved;
   return {
     ...resolved,
     levels: resolved.levels.map((level) => {
-      const blocked = outOfRange(level.y_m, { scan, maxY });
-      const section = blocked ? null : measureSection(tri, level.y_m);
-      if (!section) {
-        return { ...level, section: null, girth_m: null, blocked: blocked || 'no closed section at this height' };
+      const rangeReason = outOfRange(level.y_m, { scan, maxY });
+      const section = measureSection(tri, level.y_m);
+      const blocked = rangeReason || (section ? null : 'no closed section at this height');
+      if (blocked) {
+        return { ...level, section, girth_m: null, girth_in: null, blocked };
       }
       return {
         ...level,

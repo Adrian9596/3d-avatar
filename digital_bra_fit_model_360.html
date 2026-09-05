@@ -1071,8 +1071,13 @@ function positionLevelLabels(){
     el.style.background=colour;
     el.style.left=columnX+'px';
     el.style.top=placed[i]+'px';
+    // blocked (no reading — above the reliable ceiling, or outside the scan)
+    // still gets its ring and its pill, muted, so the on-body stack never
+    // silently drops a declared level; only the girth is withheld.
+    el.style.opacity=level.blocked?'.5':'1';
+    el.title=level.blocked||'';
     svg.push('<path d="M'+anchor.x.toFixed(1)+' '+anchor.y.toFixed(1)
-      +'L'+(columnX-4).toFixed(1)+' '+placed[i].toFixed(1)+'" stroke="'+colour+'" stroke-width="1" fill="none" opacity=".65"/>');
+      +'L'+(columnX-4).toFixed(1)+' '+placed[i].toFixed(1)+'" stroke="'+colour+'" stroke-width="1" fill="none" opacity="'+(level.blocked?'.3':'.65')+'"/>');
   });
   leaders.innerHTML=svg.join('');
   leaders.setAttribute('viewBox','0 0 '+W+' '+H);

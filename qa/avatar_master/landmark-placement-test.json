@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T14:59:55Z",
+  "generated_at": "2026-09-05T16:29:05Z",
   "purpose": "The logic behind hand placement in the authoring lane: guided order, framing per landmark, the mirror offer, and the record a placed point carries.",
   "module": {
     "file": "scripts/landmark_placement.mjs",
