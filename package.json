@@ -25,6 +25,8 @@
     "sync:registry": "node scripts/sync_registry_to_viewer.mjs",
     "prebuild:viewer": "npm run sync:registry",
     "build:viewer": "vite build",
+    "build:prototype": "vite build --config vite.prototype.config.mjs",
+    "build:pages": "rm -rf dist && npm run build:viewer && npm run build:prototype",
     "predev:viewer": "npm run sync:registry",
     "dev:viewer": "vite",
     "preview:viewer": "vite preview",

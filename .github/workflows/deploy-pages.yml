@@ -35,23 +35,25 @@ jobs:
       - name: Validate glTF before publishing
         run: npm run validate:gltf -- assets/export/avatar_master.glb qa/avatar_master/gltf-validator-report.json
 
-      - name: Build production viewer
-        run: npm run build:viewer
+      # Builds both lanes: the prototype becomes the landing page and the
+      # production viewer sits under /viewer/. Both are bundled, so no .mjs is
+      # served -- static hosts do not agree on its MIME type and a browser will
+      # not run a module served as anything but JavaScript.
+      - name: Build both viewer lanes
+        run: npm run build:pages
 
-      - name: Assemble prototype (authoring) lane
+      - name: Refuse to publish a site that serves .mjs
         run: |
           set -euo pipefail
-          PROTO=dist/prototype
-          mkdir -p "$PROTO/assets/export" "$PROTO/contracts" "$PROTO/node_modules/three"
-          cp digital_bra_fit_model_360.html "$PROTO/"
-          cp -r scripts "$PROTO/scripts"
-          cp assets/export/avatar_master.glb assets/export/avatar_master_reference_render.png "$PROTO/assets/export/"
-          cp contracts/measurement-registry.json "$PROTO/contracts/"
-          # Vendored whole (not cherry-picked): Line2/GLTFLoader etc. pull in
-          # transitive files (LineSegments2.js, BufferGeometryUtils.js, ...)
-          # not directly imported by the HTML's own import map.
-          cp -r node_modules/three/build "$PROTO/node_modules/three/build"
-          cp -r node_modules/three/examples "$PROTO/node_modules/three/examples"
+          if find dist -name '*.mjs' -print -quit | grep -q .; then
+            echo "::error::dist contains .mjs files - a host that mislabels their MIME type would leave a blank page. They must be bundled."
+            find dist -name '*.mjs'
+            exit 1
+          fi
+          test -f dist/index.html || { echo "::error::dist/index.html missing - the prototype is the landing page"; exit 1; }
+          test -f dist/assets/export/avatar_master.glb || { echo "::error::the prototype's GLB was not copied into dist"; exit 1; }
+          test -f dist/viewer/index.html || { echo "::error::the production viewer is missing from dist/viewer"; exit 1; }
+          echo "Layout OK: / = prototype, /viewer/ = production viewer, no .mjs served."
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

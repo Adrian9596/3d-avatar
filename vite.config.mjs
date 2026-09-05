@@ -4,7 +4,8 @@ export default defineConfig({
   root: "viewer",
   base: "./",
   build: {
-    outDir: "../dist",
+    // The prototype is the landing page; the production lane sits under it.
+    outDir: "../dist/viewer",
     emptyOutDir: true,
     sourcemap: true,
   },
