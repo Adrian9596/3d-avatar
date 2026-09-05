@@ -9,6 +9,15 @@ visual bra-fit review.
 > working viewer is not anatomical or fit approval. See
 > [Status & known gaps](#status--known-gaps) before using any number this app shows.
 
+## Live demo
+
+Both lanes auto-deploy to GitHub Pages on every push to `main` (see [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)) — open these directly, no local setup needed to just look:
+
+- **Production viewer:** https://adrian9596.github.io/3d-avatar/
+- **Authoring/prototype lane:** https://adrian9596.github.io/3d-avatar/prototype/digital_bra_fit_model_360.html
+
+The authoring lane's Save buttons trigger a browser file download (`landmarks.manual.json` / `draft-lines.json`) — there's no backend, so anything saved on the live site has to be manually downloaded and placed into `qa/avatar_master/` in a clone, then committed, for it to actually count as project evidence.
+
 ## What's in this repo
 
 - **Canonical editable source:** [`assets/source/avatar_master.blend`](assets/source/avatar_master.blend) — a checkpoint saved from a CLO3D "Avatarclo1" export. The untouched original sits at [`Avatarclo1_half_beautified_3quarter.blend`](Avatarclo1_half_beautified_3quarter.blend) in the project root.
