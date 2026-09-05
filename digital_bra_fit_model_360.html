@@ -95,6 +95,20 @@ button{font:inherit}
 .pattern .mtable td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
 .pattern .mtable td.pshared{white-space:normal;color:#8d867f;font-size:9.5px;line-height:1.45}
 .pattern .mtable td.pshared b{color:#4f4943}
+.levels{margin-top:9px;border-top:1px solid rgba(53,47,42,.09);padding-top:7px}
+.levels .ptitle{font-size:10px;font-weight:700;color:#4f4943;display:flex;justify-content:space-between;align-items:baseline}
+.levels .ptitle span{font-weight:400;color:#8a6ad0;font-size:9px}
+.level-row{display:flex;align-items:center;gap:7px;font-size:10px;color:#4f4943;padding:3px 5px;border-radius:7px}
+.level-row i{width:7px;height:7px;border-radius:2px;flex:none}
+.level-row b{width:44px;font-variant-numeric:tabular-nums;font-weight:700}
+.level-row span{margin-left:auto;color:#8d867f;font-variant-numeric:tabular-nums}
+.level-row.datum{background:rgba(53,47,42,.05)}
+.level-row .blocked{color:#a63a2b;font-variant-numeric:normal}
+.level-labels{position:absolute;inset:0;z-index:21;pointer-events:none}
+#levelLeaders{position:absolute;inset:0;width:100%;height:100%}
+.glabel{position:absolute;transform:translate(-50%,-50%);background:rgba(250,248,245,.9);color:#5f5851;border:1px solid rgba(53,47,42,.16);border-radius:5px;padding:1px 5px;font-size:8.5px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.lmlabel{position:absolute;transform:translate(-50%,-50%);background:rgba(240,160,42,.94);color:#fff;border-radius:5px;padding:1px 5px;font-size:8.5px;white-space:nowrap;box-shadow:0 3px 9px rgba(60,40,10,.25)}
+.llabel{position:absolute;transform:translate(0,-50%);border-radius:999px;padding:2px 7px;font-size:9px;font-variant-numeric:tabular-nums;white-space:nowrap;color:#fff;box-shadow:0 4px 12px rgba(30,45,62,.22)}
 .stroke-row[data-active="true"]{cursor:default;color:#8d867f}
 .stroke-row[data-active="true"] i{background:#f0a02a}
 .section-tool{position:absolute;right:18px;top:50%;transform:translateY(-50%);z-index:25;display:none;flex-direction:column;align-items:center;gap:8px}
@@ -153,6 +167,9 @@ button{font:inherit}
   <div class="tip" id="tip">Drag to orbit · wheel/pinch to zoom · use view presets · ? for keys</div>
   <div class="keys" id="keySheet" hidden role="dialog" aria-label="Keyboard shortcuts"></div>
   <div class="loupe" id="loupeFrame" hidden aria-hidden="true"><span>3× loupe · Z</span></div>
+  <div class="level-labels" id="gridLabels" aria-hidden="true"></div>
+  <div class="level-labels" id="landmarkLabels" aria-hidden="true"></div>
+  <div class="level-labels" id="levelLabels" aria-hidden="true"><svg id="levelLeaders" preserveAspectRatio="none"></svg></div>
   <div class="pen-labels" id="penLabels" aria-hidden="true"></div>
   <div class="section-readout" id="sectionReadout"></div>
   <div class="section-tool" id="sectionTool">
@@ -181,9 +198,16 @@ button{font:inherit}
     </div>
     <div class="mtools">
       <button id="sectionToggle" aria-pressed="false"><i class="swatch" style="background:#a8760f"></i>Section</button>
+      <button id="levelToggle" aria-pressed="false" title="The house how-to-measure stack, drawn on this body (G)"><i class="swatch" style="background:#8a6ad0"></i>Levels</button>
+      <button id="gridToggle" aria-pressed="false" title="Centre, side and apex verticals plus the mesh's cut lines (B)"><i class="swatch" style="background:#5f5851"></i>Grid</button>
       <button id="landmarkToggle" aria-pressed="false"><i class="swatch" style="background:#f0a02a"></i>Landmarks</button>
       <button id="landmarkSave" disabled>Save</button>
       <button id="landmarkReset" disabled>Reset</button>
+    </div>
+    <div class="levels" id="levelPanel" hidden>
+      <div class="ptitle">Reference levels <span>heights, not a size</span></div>
+      <div id="levelRows"></div>
+      <div class="mnote" id="levelNote"></div>
     </div>
     <div class="lm-list" id="landmarkList" hidden></div>
     <div class="strokes" id="strokeList" hidden></div>
@@ -247,6 +271,20 @@ import { framingDistance, turntable, grazingLevel } from './scripts/view_geometr
 // and DXF writer the Node gates run — the viewer adds DOM, not maths
 // (PATTERN_2D_DXF_PLAN.md).
 import { draftMesh, draftPieces, flattenDraft, draftSummary, draftExport, SEAM_TOLERANCE_MM } from './scripts/pattern_draft.mjs';
+/* Reference levels: the house "how to measure" stack, declared in
+   contracts/measurement-levels.json as inch offsets from a registry landmark.
+   The module resolves and measures them through the SAME section engine the
+   POMs use, so a level and a POM can never disagree about the same slice; this
+   file only draws what it returns. Authoring lane only, like the landmarks and
+   the pattern block — scripts/test_lane_parity.mjs checks the production lane
+   imports neither the module nor the contract. */
+import { loadLevels, resolveLevels, measureLevels, levelLabel } from './scripts/measurement_levels.mjs';
+/* The vertical half of the same frame: centre, side and apex curves plus the
+   four lines this mesh is cut on, declared in contracts/body-grid.json. Every
+   rule in it is an extreme or an exact feature, never a threshold, and a curve
+   is drawn but never measured — so the grid can carry no tolerance and cannot
+   disagree with a POM. Authoring lane only. */
+import { loadGrid, sampleCurves, sampleBoundaries } from './scripts/body_grid.mjs';
 // Template drafts: conventional cuts declared as landmarks in
 // contracts/pattern-templates.json, drafted as ordinary pen lines and flattened
 // by the same engine — proposals, shown with their cost, never a decision
@@ -360,6 +398,10 @@ const REGISTRY_URL='contracts/measurement-registry.json';
 let registry=null,registrySha=null,torsoTris=null,measureScan=[],tapeGroup=null,templates=[];
 let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
 let sectionOpen=false,sectionGroup=null;
+let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,levelLabelEls=[];
+let gridContract=null,gridVisible=false,gridGroup=null,gridCurves=null,gridBounds=null,gridLabelEls=[],lmLabelEls=[];
+try{gridVisible=localStorage.getItem('gridVisible')==='1'}catch(error){/* private mode */}
+try{levelsVisible=localStorage.getItem('levelsVisible')==='1'}catch(error){/* private mode */}
 let landmarksVisible=false,placingLandmark=null,landmarkGroup=null,torsoMeshes=[],levelPreviewGroup=null;
 let savedLandmarksJson='{}';   // what the last Save (or load) wrote, to mark unsaved changes
 // Landmark placement borrows the canvas, so the pen must stay suspended for
@@ -441,12 +483,15 @@ async function loadRegistry(){
 const TAPE_COLOR=0xd93a2b,INK_COLOR=0x2f4f6f;
 const lineMaterials=new Set();
 
-function makeLine(points,{color,width,opacity=1,depthTest=true,order=0}){
+function makeLine(points,{color,width,opacity=1,depthTest=true,order=0,dash=null}){
   const geometry=new LineGeometry();
   const flat=[];
   for(const p of points)flat.push(p.x,p.y,p.z);
   geometry.setPositions(flat);
-  const material=new LineMaterial({color,linewidth:width,transparent:opacity<1,opacity,depthTest,dashed:false});
+  // A dashed line reads as a reference rather than a measurement — the source
+  // sheets draw their construction grid dotted for the same reason.
+  const material=new LineMaterial({color,linewidth:width,transparent:opacity<1,opacity,depthTest,
+    dashed:Boolean(dash),...(dash?{dashSize:dash[0],gapSize:dash[1],dashScale:1}:{})});
   material.resolution.set(canvas.clientWidth||1,canvas.clientHeight||1);
   lineMaterials.add(material);
   const line=new Line2(geometry,material);
@@ -566,6 +611,10 @@ async function runMeasurements(root){
   ({registry,sha:registrySha}=await loadRegistry());
   torsoTris=collectSurfaceTriangles(root,registry.measurement_surface);
   try{const r=await fetch('contracts/pattern-templates.json');const loaded=loadTemplates(await r.json(),registry);templates=loaded.templates;if(loaded.errors.length)console.warn('pattern-templates.json:',loaded.errors)}catch(error){templates=[];console.warn('pattern-templates.json not loaded',error)}
+  // The levels contract is a runtime asset like the registry and the templates.
+  // Without it there are no levels — never a default stack at guessed heights.
+  try{const r=await fetch('contracts/measurement-levels.json');const loaded=loadLevels(await r.json(),registry);levelContract=loaded.errors.length?null:loaded;if(loaded.errors.length)console.warn('measurement-levels.json:',loaded.errors)}catch(error){levelContract=null;console.warn('measurement-levels.json not loaded',error)}
+  try{const r=await fetch('contracts/body-grid.json');const loaded=loadGrid(await r.json(),registry);gridContract=loaded.errors.length?null:loaded;if(loaded.errors.length)console.warn('body-grid.json:',loaded.errors)}catch(error){gridContract=null;console.warn('body-grid.json not loaded',error)}
   // landmarks are placed on the measurement surface only — a point on the arm is never right
   torsoMeshes=[];root.traverse(o=>{if(!o.isMesh)return;const mats=Array.isArray(o.material)?o.material:[o.material];if(mats.some(m=>m&&registry.measurement_surface.includes(m.name)))torsoMeshes.push(o)});
   if(!torsoTris.length){renderMeasurements(null,null,0);return}
@@ -607,6 +656,8 @@ function recomputeMeasurements(elapsedMs){
   redrawLandmarks();
   renderTemplateChooser();
   refreshTemplateLines();
+  recomputeLevels();
+  recomputeGrid();
   prototypeState.registrySha=registrySha;
   prototypeState.measurements=poms
     ? Object.fromEntries(Object.entries(poms).map(([id,r])=>[id,{
@@ -920,6 +971,285 @@ function drawSection(y){
   syncDiagnostics();
 }
 
+/* ---- reference levels ------------------------------------------------------
+   The house "how to measure" sheets draw a stack of horizontal rings on a
+   reference figure and label each in inches from an unlabelled line at the
+   underbust. contracts/measurement-levels.json declares that stack as a
+   protocol — which offsets, from which registry landmark — and everything
+   below only draws what scripts/measurement_levels.mjs returns for THIS body.
+
+   What is deliberately not here: any dimension from the sheets. They are a
+   different body; a level is a height to look at, not a size, not a POM, and
+   not a fit recommendation. A level whose section is not trustworthy shows its
+   ring greyed and says why instead of showing a number. ------------------- */
+const LEVEL_GROUP_COLOUR=g=>Number.parseInt((levelContract?.groups?.[g]?.colour||'#8a6ad0').slice(1),16);
+
+function recomputeLevels(){
+  measuredLevels=null;
+  if(levelContract&&torsoTris&&marks?.fold){
+    const resolved=resolveLevels(levelContract,{[levelContract.datum]:marks.fold.y});
+    measuredLevels=resolved.needs?resolved:measureLevels(resolved,torsoTris,{
+      scan:registry.scan,maxY:levelContract.max_y_m,inchDenominator:registry.reporting.inch_denominator});
+  }
+  drawLevels();
+  renderLevelList();
+}
+
+function drawLevels(){
+  disposeGroup(levelGroup);levelGroup=null;
+  if(!levelsVisible||!measuredLevels||measuredLevels.needs)return;
+  levelGroup=new THREE.Group();levelGroup.name='ReferenceLevels';
+  for(const level of measuredLevels.levels){
+    if(!level.section)continue;
+    const colour=LEVEL_GROUP_COLOUR(level.group);
+    const datum=level.offset_in===0;
+    const pts=ringPoints(level.section);
+    levelGroup.add(makeLine(pts,{color:colour,width:datum?2.6:1.6,opacity:level.blocked?.35:1}));
+    // the half behind the body, faint, so a ring still reads as one loop
+    levelGroup.add(makeLine(pts,{color:colour,width:datum?1.4:1,opacity:.22,depthTest:false,order:3}));
+  }
+  scene.add(levelGroup);
+}
+
+/* Labels are set off to one side in a column with a leader back to the ring,
+   the way the source sheets do it, because the rings are only millimetres apart
+   on the body and a label parked on each would be one illegible pile. The
+   column sits clear of the widest ring in view, and the labels are pushed apart
+   vertically until none overlaps; a leader keeps each tied to its own ring, so
+   moving a label never changes which height it names. Display only. */
+const LEVEL_LABEL_GAP=13,LEVEL_LABEL_MARGIN=26;
+function positionLevelLabels(){
+  const host=document.getElementById('levelLabels');
+  const leaders=document.getElementById('levelLeaders');
+  const rows=(levelsVisible&&measuredLevels&&!measuredLevels.needs)?measuredLevels.levels.filter(l=>l.section):[];
+  while(levelLabelEls.length<rows.length){
+    const el=document.createElement('div');el.className='llabel';
+    host.appendChild(el);levelLabelEls.push(el);
+  }
+  levelLabelEls.forEach((el,i)=>{el.hidden=i>=rows.length});
+  if(!rows.length||!camera){leaders.replaceChildren();return}
+  const W=canvas.clientWidth,H=canvas.clientHeight;
+  const projected=new THREE.Vector3();
+  // Anchor each ring at its right-most point on screen, and find the column.
+  const anchors=[];let columnX=-Infinity;
+  for(const level of rows){
+    let ax=-Infinity,ay=0,behind=true;
+    for(const [x,z] of level.section.ring){
+      projected.set(x,level.y_m,z).project(camera);
+      if(projected.z>1)continue;
+      behind=false;
+      if(projected.x>ax){ax=projected.x;ay=projected.y}
+    }
+    if(behind){anchors.push(null);continue}
+    const px=(ax*0.5+0.5)*W,py=(-ay*0.5+0.5)*H;
+    anchors.push({x:px,y:py});
+    if(px>columnX)columnX=px;
+  }
+  columnX=Math.min(columnX+LEVEL_LABEL_MARGIN,W-70);
+  // Push apart downward, then back up if the column ran off the bottom, so the
+  // stack keeps the rings' own order without leaving the canvas.
+  const placed=anchors.map(a=>a?a.y:null);
+  let last=-Infinity;
+  for(let i=0;i<placed.length;i++){
+    if(placed[i]===null)continue;
+    placed[i]=Math.max(placed[i],last+LEVEL_LABEL_GAP);last=placed[i];
+  }
+  let floor=H-8;
+  for(let i=placed.length-1;i>=0;i--){
+    if(placed[i]===null)continue;
+    placed[i]=Math.min(placed[i],floor);floor=placed[i]-LEVEL_LABEL_GAP;
+  }
+  const svg=[];
+  rows.forEach((level,i)=>{
+    const el=levelLabelEls[i],anchor=anchors[i];
+    if(!anchor){el.hidden=true;return}
+    const colour=levelContract.groups[level.group].colour;
+    el.hidden=false;
+    // the 13 printed values come from the contract with a plain inch mark; the
+    // unlabelled datum has to match them or the pill and the panel disagree
+    el.textContent=level.label_in||'0"';
+    el.style.background=colour;
+    el.style.left=columnX+'px';
+    el.style.top=placed[i]+'px';
+    svg.push('<path d="M'+anchor.x.toFixed(1)+' '+anchor.y.toFixed(1)
+      +'L'+(columnX-4).toFixed(1)+' '+placed[i].toFixed(1)+'" stroke="'+colour+'" stroke-width="1" fill="none" opacity=".65"/>');
+  });
+  leaders.innerHTML=svg.join('');
+  leaders.setAttribute('viewBox','0 0 '+W+' '+H);
+}
+
+function renderLevelList(){
+  const panel=document.getElementById('levelPanel');
+  const rows=document.getElementById('levelRows');
+  const note=document.getElementById('levelNote');
+  panel.hidden=!levelsVisible;
+  if(!levelsVisible)return;
+  if(!levelContract){
+    rows.innerHTML='';
+    note.innerHTML='<b>Unavailable.</b> contracts/measurement-levels.json did not load, so there is no stack to draw.';
+    return;
+  }
+  if(!measuredLevels||measuredLevels.needs){
+    rows.innerHTML='';
+    note.innerHTML='<b>Needs '+(measuredLevels?.needs||[levelContract.datum]).join(', ')
+      +'.</b> Every height is measured from it, so without it there are no levels.';
+    return;
+  }
+  const denom=registry.reporting.inch_denominator;
+  rows.innerHTML=measuredLevels.levels.map(level=>{
+    const colour=levelContract.groups[level.group].colour;
+    const value=level.blocked
+      ?'<span class="blocked" title="'+level.blocked+'">no reading</span>'
+      :'<span>'+CM(level.girth_m)+'cm · '+level.girth_in+'</span>';
+    return '<div class="level-row'+(level.offset_in===0?' datum':'')+'">'
+      +'<i style="background:'+colour+'"></i>'
+      +'<b>'+(level.label_in||'0"')+'</b>'
+      +levelContract.groups[level.group].label_en
+      +value+'</div>';
+  }).join('');
+  note.innerHTML='Heights from <b>'+measuredLevels.datum+'</b> at y = '+M(measuredLevels.datum_y_m)
+    +'m, traced from the house how-to-measure sheets. '+levelContract.declared_limit
+    +' The girths are this body at those heights, with no compression allowance.';
+}
+
+/* ---- body grid -------------------------------------------------------------
+   The vertical half of the reference frame. The levels give a height; these
+   give the other coordinate, so a point on the skin can be named by both —
+   which is what the dotted grid on the source sheets is for.
+
+   Drawn dashed, and deliberately quiet: a curve here is where this body's own
+   geometry falls, not where a seam should go. The boundary loops are the four
+   places the mesh is cut (neck, both armholes, waist) — hard limits on where
+   anything can sit, and not garment edges. ------------------------------- */
+const GRID_DASH=[0.006,0.006];
+const GRID_COLOUR=g=>Number.parseInt((gridContract?.groups?.[g]?.colour||'#5f5851').slice(1),16);
+
+function recomputeGrid(){
+  gridCurves=null;gridBounds=null;
+  if(gridContract&&torsoTris){
+    const landmarks={};
+    for(const id of ['BUST_APEX_L','BUST_APEX_R']){
+      const value=landmarkValue(id);
+      if(value&&Number.isFinite(value.x))landmarks[id]=[value.x,value.y,value.z];
+    }
+    gridCurves=sampleCurves(gridContract,torsoTris,landmarks,{scan:registry.scan});
+    gridBounds=sampleBoundaries(gridContract,torsoTris);
+  }
+  drawGrid();
+}
+
+function drawGrid(){
+  disposeGroup(gridGroup);gridGroup=null;
+  if(!gridVisible||!gridCurves)return;
+  gridGroup=new THREE.Group();gridGroup.name='BodyGrid';
+  const lift=p=>{const r=Math.hypot(p[0],p[2])||1;return new THREE.Vector3(p[0]*(1+0.0015/r),p[1],p[2]*(1+0.0015/r))};
+  for(const {curve,needs,points} of gridCurves){
+    if(needs||points.length<2)continue;
+    const pts=points.map(lift);
+    gridGroup.add(makeLine(pts,{color:GRID_COLOUR(curve.group),width:1.4,opacity:.85,dash:GRID_DASH}));
+  }
+  for(const {boundary,points,blocked} of gridBounds||[]){
+    if(blocked||points.length<3)continue;
+    const pts=points.map(lift);pts.push(pts[0].clone());
+    gridGroup.add(makeLine(pts,{color:GRID_COLOUR(boundary.group),width:1.4,opacity:.85,dash:GRID_DASH}));
+  }
+  scene.add(gridGroup);
+}
+
+/* Placing a crowd of on-body labels.
+
+   Two rules, both about not lying by omission. A label whose point is on the
+   far side of the body is HIDDEN, not drawn through the torso, because a name
+   floating over skin that is not the skin it names is worse than no name. And
+   labels that would overlap are pushed apart vertically rather than left to
+   cover each other — nothing is dropped, so the count on screen always matches
+   the count in the panel. Text width is measured once per string and cached;
+   reading offsetWidth every frame would reflow the page 60 times a second. */
+const labelWidths=new Map();
+function labelWidth(el,text){
+  if(!labelWidths.has(text)){el.textContent=text;labelWidths.set(text,el.offsetWidth||text.length*5.5)}
+  return labelWidths.get(text);
+}
+// A point on a roughly convex torso faces the camera when its outward radial
+// direction points towards it. Cheap, and right everywhere the body is round.
+function facesCamera(x,y,z){
+  const r=Math.hypot(x,z)||1;
+  return ((camera.position.x-x)*x+(camera.position.z-z)*z)/r>0;
+}
+/* `row.at` may be a single point (a landmark: it is that point or nothing) or a
+   list of candidates (a curve: label it at the highest place on it the viewer
+   can actually see, which changes as the body turns). */
+function anchorFor(row){
+  if(!Array.isArray(row.at[0]))return facesCamera(...row.at)?row.at:null;
+  let best=null;
+  for(const p of row.at){if(facesCamera(...p)&&(!best||p[1]>best[1]))best=p}
+  return best;
+}
+function placeLabels(els,rows,lift){
+  els.forEach((el,i)=>{el.hidden=i>=rows.length});
+  if(!rows.length||!camera)return;
+  const W=canvas.clientWidth,H=canvas.clientHeight;
+  const projected=new THREE.Vector3();
+  const boxes=[];
+  const wanted=rows.map((row,i)=>{
+    const at=anchorFor(row);
+    if(!at)return null;
+    projected.set(at[0],at[1],at[2]).project(camera);
+    if(projected.z>1)return null;
+    return {i,row,x:(projected.x*0.5+0.5)*W,y:(-projected.y*0.5+0.5)*H-lift};
+  }).filter(Boolean).sort((a,b)=>a.y-b.y||a.x-b.x);
+  const shown=new Set();
+  for(const item of wanted){
+    const el=els[item.i];
+    const w=labelWidth(el,item.row.label),h=13;
+    let y=item.y;
+    for(let guard=0;guard<40;guard++){
+      const clash=boxes.find(b=>Math.abs(b.x-item.x)<(b.w+w)/2+2&&Math.abs(b.y-y)<h);
+      if(!clash)break;
+      y=clash.y+h;
+    }
+    boxes.push({x:item.x,y,w,h});
+    el.hidden=false;
+    el.textContent=item.row.label;
+    el.style.left=item.x+'px';
+    el.style.top=Math.min(y,H-8)+'px';
+    shown.add(item.i);
+  }
+  els.forEach((el,i)=>{if(i<rows.length&&!shown.has(i))el.hidden=true});
+}
+
+// One label per curve, parked at the top of the curve so it names the line
+// without sitting on the body where a measurement might be read.
+function positionGridLabels(){
+  const host=document.getElementById('gridLabels');
+  const curves=(gridVisible&&gridCurves)?gridCurves.filter(c=>!c.needs&&c.points.length>1):[];
+  const rows=[...curves.map(r=>({label:r.curve.label_en,at:r.points})),
+    ...((gridVisible&&gridBounds)?gridBounds.filter(b=>!b.blocked&&b.points.length):[]).map(b=>({
+      label:b.boundary.label_en,at:b.points,
+    }))];
+  while(gridLabelEls.length<rows.length){
+    const el=document.createElement('div');el.className='glabel';
+    host.appendChild(el);gridLabelEls.push(el);
+  }
+  placeLabels(gridLabelEls,rows,11);
+}
+
+// The landmark dots are only useful if you can tell which is which.
+function positionLandmarkLabels(){
+  const host=document.getElementById('landmarkLabels');
+  const rows=landmarksVisible&&marks
+    ? LANDMARK_ROWS.map(row=>{
+        const position=landmarkPosition(row.id);
+        return position?{label:row.label,at:[position.x,position.y,position.z]}:null;
+      }).filter(Boolean)
+    : [];
+  while(lmLabelEls.length<rows.length){
+    const el=document.createElement('div');el.className='lmlabel';
+    host.appendChild(el);lmLabelEls.push(el);
+  }
+  placeLabels(lmLabelEls,rows,12);
+}
+
 /* --- pen ------------------------------------------------------------------
    The tool lives in scripts/pen_tool.mjs and is SHARED with the production
    lane; only this lane's DOM chrome is local. Copying the tool into the second
@@ -1088,6 +1418,9 @@ function animate(){
   }
   controls?.update();
   positionDraftLabels();
+  positionLevelLabels();
+  positionGridLabels();
+  positionLandmarkLabels();
   if(camera&&controls)prototypeState.camera={position:camera.position.toArray().map(value=>+value.toFixed(5)),target:controls.target.toArray().map(value=>+value.toFixed(5)),distance:+camera.position.distanceTo(controls.target).toFixed(5),orbit_enabled:controls.enabled};
   syncDiagnostics();
   renderer?.render(scene,camera);
@@ -1140,6 +1473,24 @@ sectionToggle.addEventListener('click',()=>{
   drawSection(Number(sectionSlider.value)/1000);
 });
 sectionSlider.addEventListener('input',()=>drawSection(Number(sectionSlider.value)/1000));
+
+const levelToggle=document.getElementById('levelToggle');
+levelToggle.setAttribute('aria-pressed',String(levelsVisible));
+levelToggle.addEventListener('click',()=>{
+  levelsVisible=!levelsVisible;
+  levelToggle.setAttribute('aria-pressed',String(levelsVisible));
+  try{localStorage.setItem('levelsVisible',levelsVisible?'1':'0')}catch(error){/* private mode */}
+  drawLevels();renderLevelList();
+});
+
+const gridToggle=document.getElementById('gridToggle');
+gridToggle.setAttribute('aria-pressed',String(gridVisible));
+gridToggle.addEventListener('click',()=>{
+  gridVisible=!gridVisible;
+  gridToggle.setAttribute('aria-pressed',String(gridVisible));
+  try{localStorage.setItem('gridVisible',gridVisible?'1':'0')}catch(error){/* private mode */}
+  drawGrid();
+});
 // Landmark placement borrows the canvas from the pen rather than racing it.
 // With a row selected, a press on the body places: a click places at once, a
 // drag moves the marker with the dependent measurements following, and the
@@ -1529,6 +1880,8 @@ const KEY_ACTIONS={
   'landmarks.toggle':()=>landmarkToggle.click(),
   'tapes.toggle':()=>tapeToggle.click(),
   'section.toggle':()=>sectionToggle.click(),
+  'levels.toggle':()=>levelToggle.click(),
+  'grid.toggle':()=>gridToggle.click(),
   'view.front':()=>setView('front'),'view.three-quarter':()=>setView('three-quarter'),
   'view.side':()=>setView('side'),'view.back':()=>setView('back'),'view.reset':()=>setView('reset'),
   'camera.yaw-left':b=>turnCamera(b.shift?-5:-15,0),'camera.yaw-right':b=>turnCamera(b.shift?5:15,0),

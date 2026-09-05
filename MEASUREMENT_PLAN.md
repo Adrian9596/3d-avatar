@@ -733,6 +733,8 @@ What gets drawn, and why each one earns its place:
 | **Surface path** | polyline following the mesh | for `surface_path` POMs (cup depth, root arc) |
 | **Section plane** | translucent quad at the scan height | only while a live slider is being dragged |
 | **Leader + label** | 2D HTML label anchored to a projected 3D point | the value, placed next to its own annotation |
+| **Reference level** (done) | the hull ring at a declared height, coloured by group, with a leadered label in a column off to one side | the house "how to measure" stack drawn on this body — §7a |
+| **Grid curve** (done) | dashed polyline sampled from the horizontal sections, or a boundary loop of the mesh | the vertical half of the reference frame — §7b |
 
 Rendering rules:
 
@@ -746,6 +748,92 @@ Rendering rules:
 - Colour by measurement kind, not by POM: **tape = red** (done), **pen = ink blue** (done),
   caliper and surface path to follow. Consistency beats decoration.
 - Every annotation carries `userData.pomId` so a screenshot can be traced back to a POM.
+
+### 7a. Reference levels — the house "how to measure" stack
+
+The house measures a body against a fixed ladder of horizontal rings. The three
+sheets in `assets/reference/how-to-measure/` draw that ladder on a reference
+figure: thirteen rings with a red leader ending in a printed inch value, and one
+drawn in black with no label at all, at the inframammary fold.
+
+`contracts/measurement-levels.json` declares the ladder as a **protocol** — inch
+offsets from `UNDERBUST_FOLD` — and `scripts/measurement_levels.mjs` resolves it
+onto this avatar. The `G` toggle draws it (authoring lane only), one ring per
+level through the same `measureSection` the POMs use, labels set off in a column
+with a leader back to each ring the way the sheets set them.
+
+What is checked, and what is not:
+
+- **Checked** (`npm run validate:measurement-levels`, on evidence from
+  `npm run trace:measurement-levels`): the three sheets are the ones the contract
+  pins, by sha256; each traces to exactly thirteen leaders; the printed values
+  fit a linear inch scale within 0.28in (worst 0.269in on the three-quarter
+  sheet, which is draughting slack on a drawn diagram); and on all three sheets
+  the fit's zero falls inside the one gap where a ring is drawn without a label.
+- **Not checked, and not claimed to be**: that the black ring *is* the underbust
+  line. Ink over skin anti-aliases to the same brown as the shadow under the
+  breast, and every rule that told them apart on one sheet failed on another, so
+  the trace script does not pretend to have found it. A person read it off the
+  drawing; the reading lives in one field (`datum.landmark`) so correcting it
+  moves the whole stack and nothing else.
+
+On this body the ladder resolves between the waist and the armhole with room to
+spare — `+4 1/4in` lands at y = 1.378 m, 12 mm below the §4.3 ceiling, and
+`-2 1/2in` at y = 1.207 m, above the detected waist. That is a property of *this*
+avatar and is measured by the gate, not assumed: the reference figure is a
+different body and none of its dimensions transfer.
+
+A level is a height to look at. It carries no tolerance, no house code, no row in
+the POM sheet and no entry in `measurements.json`, and the contract's declared
+limit — *"Reference levels are heights from the underbust line, not a fit
+recommendation and not a size"* — travels with it into the panel.
+
+### 7b. The body grid — the vertical half of the frame
+
+§7a gives a height. On its own that names a ring, not a place: "half an inch
+under the fold" is a whole loop around the body. The grid gives the other
+coordinate, so a point on the skin can be named by both — which is what the
+dotted construction grid on the source sheets is for.
+
+`contracts/body-grid.json` declares six curves and four boundaries:
+
+| Id | Rule | What it is |
+|---|---|---|
+| `CENTRE_FRONT`, `CENTRE_BACK` | `section_nearest_x` at x = 0 | the gore line and where the band closes |
+| `SIDE_L`, `SIDE_R` | `section_extreme_x` | the widest point of each section, up to the §4.3 ceiling |
+| `APEX_VERTICAL_L/R` | `section_nearest_x` at the apex's x | the vertical through the apex, for a cup's centre |
+| `NECK_OPENING`, `ARMHOLE_L/R`, `WAIST_CUT` | `boundary_loop` | the four places this mesh is cut |
+
+**Every rule is an extreme or an exact feature.** That is the same test §4.4's
+landmark rules pass and the test `HPS` failed: none of these has a number in it
+that someone chose, so none of them can quietly return that number instead of the
+body. `SIDE_L/R` are the rule the registry already uses for `SIDE_UNDERBUST_L/R`,
+and the gate checks the two agree at the fold (0.049mm) through different code.
+
+**What is deliberately absent: a princess line, a side seam, a strap line.**
+Where a seam goes is a design decision. A rule that derived one from geometry
+would be reporting a choice as a measurement — the same reason
+`PATTERN_2D_DXF_PLAN.md` §2 rules out automatic seam placement, and the gate
+fails if one appears.
+
+**A curve is drawn, never measured.** No length is reported for one, so it
+carries no tolerance and cannot disagree with a POM;
+`npm run validate:lane-parity` checks the module reports no length at all.
+
+Two traps worth recording, both found by the gate rather than by inspection:
+
+- *Which side of the body a point is on* is decided by that section's **own
+  midline**, halfway between its front-most and back-most point. Taking simply
+  the nearest point in x put an apex vertical 266mm behind its own apex — at the
+  apex's x the spine is nearer in x than any point on the chest.
+- *The side curves stop at the 1.39m ceiling* because above it the widest point
+  of a section is the cut edge of the armhole, not the side of the body. The
+  centre and apex curves are front-and-back rules and are unaffected, so they run
+  the full scan.
+
+The boundary loops are the **asset's cut lines**, drawn because they are the hard
+limits on where anything can sit. The neck opening is where the head was removed,
+not a neckline; the gate requires the contract to say so.
 
 ## 8. Traceability and evidence
 

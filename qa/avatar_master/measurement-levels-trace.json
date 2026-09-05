@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T11:47:09Z",
+  "tool": "scripts/trace_measurement_levels.py",
+  "purpose": "What the how-to-measure sheets actually draw, measured from the pixels: one red leader per printed inch value, and the fit that says whether those values read as a linear inch scale with its zero in the sheets' one unlabelled gap.",
+  "contract": "contracts/measurement-levels.json",
+  "contract_sha256": "836bc7f5647a12deac6650b281b12756243bedd62155ef928d80aa0d57328c7f",
+  "declared_values_in": [
+    4.25,
+    3.75,
+    3.5,
+    1.25,
+    0.75,
+    0.5,
+    -1,
+    -1.25,
+    -1.5,
+    -1.75,
+    -2,
+    -2.25,
+    -2.5
+  ],
+  "sheets": [
+    {
+      "path": "assets/reference/how-to-measure/Front_Measurements.png",
+      "view": "front",
+      "sha256": "8e2bf87a35c27c59724d5e43a3df89ee90596dbc76ccb7864856b9f541c844aa",
+      "width": 1268,
+      "height": 1034,
+      "leaders_y_px": [
+        582.5,
+        606.5,
+        613.5,
+        694.0,
+        701.0,
+        707.0,
+        761.5,
+        772.5,
+        783.0,
+        792.5,
+        801.5,
+        810.5,
+        820.5
+      ],
+      "fit": {
+        "px_per_inch": 34.347,
+        "y_px_at_zero": 731.28,
+        "residual_px": [
+          -2.8,
+          4.02,
+          2.44,
+          5.66,
+          -4.52,
+          -7.1,
+          -4.12,
+          -1.71,
+          0.2,
+          1.12,
+          1.53,
+          1.94,
+          3.36
+        ],
+        "worst_residual_in": 0.2068,
+        "zero_falls_between": {
+          "above": "+1/2\"",
+          "below": "-1\"",
+          "clear_of_above_in": 0.7069,
+          "clear_of_below_in": 0.8798,
+          "inside": true
+        }
+      }
+    },
+    {
+      "path": "assets/reference/how-to-measure/Back_Measurements.png",
+      "view": "back",
+      "sha256": "a511b7abfa3b6510b7e973bb0cd45441c511b2fadc62c250f771131271fd5461",
+      "width": 1265,
+      "height": 1038,
+      "leaders_y_px": [
+        589.5,
+        608.5,
+        616.0,
+        692.0,
+        699.5,
+        705.5,
+        760.5,
+        771.5,
+        782.0,
+        791.5,
+        801.0,
+        809.5,
+        820.0
+      ],
+      "fit": {
+        "px_per_inch": 33.607,
+        "y_px_at_zero": 731.22,
+        "residual_px": [
+          1.11,
+          3.31,
+          2.41,
+          2.79,
+          -6.51,
+          -8.91,
+          -4.32,
+          -1.72,
+          0.37,
+          1.47,
+          2.57,
+          2.67,
+          4.77
+        ],
+        "worst_residual_in": 0.2652,
+        "zero_falls_between": {
+          "above": "+1/2\"",
+          "below": "-1\"",
+          "clear_of_above_in": 0.7653,
+          "clear_of_below_in": 0.8712,
+          "inside": true
+        }
+      }
+    },
+    {
+      "path": "assets/reference/how-to-measure/34_Measurements.png",
+      "view": "three-quarter",
+      "sha256": "c1c1ed229776e300577d62d9a5c5304cfc65bc061ff526d49dd46a88643539de",
+      "width": 1280,
+      "height": 1063,
+      "leaders_y_px": [
+        602.5,
+        626.5,
+        633.5,
+        714.0,
+        721.0,
+        727.0,
+        786.5,
+        797.5,
+        808.0,
+        817.5,
+        827.0,
+        835.5,
+        846.0
+      ],
+      "fit": {
+        "px_per_inch": 35.327,
+        "y_px_at_zero": 754.18,
+        "residual_px": [
+          -1.54,
+          4.8,
+          2.97,
+          3.98,
+          -6.68,
+          -9.52,
+          -3.01,
+          -0.84,
+          0.83,
+          1.5,
+          2.17,
+          1.84,
+          3.5
+        ],
+        "worst_residual_in": 0.2693,
+        "zero_falls_between": {
+          "above": "+1/2\"",
+          "below": "-1\"",
+          "clear_of_above_in": 0.7694,
+          "clear_of_below_in": 0.9149,
+          "inside": true
+        }
+      }
+    }
+  ],
+  "reading": "px_per_inch is the sheet's own scale; y_px_at_zero is where the fit puts the 0 line; zero_falls_between names the two labelled leaders it lands among and how far it clears each, in inches. Inside that gap is where the sheets draw their one unlabelled ring.",
+  "limits": [
+    "The figure on these sheets is NOT this avatar. Only the protocol transfers.",
+    "A leader's y is where the author pointed at a ring on a drawn sheet, not a measured height.",
+    "The black 0 line is not detected here \u2014 ink over skin is the same brown as the shadow under the breast. Reading it as the underbust line is a person's, declared in the contract's datum field."
+  ]
+}

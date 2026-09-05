@@ -450,6 +450,8 @@ Rules the map follows:
 | `L` | Landmarks panel on / off *(prototype)* |
 | `T` | Tape lines on / off |
 | `X` | Section tool on / off *(prototype)* |
+| `G` | Reference levels on / off (the how-to-measure stack) *(prototype)* |
+| `B` | Body grid on / off (centre, side, apex verticals and the cut lines) *(prototype)* |
 | `1` | Front view |
 | `2` | Three-quarter view |
 | `3` | Side view |

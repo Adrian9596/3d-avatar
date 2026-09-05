@@ -165,6 +165,39 @@ record('the production host hardcodes no material name', !/Mara:/.test(productio
 record('the production lane drafts no templates',
   !/pattern_templates\.mjs|pattern-templates\.json/.test(production) && !/pattern_templates\.mjs|pattern-templates\.json/.test(production_main),
   'templates are proposals in the authoring lane, drafted through the same pen and flattened by the same engine');
+// Reference levels are the how-to-measure stack: a protocol declared in
+// contracts/measurement-levels.json, resolved through the shared section engine
+// so a level and a POM can never disagree about the same slice of this body.
+const LEVELS = join(ROOT, 'scripts', 'measurement_levels.mjs');
+const levels = existsSync(LEVELS) ? readFileSync(LEVELS, 'utf8') : '';
+record('the prototype lane draws reference levels through scripts/measurement_levels.mjs',
+  /from\s+['"][^'"]*measurement_levels\.mjs['"]/.test(prototype), 'imports scripts/measurement_levels.mjs');
+record('measurement_levels.mjs measures a level with the shared section engine',
+  /from\s+['"]\.\/measure_core\.mjs['"]/.test(levels) && /measureSection\(/.test(levels)
+    && !/function\s+(measureSection|sectionSegments|convexHull|ringPerimeter)\s*\(/.test(levels),
+  'imports measure_core.mjs; a level girth is not measured a second way');
+record('the production lane carries no reference levels',
+  !/measurement_levels\.mjs|measurement-levels\.json/.test(production)
+    && !/measurement_levels\.mjs|measurement-levels\.json/.test(production_main),
+  'the level stack is a protocol read and corrected in the authoring lane');
+
+// The body grid is the vertical half of the same frame. It samples through the
+// shared section routine and the shared boundary walk, so a curve cannot be
+// somewhere the measurements are not.
+const GRID = join(ROOT, 'scripts', 'body_grid.mjs');
+const grid = existsSync(GRID) ? readFileSync(GRID, 'utf8') : '';
+record('the prototype lane draws the body grid through scripts/body_grid.mjs',
+  /from\s+['"][^'"]*body_grid\.mjs['"]/.test(prototype), 'imports scripts/body_grid.mjs');
+record('body_grid.mjs samples through the shared section routine and boundary walk',
+  /from\s+['"]\.\/measure_core\.mjs['"]/.test(grid) && /from\s+['"]\.\/flatten_mesh\.mjs['"]/.test(grid)
+    && !/function\s+(sectionSegments|segmentPoints|boundaryLoops|weld|edgeList)\s*\(/.test(grid),
+  'imports measure_core.mjs and flatten_mesh.mjs; no intersection or edge maths of its own');
+record('the body grid reports no length',
+  !/length|girth|perimeter/i.test(grid.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '').replace(/\.length/g, '')),
+  'a curve is drawn, never measured, so it can carry no tolerance');
+record('the production lane carries no body grid',
+  !/body_grid\.mjs|body-grid\.json/.test(production) && !/body_grid\.mjs|body-grid\.json/.test(production_main),
+  'the reference frame is read and corrected in the authoring lane');
 record('the production lane places no landmarks',
   !/landmark_placement\.mjs|landmarks\.manual\.json/.test(production) && !/landmark_placement\.mjs/.test(production_main),
   'hand placement stays in the authoring lane: one place to correct, one record');
