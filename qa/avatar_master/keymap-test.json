@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T09:39:24Z",
+  "generated_at": "2026-09-05T10:02:06Z",
   "purpose": "One keyboard map for both lanes: conflict-free, browser-safe, and the doc regenerated from it.",
   "module": {
     "file": "scripts/keymap.mjs",
-    "sha256": "ec088b9a68581002740389cbf9c965fb30a64c8b80ba6f5349502c2419b5baea"
+    "sha256": "fb8de54036817d9cc157cf8f379c56c5e319bd6e66e6b92c4a0f1882776e9b8b"
   },
-  "keymap_sha256": "41aff0bc632c7e36795d924591c5d775c253e9ad4ba775206ff95ecf603711b4",
+  "keymap_sha256": "e0832fb221ccfd3db1619d07e211807afe366debb73b24e6ecd1bbcc19aeb849",
   "bindings": {
     "total": 43,
-    "active": 27,
-    "planned": 16
+    "active": 35,
+    "planned": 8
   },
   "keystrokes": [
     {
@@ -44,15 +44,15 @@
       "ok": true
     },
     {
-      "name": "arrow with a point selected is not the camera",
-      "expect": null,
-      "got": null,
+      "name": "arrow with a point selected nudges it, never the camera",
+      "expect": "pen.nudge",
+      "got": "pen.nudge",
       "ok": true
     },
     {
-      "name": "arrow with a point selected nudges once Phase B lands",
-      "expect": "pen.nudge",
-      "got": "pen.nudge",
+      "name": "arrow with a point selected outside the pen is nothing",
+      "expect": null,
+      "got": null,
       "ok": true
     },
     {
@@ -86,9 +86,21 @@
       "ok": true
     },
     {
-      "name": "⌘Z on macOS is undo once Phase B lands",
+      "name": "⌘Z on macOS is undo",
       "expect": "pen.undo",
       "got": "pen.undo",
+      "ok": true
+    },
+    {
+      "name": "⌘⇧Z on macOS is redo",
+      "expect": "pen.redo",
+      "got": "pen.redo",
+      "ok": true
+    },
+    {
+      "name": "plain Z is the loupe, not undo",
+      "expect": "loupe.toggle",
+      "got": "loupe.toggle",
       "ok": true
     },
     {
@@ -98,9 +110,15 @@
       "ok": true
     },
     {
-      "name": "Ctrl+Z elsewhere is undo once Phase B lands",
+      "name": "Ctrl+Z elsewhere is undo",
       "expect": "pen.undo",
       "got": "pen.undo",
+      "ok": true
+    },
+    {
+      "name": "M in the pen mirrors the selected line",
+      "expect": "pen.mirror-line",
+      "got": "pen.mirror-line",
       "ok": true
     },
     {
@@ -153,7 +171,7 @@
     {
       "name": "planned rows name their phase",
       "status": "PASS",
-      "detail": "16 planned, 27 active"
+      "detail": "8 planned, 35 active"
     },
     {
       "name": "no keystroke can mean two things at once",
@@ -178,12 +196,12 @@
     {
       "name": "the dispatcher resolves the representative keystrokes",
       "status": "PASS",
-      "detail": "20 keystrokes"
+      "detail": "23 keystrokes"
     },
     {
       "name": "the sheet lists active rows of the active contexts for the lane",
       "status": "PASS",
-      "detail": "22 rows for production always+pen"
+      "detail": "30 rows for production always+pen"
     },
     {
       "name": "AUTHORING_UX_PLAN.md §14 tables are generated from KEYMAP",

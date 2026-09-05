@@ -237,7 +237,7 @@ export async function mountMeasurements({ root, scene, canvas, tableBody, toggle
     toggle.setAttribute("aria-pressed", "true");
   }
 
-  return {
+  const result = {
     status: "MEASURED",
     registry_schema_version: registry.schema_version,
     registry_sha256: registrySha,
@@ -256,4 +256,8 @@ export async function mountMeasurements({ root, scene, canvas, tableBody, toggle
       WAIST_LEVEL: marks.waist ? Number(marks.waist.y.toFixed(4)) : null,
     } : null,
   };
+  // The pen's level snap needs the measurement surface itself; it rides along
+  // non-enumerable so the diagnostics JSON does not carry 30k triangles.
+  Object.defineProperty(result, "surface", { value: { triangles, materials: registry.measurement_surface, expected_materials: registry.expected_materials }, enumerable: false });
+  return result;
 }

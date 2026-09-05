@@ -63,3 +63,10 @@
 .keys kbd { font: inherit; font-size: 10px; font-variant-numeric: tabular-nums; background: #ece9e5; border: 1px solid var(--line);
   border-radius: 5px; padding: 1px 6px; color: #352f2a; white-space: nowrap; justify-self: start; }
 @media (max-width: 840px) { .keys { left: 50%; width: min(560px, calc(100% - 32px)); } }
+
+/* loupe inset (rendered into the canvas corner) and the mirrored-line flag */
+.loupe { position: absolute; left: 0; bottom: 0; width: 200px; height: 200px; z-index: 18; border: 2px solid #2f4f6f;
+  border-radius: 0 12px 0 0; pointer-events: none; box-shadow: 0 8px 24px rgba(30,45,62,.2); }
+.loupe span { position: absolute; left: 6px; top: 4px; font-size: 9px; color: #2f4f6f; background: rgba(255,255,255,.8); padding: 1px 5px; border-radius: 4px; }
+.loupe[hidden] { display: none; }
+.stroke-row .flag { color: #c9302c; font-weight: 700; margin-left: 4px; }

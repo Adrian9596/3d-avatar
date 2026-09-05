@@ -153,6 +153,15 @@ for (const [label, source] of [['prototype', prototype], ['production', producti
 record('the pen records placement through the shared view geometry',
   /from\s+['"]\.\/view_geometry\.mjs['"]/.test(pen) && /placement\(/.test(pen) && !/function\s+placement\s*\(/.test(pen),
   'imports scripts/view_geometry.mjs; placed_with is not computed twice');
+record('the pen snaps through scripts/pen_snap.mjs and reimplements none of it',
+  /from\s+['"]\.\/pen_snap\.mjs['"]/.test(pen) && !/function\s+(resolveSnap|levelCandidate|mirrorCandidate|nearestOnPolyline)\s*\(/.test(pen),
+  'imports pen_snap.mjs; snap resolution is not computed twice');
+for (const [label, source] of [['prototype', prototype], ['production', production_main]]) {
+  record(`the ${label} lane does not reimplement snapping`, !/function\s+(resolveSnap|levelCandidate|mirrorCandidate|nearestOnPolyline|mirrorPoints)\s*\(/.test(source)
+    && !/from\s+['"][^'"]*pen_snap\.mjs['"]/.test(source), 'snapping is reached only through the shared pen');
+}
+record('the production host hardcodes no material name', !/Mara:/.test(production_main.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')),
+  'the pen\'s surface roles come from the registry the measurement module loaded');
 record('the pen binds no keys of its own', !/addEventListener\(\s*["']keydown["']/.test(pen),
   'keys are the hosts\' through the keymap, so both lanes read the same map');
 record('the pen uses the one path model',

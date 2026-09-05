@@ -6,7 +6,7 @@ import { AnimationController } from "./animation-controller.js";
 import { validateMorphContract } from "./contracts.js";
 import { mountMeasurements, resizeMeasurementLines } from "./measurements.js";
 import { createPenTool } from "../../scripts/pen_tool.mjs";
-import { inchFraction } from "../../scripts/measure_core.mjs";
+import { inchFraction, sectionSegments, segmentPoints } from "../../scripts/measure_core.mjs";
 // One keyboard map and one view-geometry module for both lanes
 // (AUTHORING_UX_PLAN.md §14, §5): the keys, the grazing guard and the F key mean
 // the same thing here as in the authoring lane.
@@ -245,6 +245,15 @@ function loadAvatar() {
     // the authoring lane so there is one place to correct the record.
     pen = createPenTool({
       scene, canvas, camera, controls, root: avatarRoot, onChange: renderPen, onHover: showFootprint,
+      // snap targets are the detected apexes the measurement module reports —
+      // read-only here; surfaces by material name; the level snap reads the
+      // measurement surface the same module collected from the registry
+      getSnapTargets: () => {
+        const marks = state.measurementLane?.landmarks;
+        return marks ? ["BUST_APEX_L", "BUST_APEX_R"].filter((id) => marks[id]).map((id) => ({ name: id, point: marks[id] })) : [];
+      },
+      surfaceOf: (mesh) => { const m = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material; return m?.name || null; },
+      section: (y) => { const tri = state.measurementLane?.surface?.triangles; return tri ? segmentPoints(sectionSegments(tri, y)) : null; },
     });
     wirePen();
     renderPen();
@@ -273,6 +282,7 @@ function animate() {
   };
   syncDiagnostics();
   renderer?.render(scene, camera);
+  renderLoupe();
 }
 
 /* ---- pen chrome: buttons, the line list, and on-body labels ---------------
@@ -325,7 +335,9 @@ function renderPen() {
     row.title = line.approximated
       ? "Part of this line could not follow the surface and is measured straight."
       : "Shortest path along the surface through its control points.";
-    row.innerHTML = `<i></i><span class="lname">${line.name}</span>`
+    const geo = pen.lineGeometry(line.index);
+    const flag = geo?.origin?.asymmetry_flag ? '<em class="flag" title="Mirrored line: a point had to move more than 5mm to reach the skin — the body is not symmetric here">⚠</em>' : "";
+    row.innerHTML = `<i></i><span class="lname">${line.name}</span>${flag}`
       + `<b>${(line.length * 100).toFixed(1)}cm</b>`;
     row.addEventListener("click", (event) => {
       if (event.target.tagName === "BUTTON" || event.target.isContentEditable) return;
@@ -415,8 +427,32 @@ function showFootprint(hover) {
   if (!hover) { penHint.textContent = hintBase; penHint.className = "notice"; return; }
   const level = grazingLevel(hover.incidence_deg);
   penHint.className = `notice${level === "ok" ? "" : ` ${level}`}`;
+  const surfaces = state.measurementLane?.surface?.materials;
   penHint.textContent = `${hover.footprint_mm_px} mm/px at ${hover.incidence_deg}° incidence`
+    + (hover.snap ? ` · snap: ${hover.snap.kind}${hover.snap.to ? ` → ${hover.snap.to}` : ""}` : "")
+    + (hover.surface && surfaces && !surfaces.includes(hover.surface) ? ` · off the measurement surface (${hover.surface})` : "")
     + (level === "ok" ? "" : " — turn the body to place this precisely (F faces the point)");
+}
+/* ---- loupe: a 3x inset of the skin under the cursor, rendered into a corner of
+   the same canvas each frame while Z is on and the pen is hovering the body. */
+let loupeOn = false;
+const loupeCamera = new THREE.PerspectiveCamera(28 / 3, 1, 0.01, 100);
+const LOUPE_PX = 200;
+function renderLoupe() {
+  if (!loupeOn || !pen || !renderer) return;
+  const at = pen.hoverPoint() || pen.selectedPoint();
+  if (!at) return;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  loupeCamera.position.copy(camera.position);
+  loupeCamera.lookAt(at.point[0], at.point[1], at.point[2]);
+  loupeCamera.updateProjectionMatrix();
+  renderer.setScissorTest(true);
+  renderer.setViewport(0, 0, LOUPE_PX, LOUPE_PX);
+  renderer.setScissor(0, 0, LOUPE_PX, LOUPE_PX);
+  renderer.render(scene, loupeCamera);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, w, h);
+  renderer.setScissor(0, 0, w, h);
 }
 const activeContexts = () => (pen?.enabled ? ["always", "pen"] : ["always"]);
 function toggleKeySheet(force) {
@@ -469,6 +505,11 @@ const KEY_ACTIONS = {
   "pen.reset-handles": () => pen?.resetHandles(),
   "pen.select-previous": () => pen?.selectAdjacentLine(-1), "pen.select-next": () => pen?.selectAdjacentLine(1),
   "pen.toggle-label": () => pen?.toggleLabelSelected(), "pen.export": () => clickIfEnabled("#penExport"),
+  "snap.toggle": () => { const on = pen?.toggleSnap(); penHint.textContent = `Snapping ${on ? "on" : "off"}.`; },
+  "loupe.toggle": () => { loupeOn = !loupeOn; document.querySelector("#loupeFrame").hidden = !loupeOn; penHint.textContent = `Loupe ${loupeOn ? "on" : "off"}.`; },
+  "pen.undo": () => pen?.undo(), "pen.redo": () => pen?.redo(),
+  "pen.nudge": (b) => { const step = b.shift ? 10 : 1; const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[b.key]; if (d) pen?.nudgeSelected(...d); },
+  "pen.mirror-line": () => { const r = pen?.mirrorLine(); if (r && !r.error) penHint.textContent = `Mirrored · max residual ${r.max_residual_mm} mm${r.asymmetry_flag ? " — FLAGGED: the body is not symmetric here" : ""}.`; else if (r?.error) penHint.textContent = r.error; },
 };
 window.addEventListener("keydown", (event) => {
   const binding = matchBinding(event, { contexts: activeContexts(), hasSelection: Boolean(pen?.hasSelection()), lane: "production", platform: PLATFORM });

@@ -51,7 +51,7 @@
           <button id="penClear" disabled>Clear</button><button id="penExport" disabled>Export</button>
         </div>
         <div class="strokes" id="penList" hidden></div>
-        <p id="penHint" class="notice">Click the body to pin points · drag empty skin to orbit · drag a pin to move it · right-click a control point to re-centre, an anchor to remove · Enter finishes, C closes · ? lists the keys.</p>
+        <p id="penHint" class="notice">Click the body to pin points · drag empty skin to orbit · drag a pin to move it · right-click a control point to re-centre, an anchor to remove · Shift = level snap, Alt = mirror snap, N snap on/off · Z loupe · ⌘Z undo · ? lists the keys.</p>
       </section>
       <section>
         <h2>Display</h2>
@@ -64,6 +64,7 @@
 
     <div class="pen-labels" id="penLabels" aria-hidden="true"></div>
     <div id="keySheet" class="keys" hidden role="dialog" aria-label="Keyboard shortcuts"></div>
+    <div id="loupeFrame" class="loupe" hidden aria-hidden="true"><span>3× loupe · Z</span></div>
     <div id="assetTag" class="asset-tag">avatar_master.glb · loading</div>
     <output id="viewerDiagnostics" hidden aria-hidden="true"></output>
   </main>

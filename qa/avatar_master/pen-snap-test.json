@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T10:02:06Z",
+  "purpose": "Where a pen anchor goes when a click lands near something it should meet: nearest within the radius, priority on ties, held constraints first; level and mirror on the skin with residuals recorded.",
+  "module": {
+    "file": "scripts/pen_snap.mjs",
+    "sha256": "22c74ceefc7ce2674d1bb688d6532859583c2fcc6b228486e470e034af7b6397"
+  },
+  "asset": {
+    "file": "assets/export/avatar_master.glb",
+    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+  },
+  "radius_px": 15,
+  "priority": [
+    "first",
+    "anchor",
+    "line",
+    "landmark",
+    "level",
+    "mirror"
+  ],
+  "mirror_flag_mm": 5,
+  "avatar": {
+    "apex_mirror_residual_mm": 0.029,
+    "loop_24_max_residual_mm": 0,
+    "loop_flagged": false,
+    "note": "The source .blend is a mirrored half, so the residual is 0 here; on a scanned body it is expected to be non-zero and is flagged past the asymmetry threshold."
+  },
+  "declared_limits": [
+    "A snap moves the anchor; the run between anchors stays the shortest surface path.",
+    "The level candidate is taken from the section contour of the measurement surface; on an open mesh a height with no contour yields no snap.",
+    "Mirror residual is recorded per point and flagged, never corrected away."
+  ],
+  "checks": [
+    {
+      "name": "the nearest candidate within the radius wins",
+      "status": "PASS",
+      "detail": "landmark at 1 px"
+    },
+    {
+      "name": "a tie goes to the higher priority (anchor over line)",
+      "status": "PASS",
+      "detail": "anchor; order first › anchor › line › landmark › level › mirror"
+    },
+    {
+      "name": "nothing outside 15 px snaps",
+      "status": "PASS",
+      "detail": "cursor 140 px from every candidate"
+    },
+    {
+      "name": "the radius is inclusive",
+      "status": "PASS",
+      "detail": "15 px (the others are 19 px and 45 px away)"
+    },
+    {
+      "name": "snapping off returns nothing",
+      "status": "PASS",
+      "detail": "N toggles it"
+    },
+    {
+      "name": "a held-modifier constraint beats any proximity snap",
+      "status": "PASS",
+      "detail": "level at distance 0 over a landmark 1 px away"
+    },
+    {
+      "name": "an unknown kind is ignored",
+      "status": "PASS",
+      "detail": "kinds are the six of SNAP_PRIORITY"
+    },
+    {
+      "name": "nearestOnPolyline projects onto the right segment",
+      "status": "PASS",
+      "detail": "{\"point\":[0.5,0,0],\"index\":0,\"t\":0.5,\"distance_m\":0.2}"
+    },
+    {
+      "name": "nearestOnPolyline honours the closing segment",
+      "status": "PASS",
+      "detail": "closing segment, 0.1414 m"
+    },
+    {
+      "name": "level candidate sits at the previous anchor's height",
+      "status": "PASS",
+      "detail": "y 0.25 (hit was at 0.11)"
+    },
+    {
+      "name": "level candidate lies on the skin, not the hull",
+      "status": "PASS",
+      "detail": "radius 0.10000 m, angle 1.178 rad"
+    },
+    {
+      "name": "mirror candidate on a symmetric surface has residual 0",
+      "status": "PASS",
+      "detail": "0.000 µm"
+    },
+    {
+      "name": "a mirrored point off the surface is snapped and its residual recorded",
+      "status": "PASS",
+      "detail": "20 mm, flagged past 5 mm"
+    },
+    {
+      "name": "avatar: the mirrored apex lands on the surface",
+      "status": "PASS",
+      "detail": "residual 0.029 mm (recorded, not budgeted)"
+    },
+    {
+      "name": "avatar: a mirrored 24-point loop records every residual",
+      "status": "PASS",
+      "detail": "max 0 mm, flagged false"
+    },
+    {
+      "name": "the snap record names its target and residual",
+      "status": "PASS",
+      "detail": "{\"kind\":\"mirror\",\"to\":\"BUST_APEX_L\",\"residual_mm\":0.029}"
+    }
+  ],
+  "decision": "SNAP_RESOLVES"
+}

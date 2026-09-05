@@ -34,6 +34,10 @@ button{font:inherit}
 .keys h4{font-size:8.5px;text-transform:uppercase;letter-spacing:.07em;color:#a8a09a;margin:10px 0 3px}
 .keys .krow{display:grid;grid-template-columns:96px 1fr;gap:10px;padding:3px 0;border-top:1px solid rgba(53,47,42,.06);align-items:baseline}
 .keys kbd{font:inherit;font-size:10px;font-variant-numeric:tabular-nums;background:#ece9e5;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:#352f2a;white-space:nowrap;justify-self:start}
+.loupe{position:absolute;left:0;bottom:0;width:200px;height:200px;z-index:18;border:2px solid #2f4f6f;border-radius:0 12px 0 0;pointer-events:none;box-shadow:0 8px 24px rgba(30,45,62,.2)}
+.loupe span{position:absolute;left:6px;top:4px;font-size:9px;color:#2f4f6f;background:rgba(255,255,255,.8);padding:1px 5px;border-radius:4px}
+.loupe[hidden]{display:none}
+.stroke-row .flag{color:#c9302c;font-weight:700;margin-left:4px}
 .pop{position:absolute;z-index:30;background:var(--panel);border:1px solid var(--line);box-shadow:0 18px 50px rgba(43,35,29,.11);backdrop-filter:blur(18px)}
 .pop{right:18px;top:72px;width:238px;border-radius:16px;padding:13px;display:none}.pop.open{display:block}
 .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}.panel-title,.pop-title{font-size:12px;font-weight:750}.pop-title{margin-bottom:9px}
@@ -146,6 +150,7 @@ button{font:inherit}
   <div class="error-card" id="errorCard" role="alert" hidden><strong>Interactive GLB could not load</strong><p id="errorMessage">A static draft view is shown. Serve this folder through localhost and retry.</p></div>
   <div class="tip" id="tip">Drag to orbit · wheel/pinch to zoom · use view presets · ? for keys</div>
   <div class="keys" id="keySheet" hidden role="dialog" aria-label="Keyboard shortcuts"></div>
+  <div class="loupe" id="loupeFrame" hidden aria-hidden="true"><span>3× loupe · Z</span></div>
   <div class="pen-labels" id="penLabels" aria-hidden="true"></div>
   <div class="section-readout" id="sectionReadout"></div>
   <div class="section-tool" id="sectionTool">
@@ -221,7 +226,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 // same file, so "the viewer agrees with the test" holds by construction.
 import { DEFAULT_SCAN, measureSection, scanSurface, findLandmarks, computePoms, inchFraction,
   applyLandmarkOverrides, pomProvenance, computeSurfacePoms, findArmholes,
-  findFoldLandmarks } from './scripts/measure_core.mjs';
+  findFoldLandmarks, sectionSegments, segmentPoints } from './scripts/measure_core.mjs';
 import { buildGrid, closestOnMesh } from './scripts/surface_path.mjs';
 import { createPenTool } from './scripts/pen_tool.mjs';
 // One keyboard map and one view-geometry module for both lanes
@@ -848,7 +853,9 @@ function renderDraftList(){
       ?'Part of this line could not follow the surface and is measured straight. '
       :'Shortest path along the surface through its control points. ')
       +(line.span?`Straight line end to end: ${(line.span*100).toFixed(1)}cm (${inchFraction(line.span)})`:'Closed loop');
-    row.innerHTML=`<i></i><span class="lname">${line.name}</span>`
+    const geo=pen.lineGeometry(line.index);
+    const flag=geo?.origin?.asymmetry_flag?'<em class="flag" title="Mirrored line: a point had to move more than 5mm to reach the skin — the body is not symmetric here">⚠</em>':'';
+    row.innerHTML=`<i></i><span class="lname">${line.name}</span>${flag}`
       +`<b>${(line.length*100).toFixed(1)}cm</b><span>${inchFraction(line.length)}</span>`;
     row.addEventListener('click',event=>{
       if(event.target.tagName==='BUTTON'||event.target.isContentEditable)return;
@@ -922,7 +929,7 @@ function setPenMode(on){
   pen.setEnabled(on);
   document.getElementById('penToggle').setAttribute('aria-pressed',String(on));
   setTip(on
-    ?'Pen: click to pin · drag empty skin to orbit · drag a pin to move it · Enter finish · C close · F face · ? keys'
+    ?'Pen: click to pin · drag empty skin to orbit · Shift = level snap · Alt = mirror snap · N snap on/off · Z loupe · ⌘Z undo · ? keys'
     :'Drag to orbit · wheel/pinch to zoom · use view presets · ? for keys');
 }
 
@@ -947,7 +954,13 @@ function loadAvatar(){
   // ASSET_SHA, forcing the browser past its heuristic GLB cache.
   loader.load(ASSET_URL+'?sha='+ASSET_SHA,gltf=>{
     avatarRoot=gltf.scene;avatarRoot.name='avatar_master';scene.add(avatarRoot);prepareModel(avatarRoot);
-    pen=createPenTool({scene,canvas,camera,controls,root:avatarRoot,onChange:renderDraftList,onHover:showFootprint});
+    pen=createPenTool({scene,canvas,camera,controls,root:avatarRoot,onChange:renderDraftList,onHover:showFootprint,
+      // snap targets: every landmark that is a point and has a value; surfaces by
+      // material name, judged against the registry's measurement surface by the
+      // pattern block; the level snap reads the torso section contour
+      getSnapTargets:()=>LANDMARK_ROWS.filter(r=>r.kind==='point').map(r=>{const v=landmarkValue(r.id);return v&&Number.isFinite(v.x)?{name:r.id,point:[v.x,v.y,v.z]}:null}).filter(Boolean),
+      surfaceOf:mesh=>{const m=Array.isArray(mesh.material)?mesh.material[0]:mesh.material;return m?.name||null},
+      section:y=>torsoTris?segmentPoints(sectionSegments(torsoTris,y)):null});
     window.__pen=pen;   // instrumentation for automated checks (pen.addLine, pen.lineGeometry)
     renderDraftList();runMeasurements(avatarRoot);
     prototypeState.status='READY';prototypeState.loadMs=Math.round(performance.now()-loadStartedAt);syncDiagnostics();loading.hidden=true;
@@ -968,6 +981,7 @@ function animate(){
   if(camera&&controls)prototypeState.camera={position:camera.position.toArray().map(value=>+value.toFixed(5)),target:controls.target.toArray().map(value=>+value.toFixed(5)),distance:+camera.position.distanceTo(controls.target).toFixed(5),orbit_enabled:controls.enabled};
   syncDiagnostics();
   renderer?.render(scene,camera);
+  renderLoupe();
 }
 
 document.querySelectorAll('.bottom-nav button[data-view]').forEach(button=>button.addEventListener('click',()=>setView(button.dataset.view)));
@@ -1090,7 +1104,7 @@ function runPattern(){
   if(!outline||!outline.closed){setPatternStatus('Pick a closed loop as the outline.',true);return}
   if(!patternMesh)patternMesh=draftMesh(torsoTris);
   const started=performance.now();
-  const cut=draftPieces({mesh:patternMesh,closest:patternClosest,outline,seam});
+  const cut=draftPieces({mesh:patternMesh,closest:patternClosest,outline,seam,measurementSurface:registry?.measurement_surface||null});
   if(cut.error){setPatternStatus(cut.error,true);return}
   const result=flattenDraft(cut.pieces);
   patternResult={outline,seam,pieces:cut.pieces,result,elapsed_ms:Math.round(performance.now()-started)};
@@ -1194,7 +1208,24 @@ function showFootprint(hover){
   const level=grazingLevel(hover.incidence_deg);
   tipEl.className='tip'+(level==='ok'?'':' '+level);
   tipEl.textContent=`${hover.footprint_mm_px} mm/px at ${hover.incidence_deg}°`
+    +(hover.snap?` · snap: ${hover.snap.kind}${hover.snap.to?' → '+hover.snap.to:''}`:'')
+    +(hover.surface&&registry&&!registry.measurement_surface.includes(hover.surface)?` · off the measurement surface (${hover.surface})`:'')
     +(level==='ok'?'':' · turn the body to place this precisely — press F')+' · '+tipBase;
+}
+/* ---- loupe: a 3x inset of the skin under the cursor, rendered into a corner of
+   the same canvas each frame while Z is on and the pen is hovering the body. */
+let loupeOn=false;const loupeCamera=new THREE.PerspectiveCamera(28/3,1,.01,100);
+const LOUPE_PX=200;
+function renderLoupe(){
+  if(!loupeOn||!pen||!renderer)return;
+  const at=pen.hoverPoint()||pen.selectedPoint();
+  if(!at)return;
+  const w=canvas.clientWidth,h=canvas.clientHeight,dpr=renderer.getPixelRatio();
+  loupeCamera.position.copy(camera.position);loupeCamera.lookAt(at.point[0],at.point[1],at.point[2]);loupeCamera.updateProjectionMatrix();
+  renderer.setScissorTest(true);
+  renderer.setViewport(0,0,LOUPE_PX,LOUPE_PX);renderer.setScissor(0,0,LOUPE_PX,LOUPE_PX);
+  renderer.render(scene,loupeCamera);
+  renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);renderer.setScissor(0,0,w,h);
 }
 // Tools are exclusive: landmarks hold the canvas while a row is selected or the
 // pen is off; otherwise the pen does. The pattern block is a layer over either.
@@ -1253,6 +1284,11 @@ const KEY_ACTIONS={
   'pen.reset-handles':()=>pen?.resetHandles(),
   'pen.select-previous':()=>pen?.selectAdjacentLine(-1),'pen.select-next':()=>pen?.selectAdjacentLine(1),
   'pen.toggle-label':()=>pen?.toggleLabelSelected(),'pen.export':()=>clickIfEnabled('penExport'),
+  'snap.toggle':()=>{const on=pen?.toggleSnap();tipEl.textContent=`Snapping ${on?'on':'off'} · `+tipBase},
+  'loupe.toggle':()=>{loupeOn=!loupeOn;document.getElementById('loupeFrame').hidden=!loupeOn;tipEl.textContent=`Loupe ${loupeOn?'on':'off'} · `+tipBase},
+  'pen.undo':()=>pen?.undo(),'pen.redo':()=>pen?.redo(),
+  'pen.nudge':b=>{const step=b.shift?10:1;const d={ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]}[b.key];if(d)pen?.nudgeSelected(...d)},
+  'pen.mirror-line':()=>{const r=pen?.mirrorLine();if(r&&!r.error)tipEl.textContent=`Mirrored · max residual ${r.max_residual_mm} mm${r.asymmetry_flag?' — FLAGGED: the body is not symmetric here':''} · `+tipBase;else if(r?.error)tipEl.textContent=r.error},
   'landmarks.save':()=>clickIfEnabled('landmarkSave'),
   'pattern.flatten':()=>clickIfEnabled('patternFlatten'),'pattern.export':()=>clickIfEnabled('patternExport'),
 };

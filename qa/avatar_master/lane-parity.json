@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T09:39:24Z",
+  "generated_at": "2026-09-05T10:02:06Z",
   "purpose": "Static guard that the prototype and production viewer lanes cannot disagree about a measurement.",
   "registry_sha256": "056c64938801ff5a9d63de9ed99528cbaa6225fdf77e17ef97a46876cba8e18c",
   "checks": [
@@ -128,6 +128,26 @@
       "name": "the pen records placement through the shared view geometry",
       "status": "PASS",
       "detail": "imports scripts/view_geometry.mjs; placed_with is not computed twice"
+    },
+    {
+      "name": "the pen snaps through scripts/pen_snap.mjs and reimplements none of it",
+      "status": "PASS",
+      "detail": "imports pen_snap.mjs; snap resolution is not computed twice"
+    },
+    {
+      "name": "the prototype lane does not reimplement snapping",
+      "status": "PASS",
+      "detail": "snapping is reached only through the shared pen"
+    },
+    {
+      "name": "the production lane does not reimplement snapping",
+      "status": "PASS",
+      "detail": "snapping is reached only through the shared pen"
+    },
+    {
+      "name": "the production host hardcodes no material name",
+      "status": "PASS",
+      "detail": "the pen's surface roles come from the registry the measurement module loaded"
     },
     {
       "name": "the pen binds no keys of its own",

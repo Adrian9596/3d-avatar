@@ -50,7 +50,15 @@ export function draftMesh(triangles) {
  * @param seam     { name, points } open line whose ends sit on the outline, or null
  * @returns { pieces: [{ name, sub, patch, chords, seed }], split } or { error }
  */
-export function draftPieces({ mesh, closest, outline, seam }) {
+export function draftPieces({ mesh, closest, outline, seam, measurementSurface = null }) {
+  // an anchor pinned on the arm or a cut face is not on the surface that is
+  // flattened: say which, before the flood fill fails for an obscure reason
+  if (measurementSurface) {
+    for (const line of [outline, seam].filter(Boolean)) {
+      const off = (line.surfaces || []).map((m, i) => (m && !measurementSurface.includes(m) ? `${i + 1} (${m})` : null)).filter(Boolean);
+      if (off.length) return { error: `${line.name}: anchor${off.length > 1 ? 's' : ''} ${off.join(', ')} not on the measurement surface (${measurementSurface.join(', ')}).` };
+    }
+  }
   let loops = [{ name: outline.name, points: outline.points }];
   let split = null;
   if (seam) {
@@ -129,6 +137,7 @@ export function lineRecord(line) {
     name: line.name || null, closed: line.closed, length_mm: Number((line.length * 1000).toFixed(1)),
     anchors: (line.anchors || []).map(r3),
     placed_with: line.placed_with || null,
+    snaps: line.snaps || null, surfaces: line.surfaces || null, origin: line.origin || null,
     control_points: (line.control_points || []).map(r3),
   };
 }

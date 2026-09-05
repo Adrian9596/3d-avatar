@@ -49,16 +49,19 @@ const cases = [
   { name: 'Enter outside the pen does nothing', event: ev('Enter'), opts: { contexts: ['always'] }, expect: null },
   { name: 'arrow with nothing selected turns the camera', event: ev('ArrowLeft'), opts: { contexts: ['always', 'pen'], hasSelection: false }, expect: 'camera.yaw-left' },
   { name: 'Shift+arrow still turns the camera (5° step)', event: ev('ArrowLeft', { shiftKey: true }), opts: { contexts: ['always', 'pen'], hasSelection: false }, expect: 'camera.yaw-left' },
-  { name: 'arrow with a point selected is not the camera', event: ev('ArrowLeft'), opts: { contexts: ['always', 'pen'], hasSelection: true }, expect: null },
-  { name: 'arrow with a point selected nudges once Phase B lands', event: ev('ArrowLeft'), opts: { contexts: ['always', 'pen'], hasSelection: true, includePlanned: true }, expect: 'pen.nudge' },
+  { name: 'arrow with a point selected nudges it, never the camera', event: ev('ArrowLeft'), opts: { contexts: ['always', 'pen'], hasSelection: true }, expect: 'pen.nudge' },
+  { name: 'arrow with a point selected outside the pen is nothing', event: ev('ArrowLeft'), opts: { contexts: ['always'], hasSelection: true }, expect: null },
   { name: '? opens the sheet regardless of Shift', event: ev('?', { shiftKey: true }), opts: { contexts: ['always'] }, expect: 'help.toggle' },
   { name: 'Shift+E exports pen lines', event: ev('E', { shiftKey: true }), opts: { contexts: ['always', 'pen'] }, expect: 'pen.export' },
   { name: 'plain E is nothing', event: ev('e'), opts: { contexts: ['always', 'pen'] }, expect: null },
   { name: 'Shift+F flattens when the pattern block is up', event: ev('F', { shiftKey: true }), opts: { contexts: ['always', 'pen', 'pattern'] }, expect: 'pattern.flatten' },
   { name: 'plain F faces the point', event: ev('f'), opts: { contexts: ['always', 'pen', 'pattern'] }, expect: 'camera.face' },
-  { name: '⌘Z on macOS is undo once Phase B lands', event: ev('z', { metaKey: true }), opts: { contexts: ['always', 'pen'], platform: 'mac', includePlanned: true }, expect: 'pen.undo' },
-  { name: 'Ctrl+Z on macOS is not ours (Ctrl+click is a right-click there)', event: ev('z', { ctrlKey: true }), opts: { contexts: ['always', 'pen'], platform: 'mac', includePlanned: true }, expect: null },
-  { name: 'Ctrl+Z elsewhere is undo once Phase B lands', event: ev('z', { ctrlKey: true }), opts: { contexts: ['always', 'pen'], platform: 'other', includePlanned: true }, expect: 'pen.undo' },
+  { name: '⌘Z on macOS is undo', event: ev('z', { metaKey: true }), opts: { contexts: ['always', 'pen'], platform: 'mac' }, expect: 'pen.undo' },
+  { name: '⌘⇧Z on macOS is redo', event: ev('z', { metaKey: true, shiftKey: true }), opts: { contexts: ['always', 'pen'], platform: 'mac' }, expect: 'pen.redo' },
+  { name: 'plain Z is the loupe, not undo', event: ev('z'), opts: { contexts: ['always', 'pen'] }, expect: 'loupe.toggle' },
+  { name: 'Ctrl+Z on macOS is not ours (Ctrl+click is a right-click there)', event: ev('z', { ctrlKey: true }), opts: { contexts: ['always', 'pen'], platform: 'mac' }, expect: null },
+  { name: 'Ctrl+Z elsewhere is undo', event: ev('z', { ctrlKey: true }), opts: { contexts: ['always', 'pen'], platform: 'other' }, expect: 'pen.undo' },
+  { name: 'M in the pen mirrors the selected line', event: ev('m'), opts: { contexts: ['always', 'pen'] }, expect: 'pen.mirror-line' },
   { name: 'a keystroke in a text field is the field\'s', event: ev('Enter', { target: { nodeType: 1, tagName: 'INPUT' } }), opts: { contexts: ['always', 'pen'] }, expect: null },
   { name: 'L is unknown to the production lane', event: ev('l'), opts: { contexts: ['always'], lane: 'production' }, expect: null },
   { name: 'L opens landmarks in the prototype', event: ev('l'), opts: { contexts: ['always'], lane: 'prototype' }, expect: 'landmarks.toggle' },
@@ -75,7 +78,7 @@ gate.record('the dispatcher resolves the representative keystrokes', outcomes.ev
 const sheet = cheatSheet({ contexts: ['always', 'pen'], lane: 'production', platform: 'mac' });
 const shown = sheet.flatMap((s) => s.rows.map((r) => r.id));
 gate.record('the sheet lists active rows of the active contexts for the lane',
-  shown.includes('pen.finish') && !shown.includes('landmarks.toggle') && !shown.includes('pen.undo') && !shown.includes('pattern.flatten'),
+  shown.includes('pen.finish') && shown.includes('pen.undo') && !shown.includes('landmarks.toggle') && !shown.includes('pattern.flatten') && !shown.includes('pattern.template'),
   `${shown.length} rows for production always+pen`);
 
 // ---- the doc is what the code generates ------------------------------------

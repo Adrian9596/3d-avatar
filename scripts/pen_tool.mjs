@@ -3,8 +3,9 @@ import { Line2 } from "three/addons/lines/Line2.js";
 import { LineGeometry } from "three/addons/lines/LineGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 
-import { buildGrid, surfaceRun, pointAtFraction } from "./surface_path.mjs";
+import { buildGrid, surfaceRun, pointAtFraction, closestOnMesh } from "./surface_path.mjs";
 import { placement, poseFacing } from "./view_geometry.mjs";
+import { resolveSnap, nearestOnPolyline, levelCandidate, mirrorCandidate, mirrorPoints, snapRecord, SNAP_RADIUS_PX } from "./pen_snap.mjs";
 
 /**
  * The pen: drafting measured lines on a body, the way a pattern is drafted on a
@@ -15,6 +16,14 @@ import { placement, poseFacing } from "./view_geometry.mjs";
  * leaving the tool (AUTHORING_UX_PLAN.md §5.1); a touch long-press is the
  * right-click. Keys are the host's: it dispatches scripts/keymap.mjs bindings to
  * the actions exposed below, so both lanes read the same map.
+ *
+ * Snapping (scripts/pen_snap.mjs) moves an anchor onto what it should meet —
+ * the first anchor, another line's anchor or run, a landmark the host supplies,
+ * the previous anchor's height while Shift is held, the mirror of the previous
+ * anchor while Alt is held — and records the snap and its residual on the
+ * anchor. It never changes the run between anchors. Every edit goes through one
+ * command stack (undo/redo), and a whole line can be mirrored to the other side
+ * with every residual recorded.
  *
  * Every anchor records how well it was placed — camera distance, incidence
  * angle, what one pixel was worth on the skin there (`placed_with`, via
@@ -41,6 +50,9 @@ const HANDLE_RADIUS = 0.0038;
 const INK_COLOR = 0x2f4f6f;
 const HANDLE_COLOR = 0x1f8a70;
 const SELECTED_COLOR = 0xf0a02a;
+const SNAP_COLOR = 0xd93a2b;
+const SNAP_RING_RADIUS = 0.0075;
+const UNDO_DEPTH = 100;
 // Pins and control points are picked in SCREEN space within a pixel radius, not
 // by raycasting their spheres: a 3.8mm control point is under 6px across at
 // normal viewing distance, so ray picking demanded pixel-perfect aim and the
@@ -54,7 +66,12 @@ const LONG_PRESS_MS = 500;
 const toArr = (v) => [v.x, v.y, v.z];
 const toVec = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 
-export function createPenTool({ scene, canvas, camera, controls, root, onChange, onHover }) {
+/**
+ * @param getSnapTargets  () => [{ name, point: [x,y,z] }] — landmarks the host knows; may be empty
+ * @param surfaceOf       (mesh) => material name of the skin a hit landed on, or null
+ * @param section         (y) => [[x, z], …] contour of the measurement surface at height y, for the level snap
+ */
+export function createPenTool({ scene, canvas, camera, controls, root, onChange, onHover, getSnapTargets, surfaceOf, section }) {
   const raycaster = new THREE.Raycaster();
   const lineMaterials = new Set();
 
@@ -70,8 +87,12 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
   let pointerDownAt = null;
   let hoverHit = null;          // the skin under the cursor, refreshed once per frame
   let hoverPending = null;
+  let hoverSnap = null;         // the snap the next click would take, shown as a ring
+  let snapEnabled = true;
   let lineGroup = null;
   let anchorGroup = null;
+  let snapGroup = null;
+  const history = { undo: [], redo: [] };
 
   function collectTriangles() {
     root.updateMatrixWorld(true);
@@ -127,7 +148,84 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
     const normal = hit.face
       ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld)
       : new THREE.Vector3(0, 0, 1);
-    return { point: hit.point.clone(), normal };
+    return { point: hit.point.clone(), normal, surface: surfaceOf ? surfaceOf(hit.object) : null };
+  }
+
+  /** A 3D point snapped to the skin with the outward normal the paths use. */
+  function snapToSkin(arr) {
+    const c = closestOnMesh(grid, arr);
+    return c ? { point: toVec(c.point), normal: toVec(c.normal) } : null;
+  }
+
+  const screenOf = (vec) => {
+    const rect = canvas.getBoundingClientRect();
+    const projected = vec.clone().project(camera);
+    if (projected.z > 1) return null;
+    return [(projected.x * 0.5 + 0.5) * rect.width, (-projected.y * 0.5 + 0.5) * rect.height];
+  };
+
+  /**
+   * What the next click would snap to, for a cursor over `hit` with the given
+   * modifiers. Proximity candidates compete by screen distance; a held Shift
+   * (level) or Alt (mirror) is a constraint and wins outright.
+   */
+  function snapFor(clientX, clientY, hit, mods) {
+    if (!snapEnabled || !hit || !activeLine) return null;
+    const rect = canvas.getBoundingClientRect();
+    const cursor = [clientX - rect.left, clientY - rect.top];
+    const candidates = [];
+    if (activeLine.anchors.length > 2) {
+      const first = activeLine.anchors[0];
+      candidates.push({ kind: "first", px: screenOf(first.point), point: toArr(first.point), normal: toArr(first.normal), ref: { line: activeLine.name } });
+    }
+    for (const line of lines) {
+      for (const a of line.anchors) {
+        candidates.push({ kind: "anchor", px: screenOf(a.point), point: toArr(a.point), normal: toArr(a.normal), ref: { line: line.name } });
+      }
+      const near = nearestOnPolyline(linePolyline(line), toArr(hit.point), line.closed);
+      if (near) {
+        const onSkin = snapToSkin(near.point);
+        if (onSkin) candidates.push({ kind: "line", px: screenOf(onSkin.point), point: toArr(onSkin.point), normal: toArr(onSkin.normal), ref: { line: line.name }, residual_m: near.distance_m });
+      }
+    }
+    for (const target of (getSnapTargets ? getSnapTargets() : []) || []) {
+      if (!target?.point) continue;
+      const onSkin = snapToSkin(target.point);
+      if (onSkin) candidates.push({ kind: "landmark", px: screenOf(onSkin.point), point: toArr(onSkin.point), normal: toArr(onSkin.normal), ref: { name: target.name } });
+    }
+    const previous = activeLine.anchors.length ? activeLine.anchors[activeLine.anchors.length - 1]
+      : (lines[selectedLine] ? lines[selectedLine].anchors[lines[selectedLine].anchors.length - 1] : null);
+    if (mods.shift && previous && section) {
+      const level = levelCandidate({ previous: toArr(previous.point), hit: toArr(hit.point), section });
+      if (level) {
+        const onSkin = snapToSkin(level.point);
+        if (onSkin) candidates.push({ ...level, point: toArr(onSkin.point), normal: toArr(onSkin.normal) });
+      }
+    }
+    if (mods.alt && previous) {
+      const mirror = mirrorCandidate({ source: toArr(previous.point), closest: (p) => closestOnMesh(grid, p) });
+      if (mirror) candidates.push(mirror);
+    }
+    const snap = resolveSnap({ cursor_px: cursor, candidates: candidates.filter((c) => c.px !== undefined), radius_px: SNAP_RADIUS_PX });
+    return snap;
+  }
+
+  function drawSnapRing() {
+    disposeGroup(snapGroup);
+    snapGroup = null;
+    if (!hoverSnap) return;
+    snapGroup = new THREE.Group();
+    snapGroup.name = "PenSnap";
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(SNAP_RING_RADIUS * 0.7, SNAP_RING_RADIUS, 24),
+      new THREE.MeshBasicMaterial({ color: SNAP_COLOR, side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.9 }));
+    const at = toVec(hoverSnap.point);
+    const n = hoverSnap.normal ? toVec(hoverSnap.normal) : new THREE.Vector3(at.x, 0, at.z).normalize();
+    ring.position.copy(at).addScaledVector(n, ANCHOR_LIFT * 2);
+    ring.lookAt(at.clone().add(n));
+    ring.renderOrder = 4;
+    snapGroup.add(ring);
+    scene.add(snapGroup);
   }
 
   const surfaceAnchor = (arr) => {
@@ -327,8 +425,53 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
     };
   }
 
-  function finishLine() {
+  /* One command stack for every edit. A snapshot is the plain data of every
+     line — anchors with their records, control points per segment, flags — so
+     undo restores the control points a person shaped instead of re-centring
+     them. Restoring recomputes the runs (~4 ms per leg), which is what keeps the
+     snapshot small and the geometry a function of the data. */
+  const snapAnchor = (a) => ({ point: toArr(a.point), normal: toArr(a.normal), placed_with: a.placed_with || null, snap: a.snap || null, surface: a.surface ?? null });
+  const snapLine = (line) => ({
+    name: line.name, closed: line.closed, labelVisible: line.labelVisible, origin: line.origin || null,
+    anchors: line.anchors.map(snapAnchor),
+    handles: (line.segments || []).map((seg) => (seg.handles ? seg.handles.map(snapAnchor) : null)),
+  });
+  const snapshot = () => ({ lines: lines.map(snapLine), active: activeLine ? snapLine(activeLine) : null, selectedLine });
+  const thawAnchor = (a) => ({ point: toVec(a.point), normal: toVec(a.normal), placed_with: a.placed_with, snap: a.snap, surface: a.surface });
+  function thawLine(data) {
+    const line = {
+      name: data.name, closed: data.closed, labelVisible: data.labelVisible, origin: data.origin || undefined,
+      anchors: data.anchors.map(thawAnchor), runs: [], length: 0, approximated: false, segmentMap: new Map(),
+    };
+    const pairs = segmentPairs(line);
+    pairs.forEach(([a, b], i) => {
+      const handles = data.handles[i];
+      line.segmentMap.set(a, { a, b, line, handles: handles ? handles.map(thawAnchor) : null, seeds: null });
+    });
+    if (line.anchors.length > 1) rebuildLine(line);
+    return line;
+  }
+  function restore(state) {
+    lines = state.lines.map(thawLine);
+    activeLine = state.active ? thawLine(state.active) : null;
+    if (!activeLine && enabled) newLine();
+    selectedLine = state.selectedLine < lines.length ? state.selectedLine : -1;
+    selectedAnchor = null;
+    dragging = null;
+    redraw();
+    onChange?.();
+  }
+  /** Call before a mutation: the state it can be undone to. */
+  function commit(label) {
+    history.undo.push({ label, state: snapshot() });
+    if (history.undo.length > UNDO_DEPTH) history.undo.shift();
+    history.redo.length = 0;
+  }
+
+  /** `recorded`: the caller already committed this edit (closing a loop is one undo step). */
+  function finishLine(recorded = false) {
     if (!activeLine || activeLine.anchors.length < 2) return;
+    if (recorded !== true) commit("finish");
     lines.push(activeLine);
     selectedLine = lines.length - 1;
     newLine();
@@ -339,6 +482,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
   function deleteAnchor(line, anchor) {
     const index = line.anchors.indexOf(anchor);
     if (index < 0) return;
+    commit("delete point");
     line.segmentMap?.delete(anchor);
     line.anchors.splice(index, 1);
     if (line.anchors.length < 2) {
@@ -362,6 +506,8 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
     const picked = pickAt(event.clientX, event.clientY);
     if (picked) {
       dragging = picked;
+      dragging.before = snapshot();
+      dragging.moved = false;
       selectedAnchor = picked.anchor || picked.handle;
       if (picked.line !== activeLine) selectedLine = lines.indexOf(picked.line);
       // the one moment the pen owns the pointer: OrbitControls saw this
@@ -385,17 +531,24 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
       if (!enabled || suspended || dragging) return;
       const hit = surfaceHit(at.clientX, at.clientY);
       hoverHit = hit;
-      onHover?.(hit ? { ...placedWith(hit, "hover"), point: toArr(hit.point) } : null);
+      const snap = snapFor(at.clientX, at.clientY, hit, at.mods);
+      if (Boolean(snap) !== Boolean(hoverSnap) || (snap && hoverSnap && (snap.kind !== hoverSnap.kind || snap.point.some((v, i) => v !== hoverSnap.point[i])))) {
+        hoverSnap = snap;
+        drawSnapRing();
+      }
+      onHover?.(hit ? { ...placedWith(hit, "hover"), point: toArr(hit.point), surface: hit.surface, snap: snapRecord(snap) } : null);
     });
   }
 
   function onPointerMove(event) {
     if (!dragging) {
-      if (enabled && !suspended && onHover) scheduleHover(event.clientX, event.clientY);
+      if (enabled && !suspended) scheduleHover(event.clientX, event.clientY);
+      if (hoverPending) hoverPending.mods = { shift: event.shiftKey, alt: event.altKey };
       return;
     }
     const hit = surfaceHit(event.clientX, event.clientY);
     if (!hit) return;
+    dragging.moved = true;
     if (dragging.handle) {
       // only the dragged segment is recomputed, which is what keeps it real-time
       dragging.handle.point.copy(hit.point);
@@ -405,6 +558,8 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
       dragging.anchor.point.copy(hit.point);
       dragging.anchor.normal.copy(hit.normal);
       dragging.anchor.placed_with = placedWith(hit, "drag");
+      dragging.anchor.surface = hit.surface;
+      dragging.anchor.snap = null;
       rebuildLine(dragging.line);
     }
     redraw();
@@ -413,12 +568,30 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
 
   function onPointerLeave() {
     if (hoverHit) { hoverHit = null; onHover?.(null); }
+    if (hoverSnap) { hoverSnap = null; drawSnapRing(); }
   }
 
   function onPointerUp(event) {
     if (suspended) { pointerDownAt = null; return; }
     if (dragging) {
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      // a press on the first anchor of the line being drawn that did not move
+      // is the click that closes the loop (a press picks before it pins, so
+      // this is where that click arrives)
+      if (!dragging.moved && dragging.line === activeLine && dragging.anchor && activeLine.anchors[0] === dragging.anchor && activeLine.anchors.length > 2) {
+        dragging = null;
+        controls.enabled = true;
+        commit("close");
+        activeLine.closed = true;
+        rebuildLine(activeLine);
+        finishLine(true);
+        return;
+      }
+      if (dragging.moved) {
+        history.undo.push({ label: dragging.handle ? "shape run" : "move point", state: dragging.before });
+        if (history.undo.length > UNDO_DEPTH) history.undo.shift();
+        history.redo.length = 0;
+      }
       dragging = null;
       controls.enabled = true;
       onChange?.();
@@ -435,24 +608,43 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
     }
     const hit = surfaceHit(event.clientX, event.clientY);
     if (!hit) return;
-    // clicking the first anchor again closes the loop
-    if (activeLine.anchors.length > 2) {
-      const first = activeLine.anchors[0];
-      const rect = canvas.getBoundingClientRect();
-      const projected = first.point.clone().project(camera);
-      const sx = (projected.x * 0.5 + 0.5) * rect.width + rect.left;
-      const sy = (-projected.y * 0.5 + 0.5) * rect.height + rect.top;
-      if (Math.hypot(sx - event.clientX, sy - event.clientY) < PICK_RADIUS_PX) {
-        activeLine.closed = true;
-        rebuildLine(activeLine);
-        finishLine();
-        return;
-      }
+    const snap = snapFor(event.clientX, event.clientY, hit, { shift: event.shiftKey, alt: event.altKey });
+    // snapping onto the first anchor closes the loop
+    if (snap && snap.kind === "first") {
+      commit("close");
+      activeLine.closed = true;
+      rebuildLine(activeLine);
+      finishLine(true);
+      hoverSnap = null; drawSnapRing();
+      return;
     }
-    activeLine.anchors.push({ point: hit.point.clone(), normal: hit.normal.clone(), placed_with: placedWith(hit, press.touch ? "tap" : "click") });
+    pin(hit, snap, press.touch ? "tap" : "click");
+  }
+
+  /** Add an anchor to the line being drawn: at the snap if there is one, else at the hit. */
+  function pin(hit, snap, method) {
+    commit("pin");
+    const at = snap ? { point: toVec(snap.point), normal: snap.normal ? toVec(snap.normal) : hit.normal.clone() } : { point: hit.point.clone(), normal: hit.normal.clone() };
+    activeLine.anchors.push({
+      point: at.point, normal: at.normal, placed_with: placedWith(hit, method),
+      snap: snapRecord(snap), surface: snap ? (snapToSkinSurface(at.point) ?? hit.surface) : hit.surface,
+    });
     if (activeLine.anchors.length > 1) rebuildLine(activeLine);
+    hoverSnap = null; drawSnapRing();
     redraw();
     onChange?.();
+  }
+
+  /** Which skin a 3D point lies on, by casting from the camera at it. */
+  function snapToSkinSurface(point) {
+    if (!surfaceOf) return null;
+    const dir = point.clone().sub(camera.position);
+    raycaster.set(camera.position, dir.clone().normalize());
+    raycaster.far = dir.length() + 0.01;
+    const hits = raycaster.intersectObject(root, true);
+    raycaster.far = Infinity;
+    const hit = hits.find((h) => h.point.distanceTo(point) < 0.005) || hits[0];
+    return hit ? surfaceOf(hit.object) : null;
   }
 
   /** Right-click (or a touch long-press) on a pin: a control point is re-centred,
@@ -461,6 +653,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
     const picked = pickAt(clientX, clientY);
     if (!picked) return false;
     if (picked.handle) {
+      commit("re-centre");
       resetSegment(picked.seg);
       rebuildLine(picked.line, picked.seg);
       selectedAnchor = null;
@@ -509,6 +702,9 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
         points: linePolyline(line),
         anchors: line.anchors.map((a) => toArr(a.point)),
         placed_with: line.anchors.map((a) => a.placed_with || null),
+        snaps: line.anchors.map((a) => a.snap || null),
+        surfaces: line.anchors.map((a) => a.surface ?? null),
+        origin: line.origin || null,
         control_points: (line.segments || []).flatMap((seg) => (seg.handles || []).map((h) => toArr(h.point))),
       };
     },
@@ -516,6 +712,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
      *  Instrumentation for automated checks; the UI never calls it. */
     addLine(points, closed, name) {
       if (!triangles) { triangles = collectTriangles(); grid = buildGrid(triangles); }
+      commit("add line");
       const line = {
         anchors: points.map((p) => surfaceAnchor(p)), runs: [], length: 0, closed: Boolean(closed),
         labelVisible: true, approximated: false, name: name || `Line ${lines.length + 1}`,
@@ -539,6 +736,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
         selectedAnchor = null;
         dragging = null;
         if (hoverHit) { hoverHit = null; onHover?.(null); }
+        if (hoverSnap) { hoverSnap = null; drawSnapRing(); }
       }
       // the camera is never parked for the mode — dragging empty skin orbits
       controls.enabled = true;
@@ -546,13 +744,14 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
       redraw();
       onChange?.();
     },
-    finishLine,
+    finishLine: () => finishLine(),
     /** `C`: close the line being drawn (three anchors or more) and finish it. */
     closeLoop() {
       if (!activeLine || activeLine.anchors.length < 3) return false;
+      commit("close");
       activeLine.closed = true;
       rebuildLine(activeLine);
-      finishLine();
+      finishLine(true);
       return true;
     },
     hasSelection() { return Boolean(selectedAnchor); },
@@ -594,9 +793,10 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
     resetHandles() {
       const all = [activeLine, ...lines].filter(Boolean);
       const seg = selectedAnchor && all.flatMap((l) => l.segments || []).find((x) => x.handles && x.handles.includes(selectedAnchor));
-      if (seg) { resetSegment(seg); rebuildLine(seg.line, seg); selectedAnchor = null; redraw(); onChange?.(); return true; }
+      if (seg) { commit("re-centre"); resetSegment(seg); rebuildLine(seg.line, seg); selectedAnchor = null; redraw(); onChange?.(); return true; }
       const line = (selectedAnchor && all.find((l) => l.anchors.includes(selectedAnchor))) || lines[selectedLine];
       if (!line) return false;
+      commit("re-centre line");
       for (const x of line.segments || []) resetSegment(x);
       rebuildLine(line);
       redraw();
@@ -613,10 +813,102 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
     },
     /** `I`: the selected line's on-body label. */
     toggleLabelSelected() { if (lines[selectedLine]) api.toggleLabel(selectedLine); },
+    /** `N`: snapping on / off. Returns the new state. */
+    toggleSnap() {
+      snapEnabled = !snapEnabled;
+      if (!snapEnabled && hoverSnap) { hoverSnap = null; drawSnapRing(); }
+      onChange?.();
+      return snapEnabled;
+    },
+    get snapEnabled() { return snapEnabled; },
+    /** Arrow keys with a pin selected: move it by screen pixels along the skin,
+     *  by re-casting one pixel over — a correction finer than a click. */
+    nudgeSelected(dx_px, dy_px) {
+      if (!selectedAnchor) return false;
+      const px = screenOf(selectedAnchor.point);
+      if (!px) return false;
+      const rect = canvas.getBoundingClientRect();
+      const hit = surfaceHit(rect.left + px[0] + dx_px, rect.top + px[1] + dy_px);
+      if (!hit) return false;
+      const all = [activeLine, ...lines].filter(Boolean);
+      const owner = all.find((l) => l.anchors.includes(selectedAnchor));
+      const seg = !owner && all.flatMap((l) => l.segments || []).find((x) => x.handles && x.handles.includes(selectedAnchor));
+      if (!owner && !seg) return false;
+      commit("nudge");
+      selectedAnchor.point.copy(hit.point);
+      selectedAnchor.normal.copy(hit.normal);
+      if (owner) {
+        selectedAnchor.placed_with = placedWith(hit, "nudge");
+        selectedAnchor.surface = hit.surface;
+        selectedAnchor.snap = null;
+        rebuildLine(owner);
+      } else rebuildLine(seg.line, seg);
+      redraw();
+      onChange?.();
+      return true;
+    },
+    /** ⌘/Ctrl+Z and ⌘/Ctrl+Shift+Z: every edit — pin, move, shape, re-centre,
+     *  delete, close, finish, rename, add, mirror, delete line, clear. */
+    undo() {
+      const entry = history.undo.pop();
+      if (!entry) return false;
+      history.redo.push({ label: entry.label, state: snapshot() });
+      restore(entry.state);
+      return true;
+    },
+    redo() {
+      const entry = history.redo.pop();
+      if (!entry) return false;
+      history.undo.push({ label: entry.label, state: snapshot() });
+      restore(entry.state);
+      return true;
+    },
+    canUndo() { return history.undo.length > 0; },
+    canRedo() { return history.redo.length > 0; },
+    /** `M`: the selected line mirrored through x → −x, every anchor and control
+     *  point snapped to the skin. The record carries where it came from and the
+     *  residual of every point; past 5 mm it is flagged — the body is not
+     *  symmetric there, and someone should look. */
+    mirrorLine(index = selectedLine) {
+      const source = lines[index];
+      if (!source) return null;
+      const closest = (p) => closestOnMesh(grid, p);
+      const anchors = mirrorPoints(source.anchors.map((a) => toArr(a.point)), closest);
+      if (anchors.error) return { error: anchors.error };
+      commit("mirror line");
+      const line = {
+        name: `${source.name} (mirror)`, closed: source.closed, labelVisible: source.labelVisible,
+        runs: [], length: 0, approximated: false, segmentMap: new Map(),
+        origin: { mirrored_from: source.name, residuals_mm: anchors.residuals_mm, max_residual_mm: anchors.max_residual_mm, asymmetry_flag: anchors.flagged },
+        anchors: anchors.points.map((p, i) => {
+          const c = closest(p);
+          return { point: toVec(p), normal: toVec(c.normal), placed_with: { method: "mirror" }, surface: source.anchors[i].surface ?? null,
+            snap: { kind: "mirror", to: source.name, residual_mm: anchors.residuals_mm[i], ...(anchors.residuals_mm[i] > 5 ? { flagged: true } : {}) } };
+        }),
+      };
+      const pairs = segmentPairs(line);
+      pairs.forEach(([a, b], i) => {
+        const seg = source.segments[i];
+        let handles = null;
+        if (seg?.handles) {
+          const m = mirrorPoints(seg.handles.map((h) => toArr(h.point)), closest);
+          if (!m.error) handles = m.points.map((p) => { const c = closest(p); return { point: toVec(p), normal: toVec(c.normal), placed_with: { method: "mirror" } }; });
+        }
+        line.segmentMap.set(a, { a, b, line, handles, seeds: null });
+      });
+      rebuildLine(line);
+      lines.push(line);
+      selectedLine = lines.length - 1;
+      selectedAnchor = null;
+      redraw();
+      onChange?.();
+      return { index: selectedLine, ...line.origin };
+    },
     undoPoint() {
       if (activeLine && activeLine.anchors.length) {
         deleteAnchor(activeLine, activeLine.anchors[activeLine.anchors.length - 1]);
       } else if (lines.length) {
+        commit("delete line");
         lines.pop();
         selectedLine = -1;
         redraw();
@@ -624,6 +916,8 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
       }
     },
     clear() {
+      if (!lines.length && !(activeLine && activeLine.anchors.length)) return;
+      commit("clear");
       lines = [];
       selectedLine = -1;
       selectedAnchor = null;
@@ -637,13 +931,15 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
       onChange?.();
     },
     deleteLine(index) {
+      if (!lines[index]) return;
+      commit("delete line");
       lines.splice(index, 1);
       selectedLine = -1;
       redraw();
       onChange?.();
     },
     renameLine(index, name) {
-      if (lines[index] && name) { lines[index].name = name; onChange?.(); }
+      if (lines[index] && name && lines[index].name !== name) { commit("rename"); lines[index].name = name; onChange?.(); }
     },
     toggleLabel(index) {
       if (lines[index]) { lines[index].labelVisible = !lines[index].labelVisible; onChange?.(); }
@@ -673,6 +969,9 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
       return {
         enabled,
         hasSelection: Boolean(selectedAnchor),
+        snapEnabled,
+        undoDepth: history.undo.length,
+        redoDepth: history.redo.length,
         active: activeLine
           ? { anchors: activeLine.anchors.length, length: activeLine.length }
           : null,
@@ -702,6 +1001,8 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
           "Drafted by hand in the viewer. Not a registry POM and not an approved measurement record.",
           "Loose-tape surface length: no soft-tissue compression allowance.",
           "placed_with records how each anchor was pinned (camera distance, incidence, mm per pixel); it is context, not a correction.",
+          "A snap moved the anchor, never the path model: every run is still the shortest surface path. Snaps and their residuals are recorded per anchor.",
+          "A mirrored line records its source and every point's residual to the skin; past 5mm it is flagged, not corrected.",
         ],
         lines: lines.map((line, index) => ({
           name: line.name || `Line ${index + 1}`,
@@ -713,6 +1014,9 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
             Number(a.point.x.toFixed(5)), Number(a.point.y.toFixed(5)), Number(a.point.z.toFixed(5)),
           ]),
           placed_with: line.anchors.map((a) => a.placed_with || null),
+          snaps: line.anchors.map((a) => a.snap || null),
+          surfaces: line.anchors.map((a) => a.surface ?? null),
+          origin: line.origin || null,
           control_points: (line.segments || []).flatMap((seg) => (seg.handles || []).map((h) => [
             Number(h.point.x.toFixed(5)), Number(h.point.y.toFixed(5)), Number(h.point.z.toFixed(5)),
           ])),
@@ -731,6 +1035,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
       if (hoverPending?.frame) cancelAnimationFrame(hoverPending.frame);
       disposeGroup(lineGroup);
       disposeGroup(anchorGroup);
+      disposeGroup(snapGroup);
     },
   };
   return api;

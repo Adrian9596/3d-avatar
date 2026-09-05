@@ -3,7 +3,7 @@
 Orbit while drafting · a pen that snaps · landmark placement that says how well it was placed ·
 template drafts from landmarks.
 
-Status: **Phase A built (2026-09-05); Phases B–D planned.** Written 2026-09-05 against `assets/export/avatar_master.glb`
+Status: **Phases A and B built (2026-09-05); Phases C–D planned.** Written 2026-09-05 against `assets/export/avatar_master.glb`
 (SHA-256 `0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4`). §4 records what a
 numerical spike found on that body; §5–§8 propose what to build from it, §10–§11 how it will be
 gated, §14 the keyboard and pointer map, and §15 the concrete work plan, phase by phase. Companion to `MEASUREMENT_PLAN.md` (landmarks, POMs) and `PATTERN_2D_DXF_PLAN.md`
@@ -460,8 +460,8 @@ Rules the map follows:
 | `↑` | Elevation +15° (Shift: 5°) — nothing selected |
 | `↓` | Elevation −15° (Shift: 5°) — nothing selected |
 | `F` | Face the selected point along its surface normal; nothing selected, the point under the cursor |
-| `Z` | Loupe on / off *(planned, Phase B)* |
-| `N` | Snapping on / off *(planned, Phase B)* |
+| `Z` | Loupe on / off |
+| `N` | Snapping on / off |
 | `?` | Shortcut sheet |
 | `Esc` | Deselect; nothing selected → leave the current tool; sheet open → close it |
 
@@ -472,13 +472,13 @@ Rules the map follows:
 | `Enter` | Finish the line |
 | `C` | Close the loop and finish (≥ 3 anchors) |
 | `Backspace / Delete` | Delete the selected point; nothing selected → undo the last pinned point |
-| `⌘/Ctrl+Z` | Undo (pin, move, snap, delete, close, rename, mirror) *(planned, Phase B)* |
-| `⌘/Ctrl+Shift+Z` | Redo *(planned, Phase B)* |
-| `← → ↑ ↓` | Nudge the selected point 1 px along the skin (Shift: 10 px) *(planned, Phase B)* |
-| hold `Shift` while pinning | Level snap while pinning: same height as the previous anchor *(planned, Phase B)* |
-| hold `Alt` while pinning | Mirror snap while pinning: mirror of the selected line's last anchor *(planned, Phase B)* |
+| `⌘/Ctrl+Z` | Undo (pin, move, snap, delete, close, rename, mirror) |
+| `⌘/Ctrl+Shift+Z` | Redo |
+| `← → ↑ ↓` | Nudge the selected point 1 px along the skin (Shift: 10 px) |
+| hold `Shift` while pinning | Level snap while pinning: same height as the previous anchor |
+| hold `Alt` while pinning | Mirror snap while pinning: mirror of the previous anchor (of the line being drawn, else the selected line) |
 | `R` | Re-centre the control points of the selected segment (whole line if none) |
-| `M` | Mirror the selected line to the other side *(planned, Phase B)* |
+| `M` | Mirror the selected line to the other side |
 | `[` | Select the previous line |
 | `]` | Select the next line |
 | `I` | Show / hide the selected line's on-body label |
@@ -593,7 +593,33 @@ production lane behaves identically for everything not marked *prototype*.
 if it jitters, disable controls between `pointerdown` and the click decision, never for the whole
 mode). `Alt` on Firefox/Windows. `Space` page scroll.
 
-### Phase B — smart pen
+### Phase B — smart pen — **done 2026-09-05**
+
+What landed: `scripts/pen_snap.mjs` with `validate:pen-snap` (in the chain; lane parity extended:
+the module is reached only through the pen, neither lane redefines it, the production host
+hardcodes no material). The pen snaps the click — first anchor, another line's anchor or run,
+a landmark from `getSnapTargets()`, Shift = level, Alt = mirror — shows the candidate as a ring
+before the click, records `snap` (kind, target, residual) and `surface` (material) on every
+anchor, and `N` turns it off. One command stack (`⌘/Ctrl+Z`, `⌘/Ctrl+Shift+Z`) covers pin,
+move, shape, re-centre, delete, close (one step), finish, rename, add, mirror, delete line,
+clear; snapshots keep control points, so undo restores a shaped run. Arrows nudge the selected
+pin one pixel along the skin (Shift: ten); `M` mirrors the selected line with every residual
+recorded and a flag past 5 mm; `Z` shows a 3× loupe rendered into the canvas corner.
+`draftPieces` refuses an outline with an anchor off the measurement surface, naming the anchor
+and its material, before Flatten. The production lane offers the two detected apexes as snap
+targets (read-only) and reads its level-snap contour from the measurement module's surface.
+
+Verified in the browser with synthetic events (pane hidden, as in Phase A): a click 8 px beside
+the apex landmark pinned 55 µm from it (`landmark → BUST_APEX_L`, residual 0); a Shift-click
+pinned at exactly the apex height (`level`, residual 30.2 mm recorded — how far the cursor was
+from that height); an unmoved press on the first anchor closed the loop as one undo step;
+undo/redo kept the snaps; a nudge moved the pin 0.989 mm and undo restored position and length
+to 0 µm; `M` produced a mirror with residuals 0/0/0, x negated on every anchor, control points
+mirrored, length 208.20 → 208.21 mm; with snapping off the same click landed 8.84 mm from the
+apex and recorded no snap; a click beside another line's anchor snapped to it (0 mm), a click
+beside its run snapped onto the run (residual 8.15 mm recorded; the anchor sits 69 µm off the
+polyline chord because it is re-snapped onto the skin, not onto the chord). Real
+pointer, touch and the loupe's rendering stay on the smoke list.
 
 **B1 `scripts/pen_snap.mjs` (new, pure, shared).**
 `SNAP_PRIORITY` (first anchor › other line's anchor › point on a line › landmark › level › mirror);
