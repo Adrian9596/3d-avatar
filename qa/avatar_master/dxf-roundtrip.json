@@ -1,0 +1,244 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T05:25:47Z",
+  "purpose": "The pattern-draft DXF is structurally what Gerber AccuMark imports (ASTM D6673-10, R12 dialect) and its geometry survives a read-back by an independent parser.",
+  "asset": {
+    "file": "assets/export/avatar_master.glb",
+    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+  },
+  "cases": {
+    "file": "scripts/flatten_cases.json",
+    "sha256": "6c52127a37594b4bcd5312a20d30be3631796cfa4d16327337540418f4366e05"
+  },
+  "dxf": {
+    "file": "qa/avatar_master/flatten-draft.dxf",
+    "sha256": "10ff228eefd23a002c3450d0a1f0372f64cd1d175f3a139051a5934f08466441",
+    "bytes": 51719,
+    "layers_used": {
+      "boundary": "1",
+      "system_text": "1",
+      "turn_points": "2",
+      "curve_points": "3",
+      "grain_line": "7",
+      "internal_lines": "8",
+      "internal_cutouts": "11",
+      "sew_lines": "14",
+      "annotation": "15",
+      "boundary_validation": "84"
+    },
+    "version": "R12 ASCII, Gerber dialect"
+  },
+  "target_cad": "Gerber AccuMark",
+  "import_verified": false,
+  "import_verified_note": "Structure follows ASTM D6673-10 and the constraints Gerber's parser is documented to impose (contracts/dxf-astm-d6673.md). Nobody has yet opened this file in AccuMark; when someone does, record the AccuMark version here.",
+  "style_system_text": [
+    "Style Name: AVATAR_MASTER_DRAFT",
+    "Creation Date: 05-09-2026",
+    "Creation Time: 05:25",
+    "Author: Crossian;3d-avatar-flatten;0.1.0",
+    "Sample Size: UNGRADED",
+    "Grade Rule Table: NONE",
+    "Units: METRIC",
+    "ASTM/D13 Proposal 1 Version: D6673-10",
+    "Curve Tolerance: 0.01"
+  ],
+  "layout": [
+    {
+      "name": "CUP_PANEL_A",
+      "block": "CUP_PANEL_A",
+      "insert_mm": [
+        120,
+        0
+      ],
+      "bbox_mm": {
+        "width": 83.03,
+        "height": 105.7
+      }
+    },
+    {
+      "name": "CUP_PANEL_B",
+      "block": "CUP_PANEL_B",
+      "insert_mm": [
+        233.03,
+        0
+      ],
+      "bbox_mm": {
+        "width": 66.43,
+        "height": 116.15
+      }
+    }
+  ],
+  "pieces": [
+    {
+      "block": "CUP_PANEL_A",
+      "piece_name": "CUP_PANEL_A",
+      "vertices": 161,
+      "turn_points": 2,
+      "curve_points": 159,
+      "perimeter_mm": 290.68,
+      "worst_vertex_delta_mm": 0.005,
+      "perimeter_delta_mm": 0.0004
+    },
+    {
+      "block": "CUP_PANEL_B",
+      "piece_name": "CUP_PANEL_B",
+      "vertices": 167,
+      "turn_points": 2,
+      "curve_points": 165,
+      "perimeter_mm": 298.49,
+      "worst_vertex_delta_mm": 0.005,
+      "perimeter_delta_mm": 0.0038
+    }
+  ],
+  "worst_vertex_delta_mm": 0.005,
+  "worst_perimeter_delta_mm": 0.0038,
+  "declared_limits": [
+    "Pieces are shells of the body surface at 1:1: no ease, no seam allowance, no grading. The annotation on layer 15 says so inside the file.",
+    "Grain line is a default (the body's vertical through the piece centre); Quantity 1,1 is a default. Both are for the pattern maker to set.",
+    "Turn points are vertices turning more than 30 degrees, a geometric rule; curve points are every other outline vertex.",
+    "Coordinates are written to 0.01mm per the metric convention; the rounding loss is recorded above."
+  ],
+  "checks": [
+    {
+      "name": "the file is 7-bit ASCII",
+      "status": "PASS",
+      "detail": "51719 bytes"
+    },
+    {
+      "name": "the file ends with EOF",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "HEADER section is present and empty",
+      "status": "PASS",
+      "detail": "0 entries"
+    },
+    {
+      "name": "no TABLES section (Gerber rejects it)",
+      "status": "PASS",
+      "detail": "HEADER, BLOCKS, ENTITIES"
+    },
+    {
+      "name": "no $MODEL_SPACE / $PAPER_SPACE blocks (Gerber rejects them)",
+      "status": "PASS",
+      "detail": "CUP_PANEL_A, CUP_PANEL_B"
+    },
+    {
+      "name": "at least one pattern piece block",
+      "status": "PASS",
+      "detail": "2 block(s)"
+    },
+    {
+      "name": "one INSERT per block, each naming an existing block",
+      "status": "PASS",
+      "detail": "2 insert(s) for 2 block(s)"
+    },
+    {
+      "name": "Style System Text on layer 1 with every required key, exact case",
+      "status": "PASS",
+      "detail": "9 lines"
+    },
+    {
+      "name": "Style System Text declares metric units",
+      "status": "PASS",
+      "detail": "Units: METRIC"
+    },
+    {
+      "name": "Style Name within 20 characters",
+      "status": "PASS",
+      "detail": "AVATAR_MASTER_DRAFT"
+    },
+    {
+      "name": "block CUP_PANEL_A: Piece System Text on layer 1 with the required keys",
+      "status": "PASS",
+      "detail": "Piece Name: CUP_PANEL_A | Quantity: 1,1"
+    },
+    {
+      "name": "block CUP_PANEL_A: Piece Name within 20 characters",
+      "status": "PASS",
+      "detail": "CUP_PANEL_A"
+    },
+    {
+      "name": "block CUP_PANEL_A: exactly one closed boundary polyline on layer 1",
+      "status": "PASS",
+      "detail": "1 polyline(s), 161 vertices, closed=true"
+    },
+    {
+      "name": "block CUP_PANEL_A: validation curve on layer 84 is a copy of the boundary",
+      "status": "PASS",
+      "detail": "1 validation polyline(s)"
+    },
+    {
+      "name": "block CUP_PANEL_A: one grain line on layer 7",
+      "status": "PASS",
+      "detail": "1 line(s)"
+    },
+    {
+      "name": "block CUP_PANEL_A: every boundary vertex is a turn (2) or curve (3) point",
+      "status": "PASS",
+      "detail": "2 turn + 159 curve points for 161 vertices"
+    },
+    {
+      "name": "block CUP_PANEL_A: annotation present on layer 15",
+      "status": "PASS",
+      "detail": "7 line(s)"
+    },
+    {
+      "name": "block CUP_PANEL_A: coordinates survive the round trip to the 0.01mm the metric convention writes",
+      "status": "PASS",
+      "detail": "worst vertex Δ 0.0050mm"
+    },
+    {
+      "name": "block CUP_PANEL_A: outline perimeter survives rounding",
+      "status": "PASS",
+      "detail": "Δ 0.0004mm over 290.68mm"
+    },
+    {
+      "name": "block CUP_PANEL_B: Piece System Text on layer 1 with the required keys",
+      "status": "PASS",
+      "detail": "Piece Name: CUP_PANEL_B | Quantity: 1,1"
+    },
+    {
+      "name": "block CUP_PANEL_B: Piece Name within 20 characters",
+      "status": "PASS",
+      "detail": "CUP_PANEL_B"
+    },
+    {
+      "name": "block CUP_PANEL_B: exactly one closed boundary polyline on layer 1",
+      "status": "PASS",
+      "detail": "1 polyline(s), 167 vertices, closed=true"
+    },
+    {
+      "name": "block CUP_PANEL_B: validation curve on layer 84 is a copy of the boundary",
+      "status": "PASS",
+      "detail": "1 validation polyline(s)"
+    },
+    {
+      "name": "block CUP_PANEL_B: one grain line on layer 7",
+      "status": "PASS",
+      "detail": "1 line(s)"
+    },
+    {
+      "name": "block CUP_PANEL_B: every boundary vertex is a turn (2) or curve (3) point",
+      "status": "PASS",
+      "detail": "2 turn + 165 curve points for 167 vertices"
+    },
+    {
+      "name": "block CUP_PANEL_B: annotation present on layer 15",
+      "status": "PASS",
+      "detail": "7 line(s)"
+    },
+    {
+      "name": "block CUP_PANEL_B: coordinates survive the round trip to the 0.01mm the metric convention writes",
+      "status": "PASS",
+      "detail": "worst vertex Δ 0.0050mm"
+    },
+    {
+      "name": "block CUP_PANEL_B: outline perimeter survives rounding",
+      "status": "PASS",
+      "detail": "Δ 0.0038mm over 298.48mm"
+    }
+  ],
+  "decision": "DXF_ROUNDTRIPS"
+}

@@ -90,8 +90,8 @@ npm run validate:viewer-contracts
 npm run validate:measurements
 ```
 
-`validate:measurements` chains, in order: `sync:registry`, `measure:avatar` (Python authority pass, writes SHA-pinned evidence to `qa/avatar_master/measurements.json`), then four gates —
-`validate:measure-parity` (JS vs Python agree within 0.5mm), `validate:surface-path` (pen's shortest-path routine vs. an analytic cylinder geodesic, plus a continuity check), `validate:cup-volume` (closed-surface volume vs. analytic spherical caps), and `validate:lane-parity` (the two viewer lanes can't disagree — shared registry, shared engine, no hardcoded material/scan-range in production).
+`validate:measurements` chains, in order: `sync:registry`, `measure:avatar` (Python authority pass, writes SHA-pinned evidence to `qa/avatar_master/measurements.json`), then eight gates —
+`validate:measure-parity` (JS vs Python agree within 0.5mm), `validate:surface-path` (pen's shortest-path routine vs. an analytic cylinder geodesic, plus a continuity check), `validate:cup-volume` (closed-surface volume vs. analytic spherical caps), `validate:lane-parity` (the two viewer lanes can't disagree — shared registry, shared engine, no hardcoded material/scan-range in production), and the 2D pattern-draft gates `validate:flatten-accuracy` (flattening vs. surfaces that unroll exactly), `validate:flatten-parity` (JS vs Python flattening agree to 1µm), `validate:seam-closure` (two panels flattened together agree on their shared seam to 1/8in) and `validate:dxf-roundtrip` (the ASTM D6673-10 / Gerber DXF reads back with an independent parser). See `PATTERN_2D_DXF_PLAN.md`.
 
 Every gate is pinned to the current asset/registry SHA and refuses to run against stale evidence — if you see a SHA-mismatch failure, rerun the pass rather than trying to relax the check.
 

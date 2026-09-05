@@ -1,6 +1,6 @@
 # 2D Pattern Draft & DXF Export — Research Plan
 
-Status: **Phases 1–2 implemented (engine, loop-as-seam, joint multi-panel solve, three gates; no UI); Phases 3–4 proposal for review**. No
+Status: **Phases 1–3 implemented (engine, loop-as-seam, joint multi-panel solve, ASTM/Gerber DXF export, four gates; no UI); Phase 4 proposal for review**. No
 shape produced here is an approved pattern, and nothing is wired into either viewer lane
 yet. §4–§7 record what a numerical spike found on a real patch of `avatar_master.glb`;
 §8–§10 describe what was then built from it — `scripts/flatten_core.mjs`, its independent
@@ -12,6 +12,12 @@ Phase 1 update (2026-09-05): the spike's LSCM → ARAP → seam-exact pipeline w
 shipped. The seam-exact relaxation alone, started from a hinge unfolding, reaches the same
 minimum on every case to 0.01 mm (§8.2) — and the two stages it drops are the only ones that
 need a sparse linear solver, which the repo's stdlib-only Python side cannot have.
+
+Phase 3 update (2026-09-05): target CAD decided — **Gerber AccuMark**. The export is ASTM
+D6673-10 in the dialect Gerber's parser accepts, with the layer numbers and system-text
+syntax looked up (`contracts/dxf-astm-d6673.md` cites the sources) rather than remembered, and
+gated by an independent read-back (§7, §10). What no gate here can do is open the file in
+AccuMark; the evidence says `import_verified: false` until someone does.
 
 Phase 2 update (2026-09-05): a drawn loop is now the piece's **seam**, held to length through
 barycentric chord constraints on the faces it crosses (no remeshing), and pieces that share a
@@ -175,17 +181,21 @@ wrote cup_panels.dxf (4760 bytes)
 ```
 
 DXF itself is the easy part of this project — R12 is old, simple, and every apparel CAD
-package reads it. Two things are **not** yet solved and must not be implied as done:
+package reads it. The spike left two things open; Phase 3 closed both once the target CAD
+was named (Gerber AccuMark):
 
-- **Layer/entity convention.** The spike used a placeholder layer name (`"1"`) for every
-  piece. Apparel CAD interchange (AAMA DXF / ASTM D6673) has specific conventions for piece
-  boundary vs. internal lines vs. notches vs. grainline, on specific layer numbers. This must
-  be confirmed against the target factory's actual CAD system before any output is called
-  conformant — guessing a layer scheme and calling it "AAMA DXF" would be exactly the kind of
-  invented capability CLAUDE.md prohibits.
-- **Units.** DXF carries no inherent unit; the writer and the importing CAD must agree
-  out-of-band (the spike used millimetres, matching apparel CAD convention, and states so in
-  a DXF comment).
+- **Layer/entity convention — now sourced.** ASTM D6673-10 numbers its layers; the writer
+  uses 1 (system text, net boundary), 2/3 (turn/curve points), 7 (grain), 15 (annotation) and
+  84 (the mandatory validation copy of the boundary), one BLOCK per piece, Style and Piece
+  System Text in the standard's exact case-sensitive syntax. Gerber's parser additionally
+  demands an empty HEADER, no TABLES section and no `$MODEL_SPACE`/`$PAPER_SPACE` blocks
+  (documented by ezdxf's `gerber_D6673` add-on, which exists to strip exactly these).
+  `contracts/dxf-astm-d6673.md` records the whole scheme with its sources.
+- **Units — declared in-band.** `Units: METRIC` in the Style System Text, coordinates in mm
+  to two decimals as the standard defines; the rounding loss is measured (≤ 5 µm per vertex,
+  ≤ 0.004 mm on a 298 mm perimeter) and recorded, not assumed.
+
+Still true, and stated in the evidence: nobody has yet opened the file in AccuMark.
 
 ## 8. Proposed architecture — following the existing measurement pattern
 
@@ -290,10 +300,16 @@ by an internal pen line) should be solved with that shared edge held to one comm
 length, not to two independently-approximated ones — removing even the 0.46 mm of §6 by
 construction rather than by coincidence.
 
-### 8.3 Export
+### 8.3 Export (built)
 
-Feed the flattened 2D pieces (plus whatever seam-allowance/notch data the user supplies —
-out of scope for the geometry engine, §2) to `dxf_writer.mjs`.
+`scripts/dxf_pieces.mjs` turns a flattened piece into a record — outline (the loop's image
+for a loop-cut piece, the ordered boundary for a face-set piece, counter-clockwise, in mm),
+turn points where the outline turns more than 30°, a default grain line (the flat image of
+the body's vertical through the face nearest the piece centre) and annotation stating what
+the piece is not — and `scripts/dxf_writer.mjs` serialises it. The writer refuses (throws)
+rather than truncating: names over Gerber's 20 characters, non-ASCII text, an outline that
+repeats its first point, a piece without a grain line. Seam allowance and notches remain out
+of scope (§2); when a boundary *with* allowance is drawn, the net line moves to layer 14.
 
 ## 9. Evidence and traceability
 
@@ -343,8 +359,8 @@ Non-negotiables carried over from the measurement plan's own rules:
 
 ## 10. Validation plan
 
-Four gates, mirroring `validate:measurements`'s structure. The first three exist and run in
-the chain; the last is Phase 3.
+Four gates, mirroring `validate:measurements`'s structure. All four exist and run in the
+chain.
 
 - **`validate:flatten-accuracy`** (built) — a 120° cylinder patch must unroll to its analytic
   rectangle (209.3731 × 200 mm, chord sum × height) and a 150° cone frustum's two straight
@@ -371,8 +387,16 @@ the chain; the last is Phase 3.
   confirmation. The gate also records the independent solve (1.01 mm) and requires the joint
   solve to beat it. Negative-tested: with coupling disabled that check fails. Each panel's own
   seam error against the body (7.17 / 4.90 mm) is recorded, not budgeted — it is curvature.
-- **`validate:dxf-roundtrip`** — write, then read back with an independent parser, and assert
-  coordinates match exactly (§7's spike check, promoted to a gate).
+- **`validate:dxf-roundtrip`** (built) — writes the two cup panels to
+  `qa/avatar_master/flatten-draft.dxf` and reads the file back with a parser written
+  independently of the writer. Gated: 7-bit ASCII; empty HEADER, no TABLES, no layout blocks;
+  one BLOCK per piece and one INSERT per block; Style System Text with all nine required keys
+  and Piece System Text with `Piece Name`/`Quantity`, exact case, names ≤ 20 characters;
+  exactly one closed boundary on layer 1 and a byte-identical validation copy on 84; a grain
+  line on 7; every boundary vertex marked on 2 or 3 (2 turn + 159/165 curve points); annotation
+  on 15; coordinates within the 0.01 mm the metric convention writes (observed 5 µm worst) and
+  perimeters within 0.004 mm. Negative-tested four ways (TABLES injected, validation copy
+  moved to layer 85, a non-ASCII character, grain line moved off layer 7): each fails.
 
 ## 11. What this explicitly is not: ease and grading
 
@@ -388,8 +412,10 @@ finished spec.
 
 ## 12. Open decisions
 
-1. **Target CAD system** (Gerber / Lectra / Optitex / other) — decides the DXF layer/entity
-   convention in §7 and §8.3. Left unguessed in the spike on purpose.
+1. ~~**Target CAD system**~~ — **decided: Gerber AccuMark** (2026-09-05). The convention it
+   fixed is in `contracts/dxf-astm-d6673.md`. Still open within it: the AccuMark version that
+   actually accepts the file, to be recorded in `qa/avatar_master/dxf-roundtrip.json` when
+   someone imports it.
 2. **Where ease is applied** — inside the flatten engine (as a per-piece shrink parameter,
    which risks quietly becoming an invented "this is the right ease" claim) vs. as an
    explicit, disclosed post-processing step on the exported flat shell (recommended: keeps
@@ -415,8 +441,9 @@ finished spec.
   scaffold ring the loop crosses remains in the piece (declared; its outer boundary is
   reported separately) and the residual seam error per piece remains the body's curvature.
   `validate:seam-closure` runs in the chain.
-- **Phase 3 — DXF export + round-trip gate**, with layer scheme confirmed against a named
-  target CAD system (§12.1).
+- **Phase 3 — DXF export + round-trip gate. Done 2026-09-05** for Gerber AccuMark (§7,
+  §8.3, §10). Remaining manual step: import `qa/avatar_master/flatten-draft.dxf` into AccuMark
+  once and record the version in the evidence.
 - **Phase 4 — pen-tool UI**: draft a closed loop, designate interior, flatten, preview
   distortion inline (in the manner §7 of `MEASUREMENT_PLAN.md` already does for measurement
   annotations), export.
