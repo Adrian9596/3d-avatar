@@ -43,17 +43,7 @@ jobs:
         run: npm run build:pages
 
       - name: Refuse to publish a site that serves .mjs
-        run: |
-          set -euo pipefail
-          if find dist -name '*.mjs' -print -quit | grep -q .; then
-            echo "::error::dist contains .mjs files - a host that mislabels their MIME type would leave a blank page. They must be bundled."
-            find dist -name '*.mjs'
-            exit 1
-          fi
-          test -f dist/index.html || { echo "::error::dist/index.html missing - the prototype is the landing page"; exit 1; }
-          test -f dist/assets/export/avatar_master.glb || { echo "::error::the prototype's GLB was not copied into dist"; exit 1; }
-          test -f dist/viewer/index.html || { echo "::error::the production viewer is missing from dist/viewer"; exit 1; }
-          echo "Layout OK: / = prototype, /viewer/ = production viewer, no .mjs served."
+        run: npm run validate:pages-layout
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

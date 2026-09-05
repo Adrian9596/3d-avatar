@@ -27,6 +27,7 @@
     "build:viewer": "vite build",
     "build:prototype": "vite build --config vite.prototype.config.mjs",
     "build:pages": "rm -rf dist && npm run build:viewer && npm run build:prototype",
+    "validate:pages-layout": "node scripts/check_pages_layout.mjs",
     "predev:viewer": "npm run sync:registry",
     "dev:viewer": "vite",
     "preview:viewer": "vite preview",
