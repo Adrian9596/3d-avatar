@@ -415,8 +415,21 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange 
     deleteAnchor(picked.line, picked.anchor);
   }
 
+  /** The shortcut handler is on `window`, so keystrokes aimed at a text field
+   *  reach it too. Both lanes rename a line through a contenteditable cell in
+   *  their own panel: without this, Enter while renaming finishes the draft
+   *  that is still being pinned, and Backspace deletes the selected anchor
+   *  instead of a character. */
+  function isTextEntry(node) {
+    if (!node || node.nodeType !== 1) return false;
+    if (node.isContentEditable) return true;
+    const tag = node.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+  }
+
   function onKeyDown(event) {
     if (!enabled || suspended) return;
+    if (isTextEntry(event.target)) return;
     if (event.key === "Enter") { finishLine(); return; }
     if ((event.key === "Delete" || event.key === "Backspace") && selectedAnchor) {
       const owner = (activeLine && activeLine.anchors.includes(selectedAnchor) && activeLine)

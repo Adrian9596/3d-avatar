@@ -299,6 +299,10 @@ let registry=null,torsoTris=null,measureScan=[],tapeGroup=null;
 let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
 let sectionOpen=false,sectionGroup=null;
 let landmarksVisible=false,placingLandmark=null,landmarkGroup=null;
+// Landmark placement borrows the canvas, so the pen must stay suspended for
+// exactly as long as a landmark is selected. Assigning placingLandmark
+// directly is how that pairing gets forgotten -- go through here.
+function setPlacingLandmark(id){placingLandmark=id||null;pen?.setSuspended(Boolean(placingLandmark));}
 let foldMarks={},armholes={};
 // Hand-placed landmarks are persisted per browser, and Save writes the file the
 // authority pass reads — a correction here becomes corrected evidence, not a
@@ -654,8 +658,7 @@ function renderLandmarkList(){
         +`<span class="badge ${badge==='auto'?'':badge}">${badge}</span><b>${text}</b>`;
       element.addEventListener('click',event=>{
         if(event.target.tagName==='BUTTON')return;
-        placingLandmark=placingLandmark===row.id?null:row.id;
-        pen?.setSuspended(Boolean(placingLandmark));
+        setPlacingLandmark(placingLandmark===row.id?null:row.id);
         renderLandmarkList();redrawLandmarks();
       });
       if(manual){
@@ -694,8 +697,7 @@ function placeLandmark(id,point){
     ? {xyz_m:[+point.x.toFixed(5),+point.y.toFixed(5),+point.z.toFixed(5)]}
     : {y_m:+point.y.toFixed(5)};
   persistOverrides();
-  placingLandmark=null;
-  pen?.setSuspended(false);
+  setPlacingLandmark(null);
   recomputeMeasurements();
 }
 
@@ -975,12 +977,12 @@ const landmarkToggle=document.getElementById('landmarkToggle');
 landmarkToggle.addEventListener('click',()=>{
   landmarksVisible=!landmarksVisible;
   landmarkToggle.setAttribute('aria-pressed',String(landmarksVisible));
-  if(!landmarksVisible)placingLandmark=null;
+  if(!landmarksVisible)setPlacingLandmark(null);
   renderLandmarkList();redrawLandmarks();
 });
 document.getElementById('landmarkSave').addEventListener('click',saveLandmarks);
 document.getElementById('landmarkReset').addEventListener('click',()=>{
-  overrides={landmarks:{}};persistOverrides();placingLandmark=null;recomputeMeasurements();
+  overrides={landmarks:{}};persistOverrides();setPlacingLandmark(null);recomputeMeasurements();
 });
 document.getElementById('penFinish').addEventListener('click',()=>pen?.finishLine());
 document.getElementById('penUndo').addEventListener('click',()=>pen?.undoPoint());
