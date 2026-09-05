@@ -13,6 +13,7 @@
     "validate:surface-path": "node scripts/test_surface_path.mjs",
     "validate:cup-volume": "python3 scripts/test_cup_volume.py",
     "validate:lane-parity": "node scripts/test_lane_parity.mjs",
+    "validate:evidence-drift": "node scripts/check_evidence_drift.mjs",
     "export:pom-sheet": "python3 scripts/export_pom_sheet.py",
     "validate:measurements": "npm run sync:registry && npm run measure:avatar && npm run validate:measure-parity && npm run validate:surface-path && npm run validate:cup-volume && npm run validate:lane-parity",
     "validate:prototype": "python3 scripts/validate_prototype.py",
