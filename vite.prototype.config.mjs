@@ -48,6 +48,8 @@ function copyRuntimeAssets(outDir) {
     ["assets/export/avatar_master.glb", "assets/export/avatar_master.glb"],
     ["contracts/measurement-registry.json", "contracts/measurement-registry.json"],
     ["contracts/pattern-templates.json", "contracts/pattern-templates.json"],
+    ["contracts/measurement-levels.json", "contracts/measurement-levels.json"],
+    ["contracts/body-grid.json", "contracts/body-grid.json"],
   ];
   return {
     name: "copy-runtime-assets",

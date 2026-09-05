@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T10:46:22Z",
+  "generated_at": "2026-09-05T16:29:06Z",
   "purpose": "Static guard that the prototype and production viewer lanes cannot disagree about a measurement.",
   "registry_sha256": "056c64938801ff5a9d63de9ed99528cbaa6225fdf77e17ef97a46876cba8e18c",
   "checks": [
@@ -153,6 +153,41 @@
       "name": "the production lane drafts no templates",
       "status": "PASS",
       "detail": "templates are proposals in the authoring lane, drafted through the same pen and flattened by the same engine"
+    },
+    {
+      "name": "the prototype lane draws reference levels through scripts/measurement_levels.mjs",
+      "status": "PASS",
+      "detail": "imports scripts/measurement_levels.mjs"
+    },
+    {
+      "name": "measurement_levels.mjs measures a level with the shared section engine",
+      "status": "PASS",
+      "detail": "imports measure_core.mjs; a level girth is not measured a second way"
+    },
+    {
+      "name": "the production lane carries no reference levels",
+      "status": "PASS",
+      "detail": "the level stack is a protocol read and corrected in the authoring lane"
+    },
+    {
+      "name": "the prototype lane draws the body grid through scripts/body_grid.mjs",
+      "status": "PASS",
+      "detail": "imports scripts/body_grid.mjs"
+    },
+    {
+      "name": "body_grid.mjs samples through the shared section routine and boundary walk",
+      "status": "PASS",
+      "detail": "imports measure_core.mjs and flatten_mesh.mjs; no intersection or edge maths of its own"
+    },
+    {
+      "name": "the body grid reports no length",
+      "status": "PASS",
+      "detail": "a curve is drawn, never measured, so it can carry no tolerance"
+    },
+    {
+      "name": "the production lane carries no body grid",
+      "status": "PASS",
+      "detail": "the reference frame is read and corrected in the authoring lane"
     },
     {
       "name": "the production lane places no landmarks",

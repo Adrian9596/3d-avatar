@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "registry": "contracts/measurement-registry.json",
+  "status_note": "The house 'how to measure' sheets draw a stack of horizontal rings on a reference figure, each labelled in inches. This file declares that stack as a PROTOCOL — which heights to look at, relative to which registry landmark — so the viewer can draw the same rings on this avatar. A level is a reference height, not a POM: it is not measured against a tolerance, it has no house code, it appears in no POM sheet, and it is not a fit recommendation. The girth the viewer reports at a level is the ordinary section girth of this body at that height (convex hull, as everywhere else), reported so the person can read the body, not so anything is graded.",
+  "declared_limit": "Reference levels are heights from the underbust line, not a fit recommendation and not a size.",
+  "datum": {
+    "landmark": "UNDERBUST_FOLD",
+    "comment": "The 0 line on the sheets is drawn in black and carries no printed label. Reading it as the underbust line is an INTERPRETATION. It is drawn at the inframammary fold on all three sheets — that part a person read off the drawing, and the trace script deliberately does not pretend to have detected it (ink over skin is the same brown as the shadow under the breast). What the trace does verify is the other half: the thirteen printed values fit a linear inch scale whose zero falls inside the sheets' one unlabelled gap, between the +1/2in and -1in leaders, on all three sheets. UNDERBUST_FOLD is the registry's landmark for that height and is detected automatically, so the whole stack resolves without a hand-placed point. If the house says the black line is something else, change this field: nothing else in the stack moves.",
+    "alternatives_considered": "BUST_LEVEL was ruled out — the sheets draw no ring at the apex at all, and the printed values would then be neither monotonic nor centred on it."
+  },
+  "unit": {
+    "offsets": "inch",
+    "metres_per_inch": 0.0254,
+    "comment": "Offsets are declared in inches because that is what the sheets print. Level height = datum height + offset_in * 0.0254, in the GLB's metres."
+  },
+  "reliability": {
+    "max_y_m": 1.39,
+    "comment": "The torso surface is open at the armhole, so sections above y = 1.39m are unreliable (MEASUREMENT_PLAN.md section 4.3, and the registry's scan note). A level above it must report that it is out of range rather than a girth. On this asset the top level (+4 1/4in above a fold at y = 1.27m) lands at y = 1.378m, 11mm clear."
+  },
+  "source_sheets": [
+    {
+      "path": "assets/reference/how-to-measure/Front_Measurements.png",
+      "view": "front",
+      "sha256": "8e2bf87a35c27c59724d5e43a3df89ee90596dbc76ccb7864856b9f541c844aa"
+    },
+    {
+      "path": "assets/reference/how-to-measure/Back_Measurements.png",
+      "view": "back",
+      "sha256": "a511b7abfa3b6510b7e973bb0cd45441c511b2fadc62c250f771131271fd5461"
+    },
+    {
+      "path": "assets/reference/how-to-measure/34_Measurements.png",
+      "view": "three-quarter",
+      "sha256": "c1c1ed229776e300577d62d9a5c5304cfc65bc061ff526d49dd46a88643539de"
+    }
+  ],
+  "source_note": "Copied unchanged from '3D How to Measure' (Adobe Illustrator document '3D measurements', 2026-08-28). The figure on them is a reference body, NOT this avatar: nothing about its dimensions transfers, only which heights the house looks at and what they are called.",
+  "groups": {
+    "upper": { "label_en": "Upper chest", "colour": "#8a6ad0", "comment": "Above the breast; the sheets draw these in violet." },
+    "root": { "label_en": "Cup root", "colour": "#c8860f", "comment": "Across the lower breast between the fold and the apex; the sheets draw these in orange." },
+    "datum": { "label_en": "Underbust line", "colour": "#1f1f24", "comment": "The unlabelled black 0 line." },
+    "lower": { "label_en": "Band and below", "colour": "#8a6ad0", "comment": "Below the fold toward the waist; violet on the sheets." }
+  },
+  "levels": [
+    { "id": "LVL_P4_1_4", "offset_in": 4.25, "label_in": "+4 1/4\"", "group": "upper" },
+    { "id": "LVL_P3_3_4", "offset_in": 3.75, "label_in": "+3 3/4\"", "group": "upper" },
+    { "id": "LVL_P3_1_2", "offset_in": 3.5, "label_in": "+3 1/2\"", "group": "upper" },
+    { "id": "LVL_P1_1_4", "offset_in": 1.25, "label_in": "+1 1/4\"", "group": "root" },
+    { "id": "LVL_P0_3_4", "offset_in": 0.75, "label_in": "+3/4\"", "group": "root" },
+    { "id": "LVL_P0_1_2", "offset_in": 0.5, "label_in": "+1/2\"", "group": "root" },
+    { "id": "LVL_ZERO", "offset_in": 0, "label_in": null, "group": "datum" },
+    { "id": "LVL_M1", "offset_in": -1, "label_in": "-1\"", "group": "lower" },
+    { "id": "LVL_M1_1_4", "offset_in": -1.25, "label_in": "-1 1/4\"", "group": "lower" },
+    { "id": "LVL_M1_1_2", "offset_in": -1.5, "label_in": "-1 1/2\"", "group": "lower" },
+    { "id": "LVL_M1_3_4", "offset_in": -1.75, "label_in": "-1 3/4\"", "group": "lower" },
+    { "id": "LVL_M2", "offset_in": -2, "label_in": "-2\"", "group": "lower" },
+    { "id": "LVL_M2_1_4", "offset_in": -2.25, "label_in": "-2 1/4\"", "group": "lower" },
+    { "id": "LVL_M2_1_2", "offset_in": -2.5, "label_in": "-2 1/2\"", "group": "lower" }
+  ],
+  "levels_note": "Fourteen rings: thirteen printed values and the unlabelled 0. The sheets draw nothing across the bust apex — the gap between +1 1/4in and +3 1/2in is the sheets', not an omission here. The printed values are the authority; the pixel trace is the check on them.",
+  "trace": {
+    "evidence": "qa/avatar_master/measurement-levels-trace.json",
+    "tool": "scripts/trace_measurement_levels.py",
+    "worst_residual_in": 0.28,
+    "comment": "A budget for the sheets, not for this avatar: how far any one leader may sit from the sheet's own best-fit inch scale. Observed worst 0.269in (three-quarter sheet), which is draughting slack on a drawn diagram. The gate also requires the fitted zero to land inside the unlabelled gap on every sheet. Exceeding either means the reading of the sheets is wrong, not that the tolerance should be raised."
+  },
+  "declared_limits": [
+    "Reference levels are heights from the underbust line, not a fit recommendation and not a size.",
+    "The figure on the source sheets is not this avatar; only the protocol transfers, never a dimension.",
+    "That the black 0 line is the underbust line is an interpretation of an unlabelled mark, evidenced by the trace and recorded here so it can be corrected in one field.",
+    "A level's girth is a body dimension with no compression allowance, like every other girth in this project.",
+    "Levels are not POMs: no house code, no tolerance, no POM sheet row, no evidence in measurements.json."
+  ]
+}
