@@ -38,6 +38,21 @@ jobs:
       - name: Build production viewer
         run: npm run build:viewer
 
+      - name: Assemble prototype (authoring) lane
+        run: |
+          set -euo pipefail
+          PROTO=dist/prototype
+          mkdir -p "$PROTO/assets/export" "$PROTO/contracts" "$PROTO/node_modules/three"
+          cp digital_bra_fit_model_360.html "$PROTO/"
+          cp -r scripts "$PROTO/scripts"
+          cp assets/export/avatar_master.glb assets/export/avatar_master_reference_render.png "$PROTO/assets/export/"
+          cp contracts/measurement-registry.json "$PROTO/contracts/"
+          # Vendored whole (not cherry-picked): Line2/GLTFLoader etc. pull in
+          # transitive files (LineSegments2.js, BufferGeometryUtils.js, ...)
+          # not directly imported by the HTML's own import map.
+          cp -r node_modules/three/build "$PROTO/node_modules/three/build"
+          cp -r node_modules/three/examples "$PROTO/node_modules/three/examples"
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
