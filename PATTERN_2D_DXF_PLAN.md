@@ -446,6 +446,10 @@ finished spec.
    already produces) vs. seam allowance + notches + grainline from the first release. The
    spike only validates the net-line case; allowance/notch generation is unstarted design
    work, not benchmarked here.
+4. **Template drafts vs. "no automatic seam placement" (§2).** `AUTHORING_UX_PLAN.md` §8
+   proposes contract-declared templates that put a seam where bra construction conventionally
+   puts it and report what it costs per panel; the person chooses. That is a proposal shown, not a
+   seam placed — §2 stands. Decide there whether the template list is confirmed by a TD first.
 
 ## 13. Phases (proposed)
 

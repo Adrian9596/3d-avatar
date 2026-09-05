@@ -125,4 +125,5 @@ npm run export:pom-sheet   # builds qa/avatar_master/pom-sheet.csv + .json from 
 - [`CLAUDE.md`](CLAUDE.md) — full architecture notes, non-negotiable boundaries, measurement-rule rationale.
 - [`REPOSITORY_POLICY.md`](REPOSITORY_POLICY.md) — Git/LFS/binary policy for this repo.
 - [`MEASUREMENT_PLAN.md`](MEASUREMENT_PLAN.md) — the measurement registry's design and tolerances.
+- [`AUTHORING_UX_PLAN.md`](AUTHORING_UX_PLAN.md) — research plan (nothing built yet) for orbit-while-drafting, a snapping pen, landmark placement that records how well a point was placed, and template drafts from landmarks.
 - [`contracts/avatar-asset-contract.md`](contracts/avatar-asset-contract.md) — the current asset's identity, coordinate convention, and consumer obligations.
