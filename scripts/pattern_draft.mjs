@@ -3,7 +3,8 @@
  * block of the authoring lane, kept out of the HTML so it can be read, tested
  * and upgraded on its own. No DOM in here: plain arrays in, plain objects out.
  *
- * The pipeline is the one the gates run:
+ * The pipeline is the one the gates run (the pen hands over each line's 3D
+ * polyline through pen_tool's lineGeometry()):
  *   pen lines  ->  outline loop (+ seam)  ->  panel loops  (splitLoopBySeam)
  *              ->  patches               (extractPatch, loopChords)
  *              ->  flat pieces           (flattenPieces)
@@ -29,21 +30,6 @@ export const DECLARED_LIMITS = Object.freeze([
   'Grain line and Quantity 1,1 in the DXF are defaults for the pattern maker to set.',
   'Seam errors against the body are curvature the body carries, reported per piece.',
 ]);
-
-const same = (a, b) => Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9 && Math.abs(a[2] - b[2]) < 1e-9;
-
-/** The unlifted 3D polyline of a pen line: its segments' legs joined, closing
- *  segment included for a closed line, no repeated points. `segments` is
- *  [{ legs: [[[x,y,z], ...], ...] }] as the pen keeps it. */
-export function linePolyline(segments, closed) {
-  const pts = [];
-  for (const seg of segments || []) for (const leg of seg.legs || []) for (const p of leg) {
-    const q = [p[0], p[1], p[2]];
-    if (!pts.length || !same(pts[pts.length - 1], q)) pts.push(q);
-  }
-  if (closed && pts.length > 1 && same(pts[0], pts[pts.length - 1])) pts.pop();
-  return pts;
-}
 
 /** A DXF-safe piece name: uppercase [A-Z0-9_], at most 20 characters. */
 export function asciiPieceName(name, fallback) {
@@ -135,13 +121,14 @@ export function draftSummary(pieces, result) {
   };
 }
 
-/** Anchors and control points of a pen line, as the line export records them. */
+/** A pen line as the evidence records it: the pen's own `lineGeometry(index)`
+ *  already carries name, closed, length, anchors and control points. */
 export function lineRecord(line) {
-  const xyz = (v) => [Number(v.x.toFixed(5)), Number(v.y.toFixed(5)), Number(v.z.toFixed(5))];
+  const r3 = (p) => p.map((v) => Number(v.toFixed(5)));
   return {
     name: line.name || null, closed: line.closed, length_mm: Number((line.length * 1000).toFixed(1)),
-    anchors: line.anchors.map((a) => xyz(a.point)),
-    control_points: (line.segments || []).flatMap((seg) => (seg.handles || []).map((h) => xyz(h.point))),
+    anchors: (line.anchors || []).map(r3),
+    control_points: (line.control_points || []).map(r3),
   };
 }
 

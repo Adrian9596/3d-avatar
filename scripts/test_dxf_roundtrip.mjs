@@ -44,6 +44,7 @@ const CASES_PATH = join(ROOT, 'scripts', 'flatten_cases.json');
 const DXF_PATH = join(ROOT, 'qa', 'avatar_master', 'flatten-draft.dxf');
 const REPORT_PATH = join(ROOT, 'qa', 'avatar_master', 'dxf-roundtrip.json');
 const CHECK_ONLY = process.argv[2] ? join(process.cwd(), process.argv[2]) : null;
+const FIXTURE_STAMP = new Date('2026-09-05T00:00:00Z');   // the day the Gerber contract was fixed
 
 const { checks, record, finish, blocked } = createGate();
 const SST_KEYS = ['Style Name', 'Creation Date', 'Creation Time', 'Author', 'Sample Size', 'Grade Rule Table', 'Units', 'ASTM/D13 Proposal 1 Version', 'Curve Tolerance'];
@@ -125,7 +126,10 @@ if (!CHECK_ONLY) {
   written = writeAstmDxf({
     style: {
       name: 'AVATAR_MASTER_DRAFT', author: 'Crossian', application: '3d-avatar-flatten', release: '0.1.0',
-      sampleSize: 'UNGRADED', gradeRuleTable: 'NONE', curveToleranceMm: 0.01, created: new Date(),
+      // a FIXED stamp: this DXF is a reproducible fixture that CI compares byte
+      // for byte against the committed copy (validate:evidence-drift); the
+      // viewer's own export stamps the real time.
+      sampleSize: 'UNGRADED', gradeRuleTable: 'NONE', curveToleranceMm: 0.01, created: FIXTURE_STAMP,
     },
     pieces: pieceRecords,
   });
@@ -217,6 +221,7 @@ finish({
     cases: { file: relative(ROOT, CASES_PATH), sha256: casesSha },
     dxf: { file: relative(ROOT, DXF_PATH), sha256: sha256(bytes), bytes: bytes.length, layers_used: ASTM_LAYERS, version: 'R12 ASCII, Gerber dialect' },
     target_cad: 'Gerber AccuMark',
+    creation_stamp_fixed: FIXTURE_STAMP.toISOString().replace(/\.\d{3}Z$/, 'Z'),
     import_verified: false,
     import_verified_note: 'Structure follows ASTM D6673-10 and the constraints Gerber\'s parser is documented to impose (contracts/dxf-astm-d6673.md). Nobody has yet opened this file in AccuMark; when someone does, record the AccuMark version here.',
     style_system_text: written?.style_system_text,

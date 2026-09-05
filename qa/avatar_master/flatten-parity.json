@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T08:05:01Z",
+  "generated_at": "2026-09-05T08:15:19Z",
   "purpose": "Agreement between the JavaScript flattening engine and its independent Python port on the same patches.",
   "asset": {
     "file": "assets/export/avatar_master.glb",

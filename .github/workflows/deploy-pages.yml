@@ -35,8 +35,15 @@ jobs:
       - name: Validate glTF before publishing
         run: npm run validate:gltf -- assets/export/avatar_master.glb qa/avatar_master/gltf-validator-report.json
 
-      - name: Build production viewer
-        run: npm run build:viewer
+      # Builds both lanes: the prototype becomes the landing page and the
+      # production viewer sits under /viewer/. Both are bundled, so no .mjs is
+      # served -- static hosts do not agree on its MIME type and a browser will
+      # not run a module served as anything but JavaScript.
+      - name: Build both viewer lanes
+        run: npm run build:pages
+
+      - name: Refuse to publish a site that serves .mjs
+        run: npm run validate:pages-layout
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
