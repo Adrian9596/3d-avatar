@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T05:25:47Z",
+  "generated_at": "2026-09-05T07:37:03Z",
   "purpose": "The pattern-draft DXF is structurally what Gerber AccuMark imports (ASTM D6673-10, R12 dialect) and its geometry survives a read-back by an independent parser.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
@@ -12,7 +12,7 @@
   },
   "dxf": {
     "file": "qa/avatar_master/flatten-draft.dxf",
-    "sha256": "10ff228eefd23a002c3450d0a1f0372f64cd1d175f3a139051a5934f08466441",
+    "sha256": "5567351c9aa5def1216cedc3a05e610cb803c5fee0e043b0d71375aa5379b4bf",
     "bytes": 51719,
     "layers_used": {
       "boundary": "1",
@@ -34,7 +34,7 @@
   "style_system_text": [
     "Style Name: AVATAR_MASTER_DRAFT",
     "Creation Date: 05-09-2026",
-    "Creation Time: 05:25",
+    "Creation Time: 07:37",
     "Author: Crossian;3d-avatar-flatten;0.1.0",
     "Sample Size: UNGRADED",
     "Grade Rule Table: NONE",

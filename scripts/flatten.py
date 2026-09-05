@@ -255,6 +255,80 @@ def extract_patch(mesh, closest, loop_points, seed, spacing: float = DEFAULT_LOO
     return {"faces": faces, "samples": samples, "flooded": len(flooded), "barrier": len(barrier), "flood_reach_m": reach}
 
 
+def loop_centroid_seed(closest, loop_points):
+    x = y = z = 0.0
+    for p in loop_points:
+        x += p[0]
+        y += p[1]
+        z += p[2]
+    n = len(loop_points)
+    hit = closest((x / n, y / n, z / n))
+    return tuple(hit["point"]) if hit else None
+
+
+def split_loop_by_seam(loop_points, seam_points, snap_m: float = 0.015) -> dict:
+    """Cut a closed outline into two panel loops along a seam whose ends lie on it.
+    Port of splitLoopBySeam in flatten_core.mjs."""
+    n = len(loop_points)
+    if n < 3:
+        return {"error": "outline needs at least 3 points"}
+    if not seam_points or len(seam_points) < 2:
+        return {"error": "seam needs at least 2 points"}
+
+    def project(q):
+        best = None
+        for i in range(n):
+            A, B = loop_points[i], loop_points[(i + 1) % n]
+            dx, dy, dz = B[0] - A[0], B[1] - A[1], B[2] - A[2]
+            ll = dx * dx + dy * dy + dz * dz
+            t = ((q[0] - A[0]) * dx + (q[1] - A[1]) * dy + (q[2] - A[2]) * dz) / ll if ll > 0 else 0.0
+            if t < 0:
+                t = 0.0
+            if t > 1:
+                t = 1.0
+            px = A[0] if t == 0 else B[0] if t == 1 else A[0] + dx * t
+            py = A[1] if t == 0 else B[1] if t == 1 else A[1] + dy * t
+            pz = A[2] if t == 0 else B[2] if t == 1 else A[2] + dz * t
+            ex, ey, ez = q[0] - px, q[1] - py, q[2] - pz
+            d = math.sqrt(ex * ex + ey * ey + ez * ez)
+            if best is None or d < best["d"]:
+                best = {"d": d, "i": i, "t": t, "point": (px, py, pz)}
+        if best["t"] == 1:
+            best["i"] = (best["i"] + 1) % n
+            best["t"] = 0.0
+        return best
+
+    p1, p2 = project(seam_points[0]), project(seam_points[-1])
+    if p1["d"] > snap_m or p2["d"] > snap_m:
+        return {"error": f"seam end is {max(p1['d'], p2['d']) * 1000:.1f}mm from the outline (limit {snap_m * 1000}mm)"}
+
+    def pos(p):
+        return p["i"] + p["t"]
+
+    if abs(pos(p1) - pos(p2)) < 1e-12:
+        return {"error": "both seam ends land on the same outline point"}
+
+    def forward(x, start):
+        return ((x - start) % n + n) % n
+
+    def between(a, b):
+        out = []
+        span = forward(pos(b), pos(a))
+        for k in range(1, n):
+            idx = (math.floor(pos(a)) + k) % n
+            d = forward(idx, pos(a))
+            if d >= span - 1e-12:
+                break
+            if d > 1e-12:
+                out.append(loop_points[idx])
+        return out
+
+    interior = list(seam_points[1:-1])
+    loop_a = [p1["point"]] + between(p1, p2) + [p2["point"]] + list(reversed(interior))
+    loop_b = [p2["point"]] + between(p2, p1) + [p1["point"]] + interior
+    return {"loops": [loop_a, loop_b], "split_points": [p1["point"], p2["point"]], "end_gaps_m": [p1["d"], p2["d"]]}
+
+
 def submesh(mesh, face_ids) -> dict:
     vertex_map: dict[int, int] = {}
     positions: list[float] = []
@@ -885,28 +959,28 @@ def resolve_case(spec: dict, ctx: dict | None) -> dict:
         return {"sub": submesh(ctx["mesh"], faces), "seed": seed}
     if spec["type"] == "avatar_loop":
         loop = loop_around(ctx["closest"], seed, spec["radius_m"], spec["loop_points"])
-        patch = extract_patch(ctx["mesh"], ctx["closest"], loop, seed)
+        piece_seed = loop_centroid_seed(ctx["closest"], loop)
+        patch = extract_patch(ctx["mesh"], ctx["closest"], loop, piece_seed)
         if "error" in patch:
             return {"error": patch["error"]}
         sub = submesh(ctx["mesh"], patch["faces"])
         chords = loop_chords(patch["samples"], sub)
         if "error" in chords:
             return {"error": chords["error"]}
-        return {"sub": sub, "seed": seed, "patch": patch, "chords": chords["chords"]}
+        return {"sub": sub, "seed": piece_seed, "patch": patch, "chords": chords["chords"]}
     if spec["type"] == "avatar_panels":
         n = spec["loop_points"]
         if n % 2:
             return {"error": "loop_points must be even"}
         outer = loop_around(ctx["closest"], seed, spec["radius_m"], n)
-        seam = seam_through(ctx["closest"], outer[0], seed, outer[n // 2])
-        loop_a = outer[:n // 2 + 1] + list(reversed(seam))
-        loop_b = outer[n // 2:] + [outer[0]] + seam
-        _, v = tangent_frame(ctx["closest"](seed)["normal"])
-        off = 0.5 * spec["radius_m"]
-        seed_a = tuple(ctx["closest"]((seed[0] + off * v[0], seed[1] + off * v[1], seed[2] + off * v[2]))["point"])
-        seed_b = tuple(ctx["closest"]((seed[0] - off * v[0], seed[1] - off * v[1], seed[2] - off * v[2]))["point"])
+        seam = [outer[0]] + seam_through(ctx["closest"], outer[0], seed, outer[n // 2]) + [outer[n // 2]]
+        split = split_loop_by_seam(outer, seam)
+        if "error" in split:
+            return {"error": split["error"]}
         pieces = []
-        for name, loop, piece_seed in (("panel_a", loop_a, seed_a), ("panel_b", loop_b, seed_b)):
+        for i, loop in enumerate(split["loops"]):
+            name = "panel_a" if i == 0 else "panel_b"
+            piece_seed = loop_centroid_seed(ctx["closest"], loop)
             patch = extract_patch(ctx["mesh"], ctx["closest"], loop, piece_seed)
             if "error" in patch:
                 return {"error": f"{name}: {patch['error']}"}
@@ -915,7 +989,7 @@ def resolve_case(spec: dict, ctx: dict | None) -> dict:
             if "error" in chords:
                 return {"error": f"{name}: {chords['error']}"}
             pieces.append({"name": name, "sub": sub, "patch": patch, "chords": chords["chords"], "seed": piece_seed})
-        return {"pieces": pieces, "seed": seed, "seam_points": len(seam)}
+        return {"pieces": pieces, "seed": seed, "seam_points": len(seam) - 2}
     return {"error": f"unknown case type {spec['type']}"}
 
 

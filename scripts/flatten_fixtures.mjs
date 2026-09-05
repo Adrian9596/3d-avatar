@@ -14,7 +14,7 @@ import { join } from 'node:path';
 
 import { trianglesByMaterial } from './glb_reader.mjs';
 import { buildGrid, closestOnMesh } from './surface_path.mjs';
-import { weld, geodesicDisc, extractPatch, submesh, loopChords } from './flatten_core.mjs';
+import { weld, geodesicDisc, extractPatch, submesh, loopChords, splitLoopBySeam, loopCentroidSeed } from './flatten_core.mjs';
 
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
@@ -146,35 +146,37 @@ export function resolveCase(spec, ctx) {
   }
   if (spec.type === 'avatar_loop') {
     const loop = loopAround(ctx.closest, seed, spec.radius_m, spec.loop_points);
-    const patch = extractPatch(ctx.mesh, ctx.closest, loop, seed);
+    const pieceSeed = loopCentroidSeed(ctx.closest, loop);
+    const patch = extractPatch(ctx.mesh, ctx.closest, loop, pieceSeed);
     if (patch.error) return { error: patch.error };
     const sub = submesh(ctx.mesh, patch.faces);
     const chords = loopChords(patch.samples, sub);
     if (chords.error) return { error: chords.error };
-    return { sub, seed, patch, chords: chords.chords };
+    return { sub, seed: pieceSeed, patch, chords: chords.chords };
   }
   if (spec.type === 'avatar_panels') {
-    // one outer loop, cut through the seed into two panels that share the seam
+    // one outer loop, cut through the seed by a seam whose ends lie on the loop —
+    // the same path the pen tool takes: outline + seam line -> two panels
     const n = spec.loop_points;
     if (n % 2) return { error: 'loop_points must be even' };
     const outer = loopAround(ctx.closest, seed, spec.radius_m, n);
-    const seam = seamThrough(ctx.closest, outer[0], seed, outer[n / 2]);
-    const loopA = outer.slice(0, n / 2 + 1).concat(seam.slice().reverse());
-    const loopB = outer.slice(n / 2).concat([outer[0]], seam);
-    const { v } = tangentFrame(ctx.closest(seed).normal);
-    const off = 0.5 * spec.radius_m;
-    const seedA = ctx.closest([seed[0] + off * v[0], seed[1] + off * v[1], seed[2] + off * v[2]]).point;
-    const seedB = ctx.closest([seed[0] - off * v[0], seed[1] - off * v[1], seed[2] - off * v[2]]).point;
+    const seam = [outer[0], ...seamThrough(ctx.closest, outer[0], seed, outer[n / 2]), outer[n / 2]];
+    const split = splitLoopBySeam(outer, seam);
+    if (split.error) return { error: split.error };
     const pieces = [];
-    for (const [name, loop, pieceSeed] of [['panel_a', loopA, seedA], ['panel_b', loopB, seedB]]) {
+    split.loops.forEach((loop, i) => {
+      const name = i === 0 ? 'panel_a' : 'panel_b';
+      const pieceSeed = loopCentroidSeed(ctx.closest, loop);
       const patch = extractPatch(ctx.mesh, ctx.closest, loop, pieceSeed);
-      if (patch.error) return { error: `${name}: ${patch.error}` };
+      if (patch.error) { pieces.push({ error: `${name}: ${patch.error}` }); return; }
       const sub = submesh(ctx.mesh, patch.faces);
       const chords = loopChords(patch.samples, sub);
-      if (chords.error) return { error: `${name}: ${chords.error}` };
+      if (chords.error) { pieces.push({ error: `${name}: ${chords.error}` }); return; }
       pieces.push({ name, sub, patch, chords: chords.chords, seed: pieceSeed });
-    }
-    return { pieces, seed, seam_points: seam.length };
+    });
+    const failed = pieces.find((p) => p.error);
+    if (failed) return { error: failed.error };
+    return { pieces, seed, seam_points: seam.length - 2, split };
   }
   return { error: `unknown case type ${spec.type}` };
 }

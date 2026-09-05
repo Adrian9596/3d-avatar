@@ -37,7 +37,7 @@ button{font:inherit}
 .measure-row,.display-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(53,47,42,.07);font-size:11px}.measure-row:first-of-type,.display-row:first-of-type{border-top:0}.measure-row b{font-size:10px;color:var(--warn);font-weight:650;text-align:right}
 .toggle{border:1px solid var(--line);border-radius:999px;background:#ece9e5;color:#766f68;padding:4px 8px;font-size:9px;cursor:pointer;min-width:42px}.toggle[aria-pressed="true"]{background:var(--accent);color:#fff}
 .note{font-size:10px;color:#928b84;line-height:1.5;margin-top:8px}
-.measure-panel{position:absolute;left:18px;top:72px;z-index:25;width:296px;border-radius:16px;padding:13px;background:var(--panel);border:1px solid var(--line);box-shadow:0 14px 40px rgba(43,35,29,.1);backdrop-filter:blur(16px)}
+.measure-panel{position:absolute;left:18px;top:72px;z-index:25;width:296px;max-height:calc(100vh - 96px);overflow-y:auto;border-radius:16px;padding:13px;background:var(--panel);border:1px solid var(--line);box-shadow:0 14px 40px rgba(43,35,29,.1);backdrop-filter:blur(16px)}
 .mtable{width:100%;border-collapse:collapse;font-size:10.5px}
 .mtable th{text-align:left;font-weight:650;color:#8d867f;font-size:8.5px;text-transform:uppercase;letter-spacing:.06em;padding:0 0 6px;border-bottom:1px solid rgba(53,47,42,.1)}
 .mtable th.n,.mtable td.h,.mtable td.val,.mtable td.in{text-align:right}
@@ -72,6 +72,21 @@ button{font:inherit}
 .stroke-row{cursor:pointer;border-radius:7px;padding:4px 5px}
 .stroke-row:hover{background:rgba(53,47,42,.04)}
 .stroke-row[data-selected="true"]{background:rgba(47,79,111,.1)}
+.pattern{margin-top:9px;border-top:1px solid rgba(53,47,42,.09);padding-top:7px}
+.pattern .ptitle{font-size:10px;font-weight:700;color:#4f4943;display:flex;justify-content:space-between;align-items:baseline}
+.pattern .ptitle span{font-weight:400;color:#a8760f;font-size:9px}
+.prow{display:flex;align-items:center;gap:6px;font-size:10px;color:#4f4943;margin-top:5px}
+.prow label{width:44px;color:#8d867f}
+.prow select{flex:1;font:inherit;font-size:10px;color:#4f4943;background:rgba(255,255,255,.6);border:1px solid rgba(53,47,42,.14);border-radius:6px;padding:2px 4px}
+.pstatus{font-size:10px;color:#8d867f;margin-top:5px;line-height:1.45}
+.pstatus.err{color:#a63a2b}
+#patternPreview{display:block;width:100%;height:auto;background:#fbf8f4;border:1px solid rgba(53,47,42,.09);border-radius:8px;margin-top:6px}
+.pattern .mtable td.n,.pattern .mtable th.n{text-align:right}
+.pattern .mtable{margin-top:5px;table-layout:fixed}
+.pattern .mtable td:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pattern .mtable td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pattern .mtable td.pshared{white-space:normal;color:#8d867f;font-size:9.5px;line-height:1.45}
+.pattern .mtable td.pshared b{color:#4f4943}
 .stroke-row[data-active="true"]{cursor:default;color:#8d867f}
 .stroke-row[data-active="true"] i{background:#f0a02a}
 .section-tool{position:absolute;right:18px;top:50%;transform:translateY(-50%);z-index:25;display:none;flex-direction:column;align-items:center;gap:8px}
@@ -161,6 +176,15 @@ button{font:inherit}
     </div>
     <div class="lm-list" id="landmarkList" hidden></div>
     <div class="strokes" id="strokeList" hidden></div>
+    <div class="pattern" id="patternPanel" hidden>
+      <div class="ptitle">2D pattern draft <span>shell 1:1 · not a pattern</span></div>
+      <div class="prow"><label for="patternOutline">Outline</label><select id="patternOutline"></select></div>
+      <div class="prow"><label for="patternSeam">Seam</label><select id="patternSeam"><option value="">none — one piece</option></select></div>
+      <div class="mtools"><button id="patternFlatten">Flatten</button><button id="patternExport" disabled>Export DXF</button></div>
+      <div class="pstatus" id="patternStatus">Draw a closed loop with the pen, then Flatten. An open line whose ends sit on the loop cuts it into two panels.</div>
+      <svg id="patternPreview" viewBox="0 0 260 140" hidden aria-label="Flattened pieces"></svg>
+      <table class="mtable" id="patternTable" hidden></table>
+    </div>
   </aside>
 
   <button class="text-btn" id="editBtn" aria-expanded="false">Shape contract</button>
@@ -199,6 +223,12 @@ import { DEFAULT_SCAN, measureSection, scanSurface, findLandmarks, computePoms, 
   applyLandmarkOverrides, pomProvenance, computeSurfacePoms, findArmholes,
   findFoldLandmarks } from './scripts/measure_core.mjs';
 import { buildGrid, closestOnMesh, surfaceRun, pointAtFraction } from './scripts/surface_path.mjs';
+// 2D pattern draft: the same flattening engine the Node gates run, and the same
+// DXF writer — the viewer adds a shell, not maths (PATTERN_2D_DXF_PLAN.md).
+import { weld, extractPatch, submesh, loopChords, flattenPieces, patchStats, chordReport,
+  mapLoopToFlat, splitLoopBySeam, loopCentroidSeed, DEFAULT_SOLVER } from './scripts/flatten_core.mjs';
+import { writeAstmDxf } from './scripts/dxf_writer.mjs';
+import { dxfPiece } from './scripts/dxf_pieces.mjs';
 
 const ASSET_URL='assets/export/avatar_master.glb';
 const ASSET_VERSION='0.2.0-clo3d-textured.1';
@@ -912,6 +942,12 @@ function resetSegment(seg){
 // segment that will not follow the surface
 window.__penDebug={
   surfaceRun:(a,b)=>surfaceRun(penGrid,a,b),
+  // a finished line from 3D points, the way clicks would have made it
+  addLine:(points,closed,name)=>{
+    const line={anchors:points.map(p=>surfaceAnchor(p)),runs:[],length:0,closed:!!closed,labelVisible:true,approximated:false,name:name||('Line '+(draftLines.length+1))};
+    rebuildLine(line);draftLines.push(line);selectedLine=draftLines.length-1;
+    redrawDraft();renderDraftList();syncDraftState();return draftLines.length-1;
+  },
   closestOnMesh:p=>closestOnMesh(penGrid,p),
   gridCells:()=>penGrid?penGrid.cells.size:0,
   triangleCount:()=>avatarTris?avatarTris.length/9:0,
@@ -1126,6 +1162,7 @@ function renderDraftList(){
 }
 
 function syncDraftState(){
+  renderPatternControls();
   prototypeState.draftLines=draftLines.map(line=>({
     anchors:line.anchors.length,closed:line.closed,
     length_mm:+(line.length*1000).toFixed(1),
@@ -1453,6 +1490,214 @@ document.getElementById('penExport').addEventListener('click',()=>{
   try{navigator.clipboard.writeText(text)}catch(error){/* no clipboard permission */}
   console.log('draft-lines.json — save into qa/avatar_master/\n'+text);
 });
+/* ---- 2D pattern draft: outline (+ seam) -> flattened pieces -> DXF ----------
+   The maths is scripts/flatten_core.mjs, the very engine validate:flatten-*
+   and validate:seam-closure run; this is only the shell around it. A closed
+   pen loop is the outline; an open pen line whose ends sit on it is a seam
+   that cuts it into two panels solved together. What comes out is a 1:1 shell
+   of the skin — the panel says so, the DXF says so, the evidence says so. */
+let patternMesh=null,patternResult=null;
+const patternClosest=p=>closestOnMesh(measureGrid,p);
+const patternPanel=document.getElementById('patternPanel');
+const patternOutline=document.getElementById('patternOutline');
+const patternSeam=document.getElementById('patternSeam');
+const patternStatus=document.getElementById('patternStatus');
+const patternPreview=document.getElementById('patternPreview');
+const patternTable=document.getElementById('patternTable');
+const patternExportBtn=document.getElementById('patternExport');
+
+// the unlifted 3D polyline of a pen line, closing segment included, no repeats
+function linePolyline(line){
+  const pts=[];
+  const same=(a,b)=>Math.abs(a[0]-b[0])<1e-9&&Math.abs(a[1]-b[1])<1e-9&&Math.abs(a[2]-b[2])<1e-9;
+  for(const seg of line.segments||[])for(const leg of seg.legs||[])for(const p of leg){
+    const q=[p[0],p[1],p[2]];
+    if(!pts.length||!same(pts[pts.length-1],q))pts.push(q);
+  }
+  if(line.closed&&pts.length>1&&same(pts[0],pts[pts.length-1]))pts.pop();
+  return pts;
+}
+const asciiName=(name,fallback)=>{
+  const clean=(name||fallback).toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  return (clean||fallback).slice(0,20);
+};
+function setPatternStatus(text,isError){patternStatus.textContent=text;patternStatus.classList.toggle('err',!!isError)}
+
+function renderPatternControls(){
+  const closed=draftLines.map((l,i)=>[l,i]).filter(([l])=>l.closed&&l.anchors.length>2);
+  const open=draftLines.map((l,i)=>[l,i]).filter(([l])=>!l.closed&&l.anchors.length>1);
+  patternPanel.hidden=closed.length===0;
+  if(patternPanel.hidden){patternResult=null;patternExportBtn.disabled=true;return}
+  const keepO=patternOutline.value,keepS=patternSeam.value;
+  patternOutline.innerHTML=closed.map(([l,i])=>`<option value="${i}">${l.name||('Line '+(i+1))} · ${(l.length*100).toFixed(1)}cm</option>`).join('');
+  patternSeam.innerHTML='<option value="">none — one piece</option>'+open.map(([l,i])=>`<option value="${i}">${l.name||('Line '+(i+1))} · ${(l.length*100).toFixed(1)}cm</option>`).join('');
+  if([...patternOutline.options].some(o=>o.value===keepO))patternOutline.value=keepO;
+  if([...patternSeam.options].some(o=>o.value===keepS))patternSeam.value=keepS;
+  // a result belongs to the lines it was made from; any edit stales it
+  if(patternResult){patternResult=null;patternExportBtn.disabled=true;patternPreview.hidden=true;patternTable.hidden=true;
+    setPatternStatus('Lines changed — Flatten again.');}
+}
+
+function runPattern(){
+  if(!torsoTris||!measureGrid){setPatternStatus('The measurement surface is not loaded yet.',true);return}
+  const outline=draftLines[+patternOutline.value];
+  const seam=patternSeam.value===''?null:draftLines[+patternSeam.value];
+  if(!outline||!outline.closed){setPatternStatus('Pick a closed loop as the outline.',true);return}
+  if(!patternMesh)patternMesh=weld(torsoTris);
+  const started=performance.now();
+  const outlineName=outline.name||'Piece';
+  const loop=linePolyline(outline);
+  let loops=[{name:outlineName,points:loop}];
+  let split=null;
+  if(seam){
+    split=splitLoopBySeam(loop,linePolyline(seam));
+    if(split.error){setPatternStatus(`Seam: ${split.error}`,true);return}
+    loops=split.loops.map((pts,i)=>({name:`${outlineName} ${i?'B':'A'}`,points:pts}));
+  }
+  const pieces=[];
+  for(const l of loops){
+    const seed=loopCentroidSeed(patternClosest,l.points);
+    if(!seed){setPatternStatus(`${l.name}: no surface under the loop centre.`,true);return}
+    const patch=extractPatch(patternMesh,patternClosest,l.points,seed);
+    if(patch.error){setPatternStatus(`${l.name}: ${patch.error}`,true);return}
+    // the fill must stay inside the loop: reaching much further than the loop
+    // itself means it escaped, and the piece would be the rest of the body
+    let extent=0;
+    for(const p of l.points){const d=Math.hypot(p[0]-seed[0],p[1]-seed[1],p[2]-seed[2]);if(d>extent)extent=d}
+    if(patch.flood_reach_m>extent+0.03){setPatternStatus(`${l.name}: could not find the inside of this loop (the fill escaped past it).`,true);return}
+    const sub=submesh(patternMesh,patch.faces);
+    const chords=loopChords(patch.samples,sub);
+    if(chords.error){setPatternStatus(`${l.name}: ${chords.error}`,true);return}
+    pieces.push({name:l.name,sub,patch,chords:chords.chords,seed});
+  }
+  const run=flattenPieces(pieces,DEFAULT_SOLVER);
+  const pairs=new Set(run.shared.map(g=>g.pair));
+  const reports=pieces.map((p,i)=>({
+    stats:patchStats(p.sub,run.pieces[i].uv),
+    chords:chordReport(p.chords,p.sub,run.pieces[i].uv,pairs),
+    flat:mapLoopToFlat(p.patch.samples,p.sub,run.pieces[i].uv),
+  }));
+  const shared=run.shared.length?{
+    chord_count:run.shared.length,
+    length_3d_mm:+(reports[0].chords.shared_length_3d_m*1000).toFixed(2),
+    flat_mm:reports.map(r=>+(r.chords.shared_length_flat_m*1000).toFixed(2)),
+    mismatch_mm:+(Math.abs(reports[0].chords.shared_length_flat_m-reports[1].chords.shared_length_flat_m)*1000).toFixed(2),
+  }:null;
+  patternResult={outline,seam,pieces,run,reports,shared,split,elapsed_ms:Math.round(performance.now()-started)};
+  renderPatternResult();
+  syncPatternState();
+}
+
+function renderPatternResult(){
+  const r=patternResult;
+  const sound=r.run.converged&&!r.run.diverged&&r.reports.every(x=>x.stats.triangle_flips===0);
+  setPatternStatus(sound
+    ?`Shell 1:1 of the skin — not a pattern (no ease, no seam allowance, no grading). ${r.run.iterations} sweeps, ${r.elapsed_ms}ms.`
+    :`Flattened, but unsound: ${r.run.converged?'':'did not converge; '}${r.reports.some(x=>x.stats.triangle_flips)?'a face folded over; ':''}check the loop.`, !sound);
+  // table
+  const rows=r.pieces.map((p,i)=>{
+    const c=r.reports[i].chords,s=r.reports[i].stats;
+    return `<tr><td>${p.name}</td><td class="n">${(c.seam_length_3d_m*1000).toFixed(1)}</td><td class="n">${(c.seam_length_flat_m*1000).toFixed(1)}</td>`
+      +`<td class="n">${(c.seam_error_m*1000>=0?'+':'')+(c.seam_error_m*1000).toFixed(1)}</td><td class="n">${s.interior_rms_pct.toFixed(1)}%</td><td class="n">${s.triangle_flips}</td></tr>`;
+  }).join('');
+  const sharedRow=r.shared?`<tr><td colspan="6" class="pshared">Shared seam: ${r.shared.length_3d_mm}mm on the body, ${r.shared.flat_mm.join(' / ')}mm flat — mismatch <b>${r.shared.mismatch_mm}mm</b> (1/8in = 3.175mm)</td></tr>`:'';
+  patternTable.innerHTML=`<thead><tr><th style="width:34%">Piece</th><th class="n">3D</th><th class="n">Flat</th><th class="n">Δ</th><th class="n">rms</th><th class="n">flip</th></tr></thead><tbody>${rows}${sharedRow}</tbody>`;
+  patternTable.hidden=false;
+  // preview: pieces side by side, outline = the loop's image, shared seam in teal
+  const W=260,H=140,pad=8,gap=10;
+  const outlines=r.reports.map(x=>x.flat.points.map(([u,v])=>[u*1000,v*1000]));
+  const boxes=outlines.map(pts=>{let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity;for(const [x,y] of pts){a=Math.min(a,x);b=Math.min(b,y);c=Math.max(c,x);d=Math.max(d,y)}return{minx:a,miny:b,w:c-a,h:d-b}});
+  const totalW=boxes.reduce((s,b)=>s+b.w,0)+gap*(boxes.length-1),maxH=Math.max(...boxes.map(b=>b.h));
+  const scale=Math.min((W-2*pad)/totalW,(H-2*pad-10)/maxH);
+  let x0=pad,svg='';
+  r.pieces.forEach((p,i)=>{
+    const b=boxes[i],pts=outlines[i].map(([x,y])=>[x0+(x-b.minx)*scale,H-pad-(y-b.miny)*scale]);
+    svg+=`<polygon points="${pts.map(q=>q.map(v=>v.toFixed(1)).join(',')).join(' ')}" fill="rgba(201,48,44,.07)" stroke="#c9302c" stroke-width="1"/>`;
+    if(r.shared){
+      // the shared run: samples whose chords are shared, drawn heavier
+      const samples=p.patch.samples,n=samples.length;
+      const sharedKey=new Set(r.run.shared.map(g=>g.pair));
+      let seg='';
+      for(let k=0;k<n;k++){const a=samples[k],c=samples[(k+1)%n];const pair=a.key<c.key?`${a.key}|${c.key}`:`${c.key}|${a.key}`;
+        if(sharedKey.has(pair))seg+=`<line x1="${pts[k][0].toFixed(1)}" y1="${pts[k][1].toFixed(1)}" x2="${pts[(k+1)%n][0].toFixed(1)}" y2="${pts[(k+1)%n][1].toFixed(1)}" stroke="#1f8a70" stroke-width="2.4"/>`}
+      svg+=seg;
+    }
+    svg+=`<text x="${(x0+b.w*scale/2).toFixed(1)}" y="${(H-pad-b.h*scale-3).toFixed(1)}" text-anchor="middle" font-size="7" fill="#4f4943">${p.name} · ${b.w.toFixed(0)}×${b.h.toFixed(0)}mm</text>`;
+    x0+=b.w*scale+gap;
+  });
+  patternPreview.innerHTML=svg;
+  patternPreview.hidden=false;
+  patternExportBtn.disabled=!sound;
+}
+
+function syncPatternState(){
+  const r=patternResult;
+  prototypeState.pattern=r?{
+    outline:r.outline.name||null,seam:r.seam?(r.seam.name||null):null,
+    iterations:r.run.iterations,converged:r.run.converged,diverged:r.run.diverged,restarts:r.run.restarts,
+    pieces:r.pieces.map((p,i)=>({name:p.name,vertices:r.reports[i].stats.vertex_count,
+      seam_length_3d_mm:+(r.reports[i].chords.seam_length_3d_m*1000).toFixed(2),
+      seam_length_flat_mm:+(r.reports[i].chords.seam_length_flat_m*1000).toFixed(2),
+      seam_error_mm:+(r.reports[i].chords.seam_error_m*1000).toFixed(2),
+      interior_rms_pct:+r.reports[i].stats.interior_rms_pct.toFixed(2),
+      triangle_flips:r.reports[i].stats.triangle_flips})),
+    shared_seam:r.shared,
+    declared_limits:['Shell 1:1 of the rigid mesh. Not a pattern: no ease, no seam allowance, no grading.'],
+  }:null;
+  syncDiagnostics();
+}
+
+function buildPatternDxf(){
+  const r=patternResult;
+  const lineExport=line=>({name:line.name||null,closed:line.closed,length_mm:+(line.length*1000).toFixed(1),
+    anchors:line.anchors.map(a=>[+a.point.x.toFixed(5),+a.point.y.toFixed(5),+a.point.z.toFixed(5)]),
+    control_points:(line.segments||[]).flatMap(seg=>(seg.handles||[]).map(h=>[+h.point.x.toFixed(5),+h.point.y.toFixed(5),+h.point.z.toFixed(5)]))});
+  const pieces=r.pieces.map((p,i)=>dxfPiece(
+    {name:asciiName(p.name,'PIECE_'+(i+1)),sub:p.sub,uv:r.run.pieces[i].uv,samples:p.patch.samples},
+    {assetSha:ASSET_SHA,seamErrorMm:r.reports[i].chords.seam_error_m*1000,
+     sharedSeam:r.shared?{with:asciiName(r.pieces[1-i].name,'PIECE_'+(2-i)),mismatchMm:r.shared.mismatch_mm}:null}));
+  const written=writeAstmDxf({style:{name:'AVATAR_MASTER_DRAFT',author:'Crossian',application:'bra-fit-viewer',release:ASSET_VERSION.slice(0,20),
+    sampleSize:'UNGRADED',gradeRuleTable:'NONE',curveToleranceMm:0.01,created:new Date()},pieces});
+  const evidence={
+    schema_version:1,
+    asset:{file:ASSET_URL.replace(/^.*\//,''),sha256:ASSET_SHA,unit:'meter'},
+    registry_sha256:registrySha,
+    recorded_at:new Date().toISOString().replace(/\.\d{3}Z$/,'Z'),
+    engine:'scripts/flatten_core.mjs',solver:DEFAULT_SOLVER,
+    target_cad:'Gerber AccuMark',import_verified:false,
+    declared_limits:[
+      'Shell 1:1 of the rigid mesh surface. Not a pattern: no ease, no seam allowance, no grading.',
+      'Drafted by hand in the viewer; the outline is a pen loop, not a registry POM.',
+      'Grain line and Quantity 1,1 in the DXF are defaults for the pattern maker to set.',
+      'Seam errors against the body are curvature the body carries, reported per piece.',
+    ],
+    outline:lineExport(r.outline),seam:r.seam?lineExport(r.seam):null,
+    pieces:prototypeState.pattern.pieces.map((p,i)=>({...p,dxf_name:pieces[i].name,turn_points:pieces[i].turn_point_indices.length,outline_points:pieces[i].outline_mm.length})),
+    shared_seam:r.shared,
+    solve:{iterations:r.run.iterations,converged:r.run.converged,restarts:r.run.restarts,elapsed_ms:r.elapsed_ms},
+    dxf:{layout:written.layout,style_system_text:written.style_system_text,bytes:written.text.length},
+  };
+  return {dxf:written.text,evidence:JSON.stringify(evidence,null,2)+'\n'};
+}
+function downloadText(name,text,type){
+  const blob=new Blob([text],{type});const link=document.createElement('a');
+  link.href=URL.createObjectURL(blob);link.download=name;document.body.appendChild(link);link.click();link.remove();
+}
+document.getElementById('patternFlatten').addEventListener('click',()=>{
+  try{runPattern()}catch(error){setPatternStatus(`Flatten failed: ${error.message}`,true);console.error(error)}
+});
+patternExportBtn.addEventListener('click',()=>{
+  if(!patternResult)return;
+  try{
+    const out=buildPatternDxf();
+    downloadText('pattern-draft.dxf',out.dxf,'application/dxf');
+    downloadText('pattern-draft.json',out.evidence,'application/json');
+    setPatternStatus('Exported pattern-draft.dxf (ASTM D6673-10, Gerber dialect, mm) and pattern-draft.json — save both into qa/avatar_master/. Import into AccuMark is not verified.');
+  }catch(error){setPatternStatus(`Export refused: ${error.message}`,true)}
+});
+// automated checks read the same objects the buttons use
+window.__patternDebug={run:()=>{runPattern();return prototypeState.pattern},dxf:()=>buildPatternDxf(),result:()=>patternResult};
+
 document.getElementById('penClear').addEventListener('click',()=>{
   draftLines=[];selectedLine=-1;selectedAnchor=null;
   if(penMode)newDraftLine();else activeLine=null;

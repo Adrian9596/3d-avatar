@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T05:25:38Z",
+  "generated_at": "2026-09-05T07:36:54Z",
   "purpose": "Accuracy of the flattening engine against analytic developable surfaces, and soundness on patches of the avatar.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
@@ -230,7 +230,7 @@
       "extraction": {
         "flooded_faces": 482,
         "barrier_faces": 78,
-        "flood_reach_mm": 50.7975,
+        "flood_reach_mm": 48.0916,
         "leak_limit_mm": 134.5732
       },
       "seam": {
@@ -435,7 +435,7 @@
     {
       "name": "apex_loop_60mm: the flood fill did not leak past the loop",
       "status": "PASS",
-      "detail": "reached 50.7975mm from the seed (limit 134.5732mm)"
+      "detail": "reached 48.0916mm from the seed (limit 134.5732mm)"
     },
     {
       "name": "apex_loop_60mm: every loop sample maps into the flat piece",
@@ -460,7 +460,7 @@
     {
       "name": "apex_panels_80mm/panel_a: the flood fill did not leak past the loop",
       "status": "PASS",
-      "detail": "reached 65.2645mm from the seed (limit 154.5732mm)"
+      "detail": "reached 56.3929mm from the seed (limit 154.5732mm)"
     },
     {
       "name": "apex_panels_80mm/panel_b: no triangle folds over",
@@ -475,7 +475,7 @@
     {
       "name": "apex_panels_80mm/panel_b: the flood fill did not leak past the loop",
       "status": "PASS",
-      "detail": "reached 65.5924mm from the seed (limit 154.5732mm)"
+      "detail": "reached 58.3302mm from the seed (limit 154.5732mm)"
     },
     {
       "name": "cutting the cup into two panels reduces the seam error",

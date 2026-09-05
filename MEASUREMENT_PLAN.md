@@ -57,7 +57,10 @@ Implemented and verified in `digital_bra_fit_model_360.html`:
   close a loop. Lines are listed with their length in cm and inch fractions; each line's
   measurement can be shown or hidden as a label on the body (◉/◎), and each line can be
   selected or deleted. Undo removes the last point, then the last line.
-- Results mirrored into `window.__avatarPrototype.measurements` / `.draftLines` for
+- **2D pattern draft from pen lines** (2026-09-05): a closed loop as outline, an open line as
+  seam, Flatten and Export DXF — see `PATTERN_2D_DXF_PLAN.md`; it uses the same engine the
+  `validate:flatten-*`, `validate:seam-closure` and `validate:dxf-roundtrip` gates run.
+- Results mirrored into `window.__avatarPrototype.measurements` / `.draftLines` / `.pattern` for
   automated checks.
 
 **How a run between two anchors is found — and why it is camera-independent.** For anchors

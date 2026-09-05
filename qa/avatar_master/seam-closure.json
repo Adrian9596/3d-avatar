@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T05:25:47Z",
+  "generated_at": "2026-09-05T07:37:03Z",
   "purpose": "Two pattern pieces flattened together must agree on the length of the seam they share.",
   "asset": {
     "file": "assets/export/avatar_master.glb",

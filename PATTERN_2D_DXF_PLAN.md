@@ -1,6 +1,6 @@
 # 2D Pattern Draft & DXF Export — Research Plan
 
-Status: **Phases 1–3 implemented (engine, loop-as-seam, joint multi-panel solve, ASTM/Gerber DXF export, four gates; no UI); Phase 4 proposal for review**. No
+Status: **Phases 1–4 implemented** — engine, loop-as-seam, joint multi-panel solve, ASTM/Gerber DXF export, four gates, and the pen-tool UI in the authoring lane. Ease/grading (§11) remains deliberately out of scope. No
 shape produced here is an approved pattern, and nothing is wired into either viewer lane
 yet. §4–§7 record what a numerical spike found on a real patch of `avatar_master.glb`;
 §8–§10 describe what was then built from it — `scripts/flatten_core.mjs`, its independent
@@ -12,6 +12,15 @@ Phase 1 update (2026-09-05): the spike's LSCM → ARAP → seam-exact pipeline w
 shipped. The seam-exact relaxation alone, started from a hinge unfolding, reaches the same
 minimum on every case to 0.01 mm (§8.2) — and the two stages it drops are the only ones that
 need a sparse linear solver, which the repo's stdlib-only Python side cannot have.
+
+Phase 4 update (2026-09-05): the pen tool drafts pieces. In `digital_bra_fit_model_360.html`
+a "2D pattern draft" block appears once a closed loop exists: pick the outline, optionally an
+open line whose ends sit on it as the seam, Flatten, read the pieces' seam errors and the
+shared-seam mismatch next to a preview, Export DXF. It imports the very engine and writer
+the gates run (`validate:lane-parity` checks that, and that the production lane carries
+neither). Verified in the browser with a 12-anchor pen loop and a 3-anchor seam through the
+apex: two panels, 0 fold-overs, 2 349 sweeps in ~1 s, shared-seam mismatch 0.45 mm; the
+exported DXF passes all 24 structural checks of `validate:dxf-roundtrip` in check-only mode.
 
 Phase 3 update (2026-09-05): target CAD decided — **Gerber AccuMark**. The export is ASTM
 D6673-10 in the dialect Gerber's parser accepts, with the layer numbers and system-text
@@ -444,9 +453,13 @@ finished spec.
 - **Phase 3 — DXF export + round-trip gate. Done 2026-09-05** for Gerber AccuMark (§7,
   §8.3, §10). Remaining manual step: import `qa/avatar_master/flatten-draft.dxf` into AccuMark
   once and record the version in the evidence.
-- **Phase 4 — pen-tool UI**: draft a closed loop, designate interior, flatten, preview
-  distortion inline (in the manner §7 of `MEASUREMENT_PLAN.md` already does for measurement
-  annotations), export.
+- **Phase 4 — pen-tool UI. Done 2026-09-05.** Outline = closed pen loop; seam = open pen line
+  with both ends on the outline (`splitLoopBySeam` projects them on and splits, so the two
+  panels share bit-identical samples); the interior seed is the loop centroid snapped to the
+  skin, with the flood fill's reach checked so an escaped fill is refused rather than exported.
+  The result block shows per-piece seam 3D/flat/Δ, interior rms, fold-overs, the shared-seam
+  mismatch, and a preview with the shared run highlighted; Export DXF downloads the ASTM/Gerber
+  file plus a SHA-pinned JSON record (`import_verified: false`) for `qa/avatar_master/`.
 
 Ease/grading (§11) is explicitly out of these four phases and should be scoped separately
 once a target garment and fabric are named.

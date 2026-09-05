@@ -315,6 +315,73 @@ export function extractPatch(mesh, closest, loopPoints, seed, spacing = DEFAULT_
   return { faces, samples, flooded: flooded.size, barrier: barrier.size, flood_reach_m: reach };
 }
 
+/** A seed for `extractPatch`: the loop's centroid snapped to the surface. For
+ *  the convex-ish loops a pattern piece is, that lands inside; if it does not,
+ *  the flood fill's reach says so and the caller must refuse. */
+export function loopCentroidSeed(closest, loopPoints) {
+  let x = 0, y = 0, z = 0;
+  for (const p of loopPoints) { x += p[0]; y += p[1]; z += p[2]; }
+  const n = loopPoints.length;
+  const hit = closest([x / n, y / n, z / n]);
+  return hit ? hit.point : null;
+}
+
+/**
+ * Cut a closed outline into two panel loops along a seam polyline whose ends lie
+ * on (or within `snap_m` of) the outline. Each seam end is projected onto the
+ * nearest outline segment and that projected point becomes a vertex of both
+ * panels; the seam's own end points are dropped in its favour, so the barrier
+ * the two loops lay down is closed exactly and the run they share consists of
+ * the very same points — which is how `relaxPieces` recognises a shared seam.
+ *
+ * Returns { loops: [a, b], split_points, end_gaps_m } or { error }.
+ */
+export function splitLoopBySeam(loopPoints, seamPoints, snap_m = 0.015) {
+  const n = loopPoints.length;
+  if (n < 3) return { error: 'outline needs at least 3 points' };
+  if (!seamPoints || seamPoints.length < 2) return { error: 'seam needs at least 2 points' };
+  const project = (q) => {
+    let best = null;
+    for (let i = 0; i < n; i++) {
+      const A = loopPoints[i], B = loopPoints[(i + 1) % n];
+      const dx = B[0] - A[0], dy = B[1] - A[1], dz = B[2] - A[2];
+      const ll = dx * dx + dy * dy + dz * dz;
+      let t = ll > 0 ? ((q[0] - A[0]) * dx + (q[1] - A[1]) * dy + (q[2] - A[2]) * dz) / ll : 0;
+      if (t < 0) t = 0; if (t > 1) t = 1;
+      const px = t === 0 ? A[0] : t === 1 ? B[0] : A[0] + dx * t;
+      const py = t === 0 ? A[1] : t === 1 ? B[1] : A[1] + dy * t;
+      const pz = t === 0 ? A[2] : t === 1 ? B[2] : A[2] + dz * t;
+      const ex = q[0] - px, ey = q[1] - py, ez = q[2] - pz;
+      const d = Math.sqrt(ex * ex + ey * ey + ez * ez);
+      if (!best || d < best.d) best = { d, i, t, point: [px, py, pz] };
+    }
+    if (best.t === 1) { best.i = (best.i + 1) % n; best.t = 0; }   // one name for a shared corner
+    return best;
+  };
+  const p1 = project(seamPoints[0]), p2 = project(seamPoints[seamPoints.length - 1]);
+  if (p1.d > snap_m || p2.d > snap_m) return { error: `seam end is ${(Math.max(p1.d, p2.d) * 1000).toFixed(1)}mm from the outline (limit ${snap_m * 1000}mm)` };
+  const pos = (p) => p.i + p.t;
+  if (Math.abs(pos(p1) - pos(p2)) < 1e-12) return { error: 'both seam ends land on the same outline point' };
+  // outline vertices strictly between two split positions, walking forward
+  const forward = (x, from) => (((x - from) % n) + n) % n;
+  const between = (from, to) => {
+    const out = [];
+    const span = forward(pos(to), pos(from));
+    for (let k = 1; k < n; k++) {
+      const idx = (Math.floor(pos(from)) + k) % n;
+      const d = forward(idx, pos(from));
+      if (d >= span - 1e-12) break;
+      if (d > 1e-12) out.push(loopPoints[idx]);
+    }
+    return out;
+  };
+  const interior = seamPoints.slice(1, -1);
+  const arcAB = between(p1, p2), arcBA = between(p2, p1);
+  const loopA = [p1.point, ...arcAB, p2.point, ...interior.slice().reverse()];
+  const loopB = [p2.point, ...arcBA, p1.point, ...interior];
+  return { loops: [loopA, loopB], split_points: [p1.point, p2.point], end_gaps_m: [p1.d, p2.d] };
+}
+
 /** Restrict a mesh to a face list. Vertices are renumbered in first-appearance
  *  order; `vertexMap` (global -> local) and `faceIds` (local -> global) let a
  *  loop sample or a shared seam be found again. */

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T05:25:38Z",
+  "generated_at": "2026-09-05T07:36:54Z",
   "purpose": "Static guard that the prototype and production viewer lanes cannot disagree about a measurement.",
   "registry_sha256": "056c64938801ff5a9d63de9ed99528cbaa6225fdf77e17ef97a46876cba8e18c",
   "checks": [
@@ -18,6 +18,21 @@
       "name": "the production lane imports the shared measurement engine",
       "status": "PASS",
       "detail": "imports scripts/measure_core.mjs"
+    },
+    {
+      "name": "the prototype lane imports the shared flattening engine",
+      "status": "PASS",
+      "detail": "imports scripts/flatten_core.mjs"
+    },
+    {
+      "name": "the prototype lane imports the shared DXF writer",
+      "status": "PASS",
+      "detail": "imports scripts/dxf_writer.mjs"
+    },
+    {
+      "name": "the production lane carries no pattern drafting",
+      "status": "PASS",
+      "detail": "read-only presentation: no flatten, no DXF"
     },
     {
       "name": "the prototype lane does not reimplement the engine",
