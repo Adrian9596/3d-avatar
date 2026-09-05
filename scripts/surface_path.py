@@ -116,7 +116,8 @@ def closest_on_mesh(grid: dict, p):
     if radial[0] ** 2 + radial[2] ** 2 > 1e-9:
         if normal[0] * radial[0] + normal[2] * radial[2] < 0:
             normal = [-normal[0], -normal[1], -normal[2]]
-    return {"point": best, "normal": tuple(normal)}
+    # "triangle" is the offset into tri (9 floats per face): face index = t // 9
+    return {"point": best, "normal": tuple(normal), "triangle": best_tri}
 
 
 # ------------------------------------------------------------- plane sectioning

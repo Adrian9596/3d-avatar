@@ -155,7 +155,9 @@ export function closestOnMesh(grid, p) {
       normal[0] = -normal[0]; normal[1] = -normal[1]; normal[2] = -normal[2];
     }
   }
-  return { point: best, normal };
+  // `triangle` is the offset into `tri` (9 floats per face), so a caller that
+  // welded the same soup into an indexed mesh can recover the face as t / 9.
+  return { point: best, normal, triangle: bestTri };
 }
 
 // ------------------------------------------------------------- plane sectioning

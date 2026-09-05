@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "purpose": "The one list of patches both flattening engines are tested on. scripts/test_flatten_accuracy.mjs and scripts/test_flatten_parity.mjs (which runs scripts/flatten.py) read this file, so the two sides cannot drift on which patch they measured.",
+  "solver": { "interior_weight": 0.25, "max_iterations": 10000, "convergence_m": 5e-9 },
+  "cases": [
+    {
+      "id": "cylinder_120deg",
+      "type": "cylinder",
+      "radius_m": 0.1, "arc_deg": 120, "height_m": 0.2,
+      "angular_segments": 24, "vertical_segments": 8,
+      "note": "Developable: unrolls to a rectangle with zero distortion. The flattening must reproduce every edge length exactly."
+    },
+    {
+      "id": "cone_frustum_150deg",
+      "type": "cone",
+      "radius_bottom_m": 0.12, "radius_top_m": 0.06, "height_m": 0.15, "arc_deg": 150,
+      "angular_segments": 30, "vertical_segments": 6,
+      "note": "Developable: unrolls to an annular sector. Same zero-distortion expectation, on a surface whose flat outline is curved."
+    },
+    { "id": "apex_disc_40mm", "type": "avatar_disc", "seed_landmark": "BUST_APEX_L", "radius_m": 0.04 },
+    { "id": "apex_disc_60mm", "type": "avatar_disc", "seed_landmark": "BUST_APEX_L", "radius_m": 0.06 },
+    { "id": "apex_disc_80mm", "type": "avatar_disc", "seed_landmark": "BUST_APEX_L", "radius_m": 0.08,
+      "note": "Roughly one cup. Not developable: total Gaussian curvature ~130 deg, so the seam error here is a property of the body, recorded so the reason panels are split stays visible." },
+    { "id": "apex_disc_80mm_upper", "type": "avatar_disc", "seed_landmark": "BUST_APEX_L", "radius_m": 0.08, "half": "above_seed" },
+    { "id": "apex_disc_80mm_lower", "type": "avatar_disc", "seed_landmark": "BUST_APEX_L", "radius_m": 0.08, "half": "below_seed" },
+    { "id": "apex_loop_60mm", "type": "avatar_loop", "seed_landmark": "BUST_APEX_L", "radius_m": 0.06, "loop_points": 48,
+      "note": "A closed loop on the skin, the shape the pen tool produces, filled by flood-fill. Exercises patch extraction rather than a face set handed in." }
+  ]
+}

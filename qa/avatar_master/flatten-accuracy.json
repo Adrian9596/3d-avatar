@@ -1,0 +1,373 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T02:44:34Z",
+  "purpose": "Accuracy of the flattening engine against analytic developable surfaces, and soundness on patches of the avatar.",
+  "asset": {
+    "file": "assets/export/avatar_master.glb",
+    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+  },
+  "cases": {
+    "file": "scripts/flatten_cases.json",
+    "sha256": "46fd9bd2b58cad5022a13bc32e8a8d982dad1bab0c1451c41ee0c0709d947571"
+  },
+  "engine": "scripts/flatten_core.mjs",
+  "solver": {
+    "interior_weight": 0.25,
+    "max_iterations": 10000,
+    "convergence_m": 5e-9
+  },
+  "budgets": {
+    "developable_edge_um": 1,
+    "developable_angle_rad": 1e-8,
+    "leak_slack_edges": 3
+  },
+  "mesh": {
+    "vertices": 5825,
+    "faces": 11288,
+    "max_edge_mm": 24.8577,
+    "materials": [
+      "Mara:body3"
+    ]
+  },
+  "declared_limits": [
+    "A flattened patch is the rigid mesh surface at 1:1. It is not a pattern: no ease, no seam allowance, no grading.",
+    "Boundary errors on the avatar are curvature the body carries, reported per piece and never rescaled away.",
+    "A loop-extracted patch overshoots the drawn loop by up to one triangle; the loop itself is mapped but not yet held to length."
+  ],
+  "results": [
+    {
+      "id": "cylinder_120deg",
+      "type": "cylinder",
+      "iterations": 1,
+      "converged": true,
+      "vertex_count": 225,
+      "face_count": 384,
+      "euler_characteristic": 1,
+      "boundary_loop_count": 1,
+      "boundary_length_3d_mm": 818.7461,
+      "boundary_length_flat_mm": 818.7461,
+      "boundary_error_mm": 0,
+      "worst_boundary_edge_error_mm": 0,
+      "interior_rms_error_mm": 0,
+      "interior_rms_pct": 0,
+      "interior_max_pct": 0,
+      "area_3d_cm2": 418.75,
+      "area_error_pct": 0,
+      "triangle_flips": 0,
+      "worst_edge_error_um": 0,
+      "straight_side_deviation_um": 0,
+      "analytic": {
+        "width_mm": 209.3731,
+        "height_mm": 200,
+        "flat_width_mm": 209.3731,
+        "flat_height_mm": 200
+      }
+    },
+    {
+      "id": "cone_frustum_150deg",
+      "type": "cone",
+      "iterations": 1,
+      "converged": true,
+      "vertex_count": 217,
+      "face_count": 360,
+      "euler_characteristic": 1,
+      "boundary_loop_count": 1,
+      "boundary_length_3d_mm": 794.1993,
+      "boundary_length_flat_mm": 794.1993,
+      "boundary_error_mm": 0,
+      "worst_boundary_edge_error_mm": 0,
+      "interior_rms_error_mm": 0,
+      "interior_rms_pct": 0,
+      "interior_max_pct": 0,
+      "area_3d_cm2": 380.48,
+      "area_error_pct": 0,
+      "triangle_flips": 0,
+      "worst_edge_error_um": 0,
+      "straight_side_deviation_um": 0,
+      "analytic": {
+        "fan_angle_deg": 55.693362,
+        "flat_angle_deg": 55.693362
+      }
+    },
+    {
+      "id": "apex_disc_40mm",
+      "type": "avatar_disc",
+      "iterations": 2080,
+      "converged": true,
+      "vertex_count": 185,
+      "face_count": 322,
+      "euler_characteristic": 1,
+      "boundary_loop_count": 1,
+      "boundary_length_3d_mm": 239.8011,
+      "boundary_length_flat_mm": 241.8701,
+      "boundary_error_mm": 2.069,
+      "worst_boundary_edge_error_mm": 0.0807,
+      "interior_rms_error_mm": 0.0573,
+      "interior_rms_pct": 1.283,
+      "interior_max_pct": 7.65,
+      "area_3d_cm2": 35.45,
+      "area_error_pct": -0.3349,
+      "triangle_flips": 0
+    },
+    {
+      "id": "apex_disc_60mm",
+      "type": "avatar_disc",
+      "iterations": 2735,
+      "converged": true,
+      "vertex_count": 308,
+      "face_count": 568,
+      "euler_characteristic": 1,
+      "boundary_loop_count": 1,
+      "boundary_length_3d_mm": 332.9848,
+      "boundary_length_flat_mm": 343.0084,
+      "boundary_error_mm": 10.0236,
+      "worst_boundary_edge_error_mm": 0.3415,
+      "interior_rms_error_mm": 0.1826,
+      "interior_rms_pct": 2.964,
+      "interior_max_pct": 14.272,
+      "area_3d_cm2": 84.96,
+      "area_error_pct": -1.8439,
+      "triangle_flips": 0
+    },
+    {
+      "id": "apex_disc_80mm",
+      "type": "avatar_disc",
+      "iterations": 4371,
+      "converged": true,
+      "vertex_count": 428,
+      "face_count": 807,
+      "euler_characteristic": 1,
+      "boundary_loop_count": 1,
+      "boundary_length_3d_mm": 422.6079,
+      "boundary_length_flat_mm": 444.7206,
+      "boundary_error_mm": 22.1127,
+      "worst_boundary_edge_error_mm": 0.7878,
+      "interior_rms_error_mm": 0.3556,
+      "interior_rms_pct": 5.138,
+      "interior_max_pct": 27.025,
+      "area_3d_cm2": 152.79,
+      "area_error_pct": -4.3136,
+      "triangle_flips": 0
+    },
+    {
+      "id": "apex_disc_80mm_upper",
+      "type": "avatar_disc",
+      "iterations": 4266,
+      "converged": true,
+      "vertex_count": 252,
+      "face_count": 446,
+      "euler_characteristic": 1,
+      "boundary_loop_count": 1,
+      "boundary_length_3d_mm": 418.0644,
+      "boundary_length_flat_mm": 420.2718,
+      "boundary_error_mm": 2.2074,
+      "worst_boundary_edge_error_mm": 0.0966,
+      "interior_rms_error_mm": 0.075,
+      "interior_rms_pct": 1.48,
+      "interior_max_pct": 4.994,
+      "area_3d_cm2": 77.47,
+      "area_error_pct": -1.0153,
+      "triangle_flips": 0
+    },
+    {
+      "id": "apex_disc_80mm_lower",
+      "type": "avatar_disc",
+      "iterations": 7694,
+      "converged": true,
+      "vertex_count": 207,
+      "face_count": 361,
+      "euler_characteristic": 1,
+      "boundary_loop_count": 1,
+      "boundary_length_3d_mm": 413.5121,
+      "boundary_length_flat_mm": 415.8509,
+      "boundary_error_mm": 2.3388,
+      "worst_boundary_edge_error_mm": 0.1417,
+      "interior_rms_error_mm": 0.1187,
+      "interior_rms_pct": 1.992,
+      "interior_max_pct": 9.335,
+      "area_3d_cm2": 75.32,
+      "area_error_pct": -1.6138,
+      "triangle_flips": 0
+    },
+    {
+      "id": "apex_loop_60mm",
+      "type": "avatar_loop",
+      "iterations": 3714,
+      "converged": true,
+      "vertex_count": 308,
+      "face_count": 560,
+      "euler_characteristic": 1,
+      "boundary_loop_count": 1,
+      "boundary_length_3d_mm": 393.6401,
+      "boundary_length_flat_mm": 400.1205,
+      "boundary_error_mm": 6.4804,
+      "worst_boundary_edge_error_mm": 0.2389,
+      "interior_rms_error_mm": 0.1549,
+      "interior_rms_pct": 2.605,
+      "interior_max_pct": 17.485,
+      "area_3d_cm2": 82.74,
+      "area_error_pct": -0.3832,
+      "triangle_flips": 0,
+      "extraction": {
+        "flooded_faces": 482,
+        "barrier_faces": 78,
+        "flood_reach_mm": 50.7975,
+        "leak_limit_mm": 134.5732
+      },
+      "loop": {
+        "length_3d_mm": 289.3691,
+        "length_flat_mm": 306.7056,
+        "error_mm": 17.3365,
+        "note": "The drawn loop sits one barrier face inside the patch boundary, so it is not itself held to length yet — a declared limit of this phase."
+      }
+    }
+  ],
+  "checks": [
+    {
+      "name": "cylinder_120deg: every edge keeps its 3D length",
+      "status": "PASS",
+      "detail": "worst 0.0000µm (budget 1µm)"
+    },
+    {
+      "name": "cylinder_120deg: no triangle folds over",
+      "status": "PASS",
+      "detail": "0 flips"
+    },
+    {
+      "name": "cylinder_120deg: the two straight sides stay straight",
+      "status": "PASS",
+      "detail": "worst deviation 0.0000µm"
+    },
+    {
+      "name": "cylinder_120deg: unrolls to the analytic rectangle",
+      "status": "PASS",
+      "detail": "209.3731 x 200mm vs 209.3731 x 200mm"
+    },
+    {
+      "name": "cone_frustum_150deg: every edge keeps its 3D length",
+      "status": "PASS",
+      "detail": "worst 0.0000µm (budget 1µm)"
+    },
+    {
+      "name": "cone_frustum_150deg: no triangle folds over",
+      "status": "PASS",
+      "detail": "0 flips"
+    },
+    {
+      "name": "cone_frustum_150deg: the two straight sides stay straight",
+      "status": "PASS",
+      "detail": "worst deviation 0.0000µm"
+    },
+    {
+      "name": "cone_frustum_150deg: the straight sides meet at the analytic fan angle",
+      "status": "PASS",
+      "detail": "55.693362° vs 55.693362°"
+    },
+    {
+      "name": "apex_disc_40mm: no triangle folds over",
+      "status": "PASS",
+      "detail": "0 flips"
+    },
+    {
+      "name": "apex_disc_40mm: the patch is a disc",
+      "status": "PASS",
+      "detail": "χ=1, 1 boundary loop(s)"
+    },
+    {
+      "name": "apex_disc_40mm: the relaxation converged",
+      "status": "PASS",
+      "detail": "2080 iterations"
+    },
+    {
+      "name": "apex_disc_60mm: no triangle folds over",
+      "status": "PASS",
+      "detail": "0 flips"
+    },
+    {
+      "name": "apex_disc_60mm: the patch is a disc",
+      "status": "PASS",
+      "detail": "χ=1, 1 boundary loop(s)"
+    },
+    {
+      "name": "apex_disc_60mm: the relaxation converged",
+      "status": "PASS",
+      "detail": "2735 iterations"
+    },
+    {
+      "name": "apex_disc_80mm: no triangle folds over",
+      "status": "PASS",
+      "detail": "0 flips"
+    },
+    {
+      "name": "apex_disc_80mm: the patch is a disc",
+      "status": "PASS",
+      "detail": "χ=1, 1 boundary loop(s)"
+    },
+    {
+      "name": "apex_disc_80mm: the relaxation converged",
+      "status": "PASS",
+      "detail": "4371 iterations"
+    },
+    {
+      "name": "apex_disc_80mm_upper: no triangle folds over",
+      "status": "PASS",
+      "detail": "0 flips"
+    },
+    {
+      "name": "apex_disc_80mm_upper: the patch is a disc",
+      "status": "PASS",
+      "detail": "χ=1, 1 boundary loop(s)"
+    },
+    {
+      "name": "apex_disc_80mm_upper: the relaxation converged",
+      "status": "PASS",
+      "detail": "4266 iterations"
+    },
+    {
+      "name": "apex_disc_80mm_lower: no triangle folds over",
+      "status": "PASS",
+      "detail": "0 flips"
+    },
+    {
+      "name": "apex_disc_80mm_lower: the patch is a disc",
+      "status": "PASS",
+      "detail": "χ=1, 1 boundary loop(s)"
+    },
+    {
+      "name": "apex_disc_80mm_lower: the relaxation converged",
+      "status": "PASS",
+      "detail": "7694 iterations"
+    },
+    {
+      "name": "apex_loop_60mm: no triangle folds over",
+      "status": "PASS",
+      "detail": "0 flips"
+    },
+    {
+      "name": "apex_loop_60mm: the patch is a disc",
+      "status": "PASS",
+      "detail": "χ=1, 1 boundary loop(s)"
+    },
+    {
+      "name": "apex_loop_60mm: the relaxation converged",
+      "status": "PASS",
+      "detail": "3714 iterations"
+    },
+    {
+      "name": "apex_loop_60mm: the flood fill did not leak past the loop",
+      "status": "PASS",
+      "detail": "reached 50.7975mm from the seed (limit 134.5732mm)"
+    },
+    {
+      "name": "apex_loop_60mm: every loop sample maps into the flat piece",
+      "status": "PASS",
+      "detail": "168 samples"
+    },
+    {
+      "name": "cutting the cup into two panels reduces the seam error",
+      "status": "PASS",
+      "detail": "one piece 22.1127mm; panels 2.2074mm / 2.3388mm"
+    }
+  ],
+  "decision": "FLATTEN_OK"
+}
