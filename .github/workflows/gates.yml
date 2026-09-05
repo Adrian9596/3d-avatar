@@ -1,0 +1,108 @@
+name: Gates
+
+# The gates in this repo are written to fail a build, but until now nothing ran
+# them on a pull request -- `main` required a review while the measurement,
+# parity and contract checks only ever ran on someone's laptop. This runs them
+# where they can actually block a merge.
+#
+# Everything here is Node + pure-stdlib Python. Blender is NOT required: the
+# gates read the exported GLB, never the .blend.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: Measurement, lane and contract gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout (with Git LFS)
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # Without this, a failed LFS fetch leaves a ~130-byte pointer file behind
+      # and every gate below would silently "measure" it. Better a named error
+      # than a confusing parse failure five steps later.
+      - name: Refuse to measure an LFS pointer
+        run: |
+          set -euo pipefail
+          GLB=assets/export/avatar_master.glb
+          if head -c 40 "$GLB" | grep -q 'git-lfs.github.com'; then
+            echo "::error file=${GLB}::LFS content was not fetched - this is a pointer file, not the avatar. Check the LFS quota or the checkout step."
+            exit 1
+          fi
+          echo "GLB is real content: $(wc -c < "$GLB") bytes"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `validate:measurements` starts by running sync:registry, which rewrites
+      # the served copy. If the committed copy were stale, the sync would repair
+      # it in place and the lane-parity gate would then pass on the repaired
+      # file -- hiding exactly what it exists to catch. So check the committed
+      # state BEFORE anything regenerates it.
+      - name: The served registry must already match contracts/ as committed
+        run: |
+          set -euo pipefail
+          if ! cmp -s contracts/measurement-registry.json viewer/public/measurement-registry.json; then
+            echo "::error file=viewer/public/measurement-registry.json::The served registry is not a byte-identical copy of contracts/ - run 'npm run sync:registry' and commit the result."
+            exit 1
+          fi
+          echo "Served registry matches contracts/ byte for byte."
+
+      # Same reasoning for the evidence: the gates regenerate qa/*.json before
+      # they check anything, so keep the committed record aside to compare
+      # against at the end.
+      - name: Snapshot the committed evidence
+        run: cp -R qa/avatar_master "${RUNNER_TEMP}/committed-evidence"
+
+      - name: Measurement gates (parity, surface path, cup volume, lane parity)
+        run: npm run validate:measurements
+
+      - name: Viewer contract gate (must report BLOCKED, not invent controls)
+        run: npm run validate:viewer-contracts
+
+      - name: glTF validator (zero errors required)
+        run: npm run validate:gltf -- assets/export/avatar_master.glb qa/avatar_master/gltf-validator-report.json
+
+      - name: Build the production viewer
+        run: npm run build:viewer
+
+      - name: Committed evidence must match this run
+        run: npm run validate:evidence-drift -- "${RUNNER_TEMP}/committed-evidence" qa/avatar_master
+
+      # Uploaded even when a gate fails -- the regenerated evidence is usually
+      # what tells you why.
+      - name: Upload the evidence this run produced
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-evidence-${{ github.run_id }}
+          path: qa/avatar_master/
+          if-no-files-found: error
+          retention-days: 14
