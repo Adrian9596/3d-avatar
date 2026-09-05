@@ -3,7 +3,7 @@
 Orbit while drafting · a pen that snaps · landmark placement that says how well it was placed ·
 template drafts from landmarks.
 
-Status: **Phases A, B and C built (2026-09-05); Phase D planned.** Written 2026-09-05 against `assets/export/avatar_master.glb`
+Status: **all four phases built (2026-09-05).** Written 2026-09-05 against `assets/export/avatar_master.glb`
 (SHA-256 `0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4`). §4 records what a
 numerical spike found on that body; §5–§8 propose what to build from it, §10–§11 how it will be
 gated, §14 the keyboard and pointer map, and §15 the concrete work plan, phase by phase. Companion to `MEASUREMENT_PLAN.md` (landmarks, POMs) and `PATTERN_2D_DXF_PLAN.md`
@@ -502,8 +502,8 @@ Rules the map follows:
 |---|---|
 | `Shift+F` | Flatten |
 | `Shift+D` | Export DXF |
-| `Shift+T` | Draft from template — opens the chooser; inside it 1–9 pick, Esc closes *(planned, Phase D)* |
-| `Shift+C` | Compare all available templates for the selected side *(planned, Phase D)* |
+| `Shift+T` | Draft the template chosen in the pattern block (the Template select is the chooser) |
+| `Shift+C` | Compare every available template: per-panel seam error and shared-seam mismatch, pick one to draft |
 Known platform caveats, to be checked in the browser and recorded in the phase's smoke list:
 a bare `Alt` key-up opens the menu bar in Firefox on Windows (mitigation: `preventDefault` on the
 `Alt` key-up while the pen is on); `Space` scrolls the page unless prevented while the canvas has
@@ -721,7 +721,36 @@ work; each entry in the saved file carries `placed_with`; a mirrored root produc
 POM value in both engines (parity 0 difference on that row) with source `manual_mirrored`;
 Reset returns everything to automatic as today.
 
-### Phase D — template drafts *(prototype only)*
+### Phase D — template drafts *(prototype only)* — **done 2026-09-05**
+
+What landed: `contracts/pattern-templates.json` (eight templates: cup one piece, two panels
+vertical, two panels horizontal, cradle front, per side; every one `status: proposal`),
+`scripts/pattern_templates.mjs` and `validate:pattern-templates` on a declared synthetic root
+fixture (lane parity checks the production lane imports neither). In the pattern block a
+*Template* select is the chooser — available templates first, blocked ones disabled with
+`needs …` — *Draft* (`Shift+T`) adds the template's lines through `pen.addLine` with an
+`origin`, pre-selects them and flattens; *Compare* (`Shift+C`) flattens every available
+template in memory and lists per-panel seam error and shared-seam mismatch, a row drafts that
+template (a previously drafted template's lines stay until the person deletes them). Template
+lines follow a landmark drag through `pen.replaceLine` (no undo entry; the landmark edit is the
+record) and the last flattened template re-flattens; a line the person edited by hand is
+marked `edited` and left alone. The export's evidence and DXF layer 15 name the template and
+every landmark's provenance, `(edited)` when edited; `DECLARED_LIMITS` carries the template
+limit. Two panels of a long template name keep their panel letter through the 20-character
+cut (`CUP_2PANEL_HORIZON_A/_B`) — the writer had refused the collision, and the gate now
+exports such a template. ROOT_BOTTOM_L/R (derived) joined the landmark panel as auto rows so
+templates can reference them.
+
+Verified: the gate reproduces §4.3 on the fixture (one piece 19.54; vertical 7.64/2.45 at
+1.08; horizontal 3.90/2.15 at 0.59; cradle −2.44 mm, all sound, 46–113 ms each) and left/right
+agree to 0.05 mm on this mirrored body. In the browser (synthetic events, pane hidden): with no
+roots placed every template read `needs …` and Draft was disabled; after three left roots were
+placed the four left templates became available; Compare listed them in 401 ms (the cradle
+unsound for those roots, shown ⚠); Draft produced two pen lines and a result within 0.02 mm of
+Compare's in-memory figure; a hand nudge on the seam set `edited`; dragging a root moved the
+outline, kept the edited seam, and re-flattened; the export named `CUP_2PANEL_HORIZONTAL_L
+(edited)` on both pieces with roots `manual` and apex `auto`; a Compare row drafted the vertical
+cut; Reset returned every template to `needs …`.
 
 **D1 `contracts/pattern-templates.json`.** The four templates of §8.2 per side, `status:
 "proposal"`, with `label_en` and `comment`; `schema_version`, and a pointer to the registry ids

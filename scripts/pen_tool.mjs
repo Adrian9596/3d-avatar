@@ -483,6 +483,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
     const index = line.anchors.indexOf(anchor);
     if (index < 0) return;
     commit("delete point");
+    if (line.origin?.template) line.origin.edited = true;
     line.segmentMap?.delete(anchor);
     line.anchors.splice(index, 1);
     if (line.anchors.length < 2) {
@@ -588,6 +589,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
         return;
       }
       if (dragging.moved) {
+        if (dragging.line?.origin?.template) dragging.line.origin.edited = true;
         history.undo.push({ label: dragging.handle ? "shape run" : "move point", state: dragging.before });
         if (history.undo.length > UNDO_DEPTH) history.undo.shift();
         history.redo.length = 0;
@@ -710,12 +712,13 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
     },
     /** A finished line from 3D points, the way clicks would have made it.
      *  Instrumentation for automated checks; the UI never calls it. */
-    addLine(points, closed, name) {
+    addLine(points, closed, name, origin = null) {
       if (!triangles) { triangles = collectTriangles(); grid = buildGrid(triangles); }
       commit("add line");
       const line = {
         anchors: points.map((p) => surfaceAnchor(p)), runs: [], length: 0, closed: Boolean(closed),
         labelVisible: true, approximated: false, name: name || `Line ${lines.length + 1}`,
+        origin: origin || undefined,
       };
       rebuildLine(line);
       lines.push(line);
@@ -723,6 +726,23 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
       redraw();
       onChange?.();
       return selectedLine;
+    },
+    /** Rebuild a line's anchors in place — a template line following a landmark
+     *  drag. Keeps its name, index and origin; records nothing (the landmark
+     *  edit is the record). */
+    replaceLine(index, points, closed, origin) {
+      const line = lines[index];
+      if (!line) return false;
+      if (!triangles) { triangles = collectTriangles(); grid = buildGrid(triangles); }
+      line.anchors = points.map((p) => surfaceAnchor(p));
+      line.closed = Boolean(closed);
+      line.segmentMap = new Map();
+      if (origin) line.origin = origin;
+      if (selectedAnchor && !line.anchors.includes(selectedAnchor)) selectedAnchor = null;
+      rebuildLine(line);
+      redraw();
+      onChange?.();
+      return true;
     },
     /** Hand the canvas to another tool (landmark placement) without losing the
      *  lines already drawn. */
@@ -835,6 +855,7 @@ export function createPenTool({ scene, canvas, camera, controls, root, onChange,
       const seg = !owner && all.flatMap((l) => l.segments || []).find((x) => x.handles && x.handles.includes(selectedAnchor));
       if (!owner && !seg) return false;
       commit("nudge");
+      if ((owner || seg.line)?.origin?.template) (owner || seg.line).origin.edited = true;
       selectedAnchor.point.copy(hit.point);
       selectedAnchor.normal.copy(hit.normal);
       if (owner) {

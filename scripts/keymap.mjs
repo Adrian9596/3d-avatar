@@ -79,8 +79,8 @@ export const KEYMAP = Object.freeze([
   // ---- pattern block (prototype) --------------------------------------------
   b('pattern.flatten', ['F'], 'pattern', 'Flatten', { mods: { shift: true } }),
   b('pattern.export', ['D'], 'pattern', 'Export DXF', { mods: { shift: true }, producesFile: true }),
-  planned('D', 'pattern.template', ['T'], 'pattern', 'Draft from template — opens the chooser; inside it 1–9 pick, Esc closes', { mods: { shift: true } }),
-  planned('D', 'pattern.compare', ['C'], 'pattern', 'Compare all available templates for the selected side', { mods: { shift: true } }),
+  b('pattern.template', ['T'], 'pattern', 'Draft the template chosen in the pattern block (the Template select is the chooser)', { mods: { shift: true } }),
+  b('pattern.compare', ['C'], 'pattern', 'Compare every available template: per-panel seam error and shared-seam mismatch, pick one to draft', { mods: { shift: true } }),
 ]);
 
 /** Keystrokes aimed at a text field are the field's, not ours. */

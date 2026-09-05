@@ -47,6 +47,7 @@ function copyRuntimeAssets(outDir) {
   const files = [
     ["assets/export/avatar_master.glb", "assets/export/avatar_master.glb"],
     ["contracts/measurement-registry.json", "contracts/measurement-registry.json"],
+    ["contracts/pattern-templates.json", "contracts/pattern-templates.json"],
   ];
   return {
     name: "copy-runtime-assets",

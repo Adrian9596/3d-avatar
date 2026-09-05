@@ -20,6 +20,7 @@ import {
 } from './flatten_core.mjs';
 import { writeAstmDxf } from './dxf_writer.mjs';
 import { dxfPiece } from './dxf_pieces.mjs';
+import { templateAnnotation, TEMPLATE_LIMIT } from './pattern_templates.mjs';
 
 export const SEAM_TOLERANCE_MM = 3.175;      // 1/8 in, the conventional bra-seam tolerance
 export const LEAK_SLACK_M = 0.03;            // a fill reaching further than the loop + this has escaped
@@ -29,12 +30,32 @@ export const DECLARED_LIMITS = Object.freeze([
   'Drafted by hand in the viewer; the outline is a pen loop, not a registry POM.',
   'Grain line and Quantity 1,1 in the DXF are defaults for the pattern maker to set.',
   'Seam errors against the body are curvature the body carries, reported per piece.',
+  TEMPLATE_LIMIT,
 ]);
 
-/** A DXF-safe piece name: uppercase [A-Z0-9_], at most 20 characters. */
+/** A DXF-safe piece name: uppercase [A-Z0-9_], at most 20 characters. A long
+ *  name keeps its last token (the panel letter) when it is cut, so two panels of
+ *  one template do not collapse onto the same block name. */
 export function asciiPieceName(name, fallback) {
-  const clean = String(name || fallback).toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  return (clean || fallback).slice(0, 20);
+  const clean = String(name || fallback).toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || fallback;
+  if (clean.length <= 20) return clean;
+  const cut = clean.lastIndexOf('_');
+  const suffix = cut > 0 ? clean.slice(cut + 1) : '';
+  if (!suffix || suffix.length > 6) return clean.slice(0, 20);
+  return `${clean.slice(0, 20 - suffix.length - 1)}_${suffix}`;
+}
+
+/** Piece names for one export, unique after the 20-character cut. */
+export function pieceNames(pieces) {
+  const names = pieces.map((p, i) => asciiPieceName(p.name, `PIECE_${i + 1}`));
+  const seen = new Map();
+  return names.map((n) => {
+    const count = seen.get(n) || 0;
+    seen.set(n, count + 1);
+    if (!count) return n;
+    const tag = `_${count + 1}`;
+    return `${n.slice(0, 20 - tag.length)}${tag}`;
+  });
 }
 
 /** Weld the measurement surface once; the mesh is what every draft flattens. */
@@ -146,14 +167,15 @@ export function lineRecord(line) {
  * The DXF and its evidence record for a flattened draft.
  * @param asset  { file, sha256 }   @param registrySha  digest of the registry that drove the session
  */
-export function draftExport({ pieces, result, outline, seam, asset, registrySha, release, solver = DEFAULT_SOLVER, now = new Date() }) {
+export function draftExport({ pieces, result, outline, seam, asset, registrySha, release, template = null, solver = DEFAULT_SOLVER, now = new Date() }) {
   const { run, reports, shared } = result;
-  const names = pieces.map((p, i) => asciiPieceName(p.name, `PIECE_${i + 1}`));
+  const names = pieceNames(pieces);
   const records = pieces.map((p, i) => dxfPiece(
     { name: names[i], sub: p.sub, uv: run.pieces[i].uv, samples: p.patch.samples },
     {
       assetSha: asset.sha256, seamErrorMm: reports[i].chords.seam_error_m * 1000,
       sharedSeam: shared && pieces.length === 2 ? { with: names[1 - i], mismatchMm: shared.mismatch_mm } : null,
+      template: template ? templateAnnotation(template) : null,
     },
   ));
   const written = writeAstmDxf({
@@ -173,6 +195,7 @@ export function draftExport({ pieces, result, outline, seam, asset, registrySha,
     target_cad: 'Gerber AccuMark', import_verified: false,
     declared_limits: DECLARED_LIMITS,
     outline: lineRecord(outline), seam: seam ? lineRecord(seam) : null,
+    template: template || null,
     pieces: summary.pieces.map((p, i) => ({ ...p, dxf_name: names[i], turn_points: records[i].turn_point_indices.length, outline_points: records[i].outline_mm.length })),
     shared_seam: shared,
     solve: { iterations: run.iterations, converged: run.converged, restarts: run.restarts },

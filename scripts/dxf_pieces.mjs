@@ -98,6 +98,7 @@ export function dxfPiece(piece, context) {
     `Asset avatar_master.glb ${context.assetSha.slice(0, 12)}`,
   ];
   if (context.sharedSeam) annotation.push(`Shares seam with ${context.sharedSeam.with}: mismatch ${context.sharedSeam.mismatchMm.toFixed(2)} mm`);
+  if (context.template) annotation.push(context.template, 'Template seams are conventional cuts, not a fit recommendation');
   return {
     name: piece.name,
     outline_mm: ringMm,

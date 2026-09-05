@@ -162,6 +162,9 @@ for (const [label, source] of [['prototype', prototype], ['production', producti
 }
 record('the production host hardcodes no material name', !/Mara:/.test(production_main.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')),
   'the pen\'s surface roles come from the registry the measurement module loaded');
+record('the production lane drafts no templates',
+  !/pattern_templates\.mjs|pattern-templates\.json/.test(production) && !/pattern_templates\.mjs|pattern-templates\.json/.test(production_main),
+  'templates are proposals in the authoring lane, drafted through the same pen and flattened by the same engine');
 record('the production lane places no landmarks',
   !/landmark_placement\.mjs|landmarks\.manual\.json/.test(production) && !/landmark_placement\.mjs/.test(production_main),
   'hand placement stays in the authoring lane: one place to correct, one record');

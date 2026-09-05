@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "fixture": true,
+  "note": "SYNTHETIC test landmarks for validate:pattern-templates. The three manual-only root points per side are made up around the detected apex (the same construction AUTHORING_UX_PLAN.md section 4.3 used); the viewer never reads this file. On the real body a person places them.",
+  "asset": {
+    "file": "assets/export/avatar_master.glb",
+    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+  },
+  "landmarks": {
+    "BUST_APEX_L": [
+      -0.0804,
+      1.33,
+      0.1399
+    ],
+    "BUST_APEX_R": [
+      0.0804,
+      1.33,
+      0.1399
+    ],
+    "CF_UNDERBUST": [
+      0,
+      1.27,
+      0.1011
+    ],
+    "CB_UNDERBUST": [
+      0,
+      1.27,
+      -0.1083
+    ],
+    "SIDE_UNDERBUST_L": [
+      -0.1447,
+      1.27,
+      -0.0026
+    ],
+    "SIDE_UNDERBUST_R": [
+      0.1447,
+      1.27,
+      -0.0026
+    ],
+    "UNDERARM_L": [
+      -0.1706,
+      1.3892,
+      -0.0647
+    ],
+    "UNDERARM_R": [
+      0.1706,
+      1.3892,
+      -0.0647
+    ],
+    "ROOT_TOP_L": [
+      -0.0796,
+      1.38705,
+      0.11163
+    ],
+    "ROOT_TOP_R": [
+      0.0796,
+      1.38705,
+      0.11163
+    ],
+    "ROOT_BOTTOM_L": [
+      -0.07945,
+      1.29096,
+      0.12358
+    ],
+    "ROOT_BOTTOM_R": [
+      0.07945,
+      1.29096,
+      0.12358
+    ],
+    "ROOT_INNER_L": [
+      -0.02805,
+      1.32602,
+      0.12352
+    ],
+    "ROOT_INNER_R": [
+      0.02805,
+      1.32602,
+      0.12352
+    ],
+    "ROOT_OUTER_L": [
+      -0.14378,
+      1.32466,
+      0.09607
+    ],
+    "ROOT_OUTER_R": [
+      0.14378,
+      1.32466,
+      0.09607
+    ]
+  },
+  "provenance": {
+    "BUST_APEX_L": "auto",
+    "BUST_APEX_R": "auto",
+    "CF_UNDERBUST": "auto",
+    "CB_UNDERBUST": "auto",
+    "SIDE_UNDERBUST_L": "auto",
+    "SIDE_UNDERBUST_R": "auto",
+    "UNDERARM_L": "auto",
+    "UNDERARM_R": "auto",
+    "ROOT_TOP_L": "fixture",
+    "ROOT_TOP_R": "fixture",
+    "ROOT_BOTTOM_L": "auto",
+    "ROOT_BOTTOM_R": "auto",
+    "ROOT_INNER_L": "fixture",
+    "ROOT_INNER_R": "fixture",
+    "ROOT_OUTER_L": "fixture",
+    "ROOT_OUTER_R": "fixture"
+  }
+}

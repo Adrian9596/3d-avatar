@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T10:20:48Z",
+  "generated_at": "2026-09-05T10:46:21Z",
   "purpose": "One keyboard map for both lanes: conflict-free, browser-safe, and the doc regenerated from it.",
   "module": {
     "file": "scripts/keymap.mjs",
-    "sha256": "376fc0eeca7b58f4ff818d9da8f6fd1ca821b14779db79cb8f53f09276f39666"
+    "sha256": "37f5f100c8634fd1e64319ce6199e7dfea1bb2a6e0b10a52c3a46b2685400860"
   },
-  "keymap_sha256": "2cfd4474401b130e781697fa3ce849b37348c5fb0f79e59c1b2cc48e984b12eb",
+  "keymap_sha256": "35987f9dfd859c499b768821fc1440a9f2ae79e77370935109bd4705c37d128b",
   "bindings": {
     "total": 43,
-    "active": 41,
-    "planned": 2
+    "active": 43,
+    "planned": 0
   },
   "keystrokes": [
     {
@@ -183,7 +183,7 @@
     {
       "name": "planned rows name their phase",
       "status": "PASS",
-      "detail": "2 planned, 41 active"
+      "detail": "0 planned, 43 active"
     },
     {
       "name": "no keystroke can mean two things at once",

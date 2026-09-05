@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T10:46:21Z",
+  "purpose": "Template drafts resolve, flatten sound and stay proposals: needs … without the hand-placed roots, seam error reported per panel, the person chooses.",
+  "contract": {
+    "file": "contracts/pattern-templates.json",
+    "sha256": "efdab9a4e5b13ee708bff99b8cd34322132f2cae23f7b4e4514f93d247bf4984"
+  },
+  "fixture": {
+    "file": "scripts/pattern_template_fixture_landmarks.json",
+    "sha256": "75045880d9a70f31b82ef00d0f96799fc039f87b48d20b83479343f7f783794f",
+    "synthetic": true
+  },
+  "asset": {
+    "file": "assets/export/avatar_master.glb",
+    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+  },
+  "tolerance_mm": 3.175,
+  "results": [
+    {
+      "id": "CUP_1PIECE_L",
+      "side": "L",
+      "pieces": [
+        {
+          "name": "CUP_1PIECE_L",
+          "seam_error_mm": 19.54,
+          "seam_3d_mm": 329.8,
+          "triangle_flips": 0
+        }
+      ],
+      "shared_mismatch_mm": null,
+      "iterations": 601,
+      "converged": true,
+      "sound": true,
+      "outline_mm": 329.57,
+      "ms": 72
+    },
+    {
+      "id": "CUP_2PANEL_VERTICAL_L",
+      "side": "L",
+      "pieces": [
+        {
+          "name": "CUP_2PANEL_VERTICAL_L A",
+          "seam_error_mm": 7.64,
+          "seam_3d_mm": 290.28,
+          "triangle_flips": 0
+        },
+        {
+          "name": "CUP_2PANEL_VERTICAL_L B",
+          "seam_error_mm": 2.45,
+          "seam_3d_mm": 257.44,
+          "triangle_flips": 0
+        }
+      ],
+      "shared_mismatch_mm": 1.08,
+      "iterations": 1583,
+      "converged": true,
+      "sound": true,
+      "outline_mm": 329.57,
+      "ms": 112
+    },
+    {
+      "id": "CUP_2PANEL_HORIZONTAL_L",
+      "side": "L",
+      "pieces": [
+        {
+          "name": "CUP_2PANEL_HORIZONTAL_L A",
+          "seam_error_mm": 3.9,
+          "seam_3d_mm": 321.94,
+          "triangle_flips": 0
+        },
+        {
+          "name": "CUP_2PANEL_HORIZONTAL_L B",
+          "seam_error_mm": 2.15,
+          "seam_3d_mm": 283.88,
+          "triangle_flips": 0
+        }
+      ],
+      "shared_mismatch_mm": 0.59,
+      "iterations": 2614,
+      "converged": true,
+      "sound": true,
+      "outline_mm": 329.57,
+      "ms": 119
+    },
+    {
+      "id": "CRADLE_FRONT_L",
+      "side": "L",
+      "pieces": [
+        {
+          "name": "CRADLE_FRONT_L",
+          "seam_error_mm": -2.44,
+          "seam_3d_mm": 522.6,
+          "triangle_flips": 0
+        }
+      ],
+      "shared_mismatch_mm": null,
+      "iterations": 3259,
+      "converged": true,
+      "sound": true,
+      "outline_mm": 522.35,
+      "ms": 93
+    },
+    {
+      "id": "CUP_1PIECE_R",
+      "side": "R",
+      "pieces": [
+        {
+          "name": "CUP_1PIECE_R",
+          "seam_error_mm": 19.54,
+          "seam_3d_mm": 329.8,
+          "triangle_flips": 0
+        }
+      ],
+      "shared_mismatch_mm": null,
+      "iterations": 610,
+      "converged": true,
+      "sound": true,
+      "outline_mm": 329.57,
+      "ms": 58
+    },
+    {
+      "id": "CUP_2PANEL_VERTICAL_R",
+      "side": "R",
+      "pieces": [
+        {
+          "name": "CUP_2PANEL_VERTICAL_R A",
+          "seam_error_mm": 7.64,
+          "seam_3d_mm": 290.28,
+          "triangle_flips": 0
+        },
+        {
+          "name": "CUP_2PANEL_VERTICAL_R B",
+          "seam_error_mm": 2.45,
+          "seam_3d_mm": 257.44,
+          "triangle_flips": 0
+        }
+      ],
+      "shared_mismatch_mm": 1.08,
+      "iterations": 1578,
+      "converged": true,
+      "sound": true,
+      "outline_mm": 329.57,
+      "ms": 98
+    },
+    {
+      "id": "CUP_2PANEL_HORIZONTAL_R",
+      "side": "R",
+      "pieces": [
+        {
+          "name": "CUP_2PANEL_HORIZONTAL_R A",
+          "seam_error_mm": 3.9,
+          "seam_3d_mm": 321.94,
+          "triangle_flips": 0
+        },
+        {
+          "name": "CUP_2PANEL_HORIZONTAL_R B",
+          "seam_error_mm": 2.15,
+          "seam_3d_mm": 283.88,
+          "triangle_flips": 0
+        }
+      ],
+      "shared_mismatch_mm": 0.59,
+      "iterations": 2353,
+      "converged": true,
+      "sound": true,
+      "outline_mm": 329.57,
+      "ms": 115
+    },
+    {
+      "id": "CRADLE_FRONT_R",
+      "side": "R",
+      "pieces": [
+        {
+          "name": "CRADLE_FRONT_R",
+          "seam_error_mm": -2.44,
+          "seam_3d_mm": 522.59,
+          "triangle_flips": 0
+        }
+      ],
+      "shared_mismatch_mm": null,
+      "iterations": 3772,
+      "converged": true,
+      "sound": true,
+      "outline_mm": 522.34,
+      "ms": 86
+    }
+  ],
+  "declared_limits": [
+    "Template seams are conventional cuts, not a fit recommendation.",
+    "The roots in the fixture are synthetic; on the real body a person places them and the numbers will differ.",
+    "The gate builds template lines the way the pen does (shortest paths, control points at thirds) but without the pen; the viewer drafts through the pen itself."
+  ],
+  "checks": [
+    {
+      "name": "the fixture declares itself synthetic",
+      "status": "PASS",
+      "detail": "roots made up around the detected apex; the viewer never reads this file"
+    },
+    {
+      "name": "the contract validates against the registry",
+      "status": "PASS",
+      "detail": "8 templates, every anchor a registry landmark, every seam end on its outline"
+    },
+    {
+      "name": "every template is a proposal",
+      "status": "PASS",
+      "detail": "status: proposal"
+    },
+    {
+      "name": "the contract states the template limit",
+      "status": "PASS",
+      "detail": "Template seams are conventional cuts, not a fit recommendation."
+    },
+    {
+      "name": "an unknown landmark or an unlisted requirement is refused",
+      "status": "PASS",
+      "detail": "X_L: unknown landmark NOPE; unknown landmark NOPE; BUST_APEX_L is used but not in requires; ROOT_TOP_L is used but not in requires"
+    },
+    {
+      "name": "every template resolves on the fixture",
+      "status": "PASS",
+      "detail": "8 available"
+    },
+    {
+      "name": "without the hand-placed roots every template reads needs …, never a number",
+      "status": "PASS",
+      "detail": "CUP_1PIECE_L: ROOT_TOP_L, ROOT_OUTER_L, ROOT_INNER_L; CUP_2PANEL_VERTICAL_L: ROOT_TOP_L, ROOT_OUTER_L, ROOT_INNER_L; CUP_2PANEL_HORIZONTAL_L: ROOT_TOP_L, ROOT_O"
+    },
+    {
+      "name": "resolution is deterministic",
+      "status": "PASS",
+      "detail": "anchors sha256 ccb95649cd97…"
+    },
+    {
+      "name": "every template flattens sound (converged, no fold-over)",
+      "status": "PASS",
+      "detail": "8 templates"
+    },
+    {
+      "name": "every shared seam agrees within 3.175 mm",
+      "status": "PASS",
+      "detail": "CUP_2PANEL_VERTICAL_L 1.08, CUP_2PANEL_HORIZONTAL_L 0.59, CUP_2PANEL_VERTICAL_R 1.08, CUP_2PANEL_HORIZONTAL_R 0.59"
+    },
+    {
+      "name": "the plan's §4.3 cup numbers are reproduced (±0.5 mm)",
+      "status": "PASS",
+      "detail": "one piece 19.54; vertical 7.64/2.45 @ 1.08; horizontal 3.9/2.15 @ 0.59 mm"
+    },
+    {
+      "name": "left and right templates agree on this mirrored body (±0.05 mm)",
+      "status": "PASS",
+      "detail": "CUP_1PIECE_L: 19.54 vs 19.54; CUP_2PANEL_VERTICAL_L: 7.64/2.45 vs 7.64/2.45; CUP_2PANEL_HORIZONTAL_L: 3.9/2.15 vs 3.9/2.15; CRADLE_FRONT_L: -2.44 vs -2.44"
+    },
+    {
+      "name": "a template flattens fast enough to follow a landmark drag (< 400 ms)",
+      "status": "PASS",
+      "detail": "119 ms worst"
+    },
+    {
+      "name": "two panels of a 23-character template name export as distinct 20-character blocks",
+      "status": "PASS",
+      "detail": "CUP_2PANEL_HORIZON_A, CUP_2PANEL_HORIZON_B"
+    },
+    {
+      "name": "asciiPieceName keeps the panel letter when it cuts",
+      "status": "PASS",
+      "detail": "CUP_2PANEL_HORIZON_A"
+    },
+    {
+      "name": "the export evidence and the DXF name the template and its landmarks' provenance",
+      "status": "PASS",
+      "detail": "template CUP_2PANEL_HORIZONTAL_L, 5 landmarks, annotation on both pieces"
+    },
+    {
+      "name": "the record names the template and every landmark with its provenance",
+      "status": "PASS",
+      "detail": "5 landmarks"
+    },
+    {
+      "name": "the layer-15 annotation is ASCII and says edited when edited",
+      "status": "PASS",
+      "detail": "Template CUP_2PANEL_VERTICAL_L (edited): ROOT_TOP_L=fixture ROOT_OUTER_L=fixture ROOT_BOTT"
+    }
+  ],
+  "decision": "TEMPLATES_ARE_PROPOSALS"
+}

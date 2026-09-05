@@ -192,6 +192,9 @@ button{font:inherit}
       <div class="prow"><label for="patternOutline">Outline</label><select id="patternOutline"></select></div>
       <div class="prow"><label for="patternSeam">Seam</label><select id="patternSeam"><option value="">none — one piece</option></select></div>
       <div class="mtools"><button id="patternFlatten">Flatten</button><button id="patternExport" disabled>Export DXF</button></div>
+      <div class="prow"><label for="patternTemplate">Template</label><select id="patternTemplate"></select></div>
+      <div class="mtools"><button id="patternDraft" disabled title="Draft the chosen template as pen lines (Shift+T)">Draft</button><button id="patternCompare" disabled title="Flatten every available template and list what each cut costs (Shift+C)">Compare</button></div>
+      <table class="mtable" id="patternCompareTable" hidden></table>
       <div class="pstatus" id="patternStatus">Draw a closed loop with the pen, then Flatten. An open line whose ends sit on the loop cuts it into two panels.</div>
       <svg id="patternPreview" viewBox="0 0 260 140" hidden aria-label="Flattened pieces"></svg>
       <table class="mtable" id="patternTable" hidden></table>
@@ -228,7 +231,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 // same file, so "the viewer agrees with the test" holds by construction.
 import { DEFAULT_SCAN, measureSection, scanSurface, findLandmarks, computePoms, inchFraction,
   applyLandmarkOverrides, pomProvenance, computeSurfacePoms, findArmholes,
-  findFoldLandmarks, sectionSegments, segmentPoints, isManualSource } from './scripts/measure_core.mjs';
+  findFoldLandmarks, sectionSegments, segmentPoints, isManualSource, sectionPointNearX } from './scripts/measure_core.mjs';
 import { buildGrid, closestOnMesh } from './scripts/surface_path.mjs';
 import { createPenTool } from './scripts/pen_tool.mjs';
 // Hand placement logic (guided order, framing, the mirror offer, the record a
@@ -244,6 +247,11 @@ import { framingDistance, turntable, grazingLevel } from './scripts/view_geometr
 // and DXF writer the Node gates run — the viewer adds DOM, not maths
 // (PATTERN_2D_DXF_PLAN.md).
 import { draftMesh, draftPieces, flattenDraft, draftSummary, draftExport, SEAM_TOLERANCE_MM } from './scripts/pattern_draft.mjs';
+// Template drafts: conventional cuts declared as landmarks in
+// contracts/pattern-templates.json, drafted as ordinary pen lines and flattened
+// by the same engine — proposals, shown with their cost, never a decision
+// (AUTHORING_UX_PLAN.md §8). Authoring lane only.
+import { loadTemplates, resolveTemplate, templatesFor, templateRecord, templatePolyline, TEMPLATE_LIMIT } from './scripts/pattern_templates.mjs';
 
 const ASSET_URL='assets/export/avatar_master.glb';
 const ASSET_VERSION='0.2.0-clo3d-textured.1';
@@ -349,7 +357,7 @@ function prepareModel(root){
    and its 2D coordinates are (x, z). Front-most = maximum z.
 --------------------------------------------------------------------------- */
 const REGISTRY_URL='contracts/measurement-registry.json';
-let registry=null,registrySha=null,torsoTris=null,measureScan=[],tapeGroup=null;
+let registry=null,registrySha=null,torsoTris=null,measureScan=[],tapeGroup=null,templates=[];
 let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
 let sectionOpen=false,sectionGroup=null;
 let landmarksVisible=false,placingLandmark=null,landmarkGroup=null,torsoMeshes=[],levelPreviewGroup=null;
@@ -557,6 +565,7 @@ async function runMeasurements(root){
   const started=performance.now();
   ({registry,sha:registrySha}=await loadRegistry());
   torsoTris=collectSurfaceTriangles(root,registry.measurement_surface);
+  try{const r=await fetch('contracts/pattern-templates.json');const loaded=loadTemplates(await r.json(),registry);templates=loaded.templates;if(loaded.errors.length)console.warn('pattern-templates.json:',loaded.errors)}catch(error){templates=[];console.warn('pattern-templates.json not loaded',error)}
   // landmarks are placed on the measurement surface only — a point on the arm is never right
   torsoMeshes=[];root.traverse(o=>{if(!o.isMesh)return;const mats=Array.isArray(o.material)?o.material:[o.material];if(mats.some(m=>m&&registry.measurement_surface.includes(m.name)))torsoMeshes.push(o)});
   if(!torsoTris.length){renderMeasurements(null,null,0);return}
@@ -596,6 +605,8 @@ function recomputeMeasurements(elapsedMs){
   renderMeasurements(marks,poms,elapsed);
   renderLandmarkList();
   redrawLandmarks();
+  renderTemplateChooser();
+  refreshTemplateLines();
   prototypeState.registrySha=registrySha;
   prototypeState.measurements=poms
     ? Object.fromEntries(Object.entries(poms).map(([id,r])=>[id,{
@@ -624,6 +635,8 @@ const LANDMARK_GROUPS=[
   {group:'Bust',rows:[
     {id:'BUST_APEX_L',label:'Bust apex L',kind:'point'},
     {id:'BUST_APEX_R',label:'Bust apex R',kind:'point'},
+    {id:'ROOT_BOTTOM_L',label:'Root bottom L',kind:'point'},
+    {id:'ROOT_BOTTOM_R',label:'Root bottom R',kind:'point'},
     {id:'BUST_LEVEL',label:'Bust level',kind:'level'},
     {id:'UNDERBUST_FOLD',label:'Underbust fold',kind:'level'},
     {id:'WAIST_LEVEL',label:'Waist level',kind:'level'},
@@ -658,6 +671,8 @@ function landmarkValue(id){
   if(!marks)return null;
   if(id==='BUST_APEX_L')return marks.apexL;
   if(id==='BUST_APEX_R')return marks.apexR;
+  // derived: the fold section point directly below the apex, the same one cup depth starts from
+  if(id==='ROOT_BOTTOM_L'||id==='ROOT_BOTTOM_R'){const apex=id.endsWith('L')?marks.apexL:marks.apexR;return marks.fold&&apex&&torsoTris?sectionPointNearX(torsoTris,marks.fold.y,apex.x):null}
   if(id==='BUST_LEVEL')return {y:marks.bustLevel};
   if(id==='UNDERBUST_FOLD')return marks.fold;
   if(id==='WAIST_LEVEL')return marks.waist;
@@ -1208,8 +1223,10 @@ const lineLabel=l=>`${l.name} · ${(l.length*100).toFixed(1)}cm`;
 function renderPatternControls(summary){
   const closed=summary.lines.filter(l=>l.closed&&l.segments>2);
   const open=summary.lines.filter(l=>!l.closed&&l.segments>0);
-  patternPanel.hidden=closed.length===0;
-  if(patternPanel.hidden){patternResult=null;patternExportBtn.disabled=true;return}
+  patternPanel.hidden=closed.length===0&&templates.length===0;
+  renderTemplateChooser();
+  document.getElementById('patternFlatten').disabled=closed.length===0;
+  if(patternPanel.hidden||closed.length===0){patternResult=null;patternExportBtn.disabled=true;patternOutline.innerHTML='';if(closed.length===0){patternPreview.hidden=true;patternTable.hidden=true}return}
   const keepO=patternOutline.value,keepS=patternSeam.value;
   patternOutline.innerHTML=closed.map(l=>`<option value="${l.index}">${lineLabel(l)}</option>`).join('');
   patternSeam.innerHTML='<option value="">none — one piece</option>'+open.map(l=>`<option value="${l.index}">${lineLabel(l)}</option>`).join('');
@@ -1231,6 +1248,7 @@ function runPattern(){
   if(cut.error){setPatternStatus(cut.error,true);return}
   const result=flattenDraft(cut.pieces);
   patternResult={outline,seam,pieces:cut.pieces,result,elapsed_ms:Math.round(performance.now()-started)};
+  lastTemplateFlatten=outline.origin?.template||null;
   renderPatternResult();
   prototypeState.pattern={outline:outline.name,seam:seam?seam.name:null,...draftSummary(cut.pieces,result)};
   syncDiagnostics();
@@ -1239,8 +1257,9 @@ function runPattern(){
 function renderPatternResult(){
   const {pieces,result,elapsed_ms}=patternResult;
   const {run,reports,shared,sound}=result;
+  const tpl=patternResult.outline?.origin?.template;
   setPatternStatus(sound
-    ?`Shell 1:1 of the skin — not a pattern (no ease, no seam allowance, no grading). ${run.iterations} sweeps, ${elapsed_ms}ms.`
+    ?`${tpl?`Template ${tpl}${patternResult.outline.origin.edited?' (edited)':''} — a conventional cut, not a recommendation. `:''}Shell 1:1 of the skin — not a pattern (no ease, no seam allowance, no grading). ${run.iterations} sweeps, ${elapsed_ms}ms.`
     :`Flattened, but unsound: ${run.converged?'':'did not converge; '}${reports.some(x=>x.stats.triangle_flips)?'a face folded over; ':''}check the loop.`,!sound);
   const rows=pieces.map((p,i)=>{
     const c=reports[i].chords,s=reports[i].stats,err=c.seam_error_m*1000;
@@ -1276,9 +1295,123 @@ function renderPatternResult(){
 
 function buildPatternDxf(){
   const {pieces,result,outline,seam}=patternResult;
-  return draftExport({pieces,result,outline,seam,
+  return draftExport({pieces,result,outline,seam,template:templateRecordFor(outline,seam),
     asset:{file:ASSET_URL.replace(/^.*\//,''),sha256:ASSET_SHA},registrySha,release:ASSET_VERSION});
 }
+
+/* ---- templates: the chooser, Draft, Compare, and following a landmark drag --- */
+const patternTemplate=document.getElementById('patternTemplate');
+const patternCompareTable=document.getElementById('patternCompareTable');
+function templateLandmarks(){
+  const map={};
+  for(const row of LANDMARK_ROWS){if(row.kind!=='point')continue;const v=landmarkValue(row.id);if(v&&Number.isFinite(v.x))map[row.id]=[v.x,v.y,v.z]}
+  return map;
+}
+function landmarkProvenance(){
+  const prov={};
+  for(const row of LANDMARK_ROWS){const o=(overrides.landmarks||{})[row.id];prov[row.id]=o?(o.source||'manual'):(marks?.source?.[row.id]||'auto')}
+  return prov;
+}
+function renderTemplateChooser(){
+  const draftBtn=document.getElementById('patternDraft'),compareBtn=document.getElementById('patternCompare');
+  if(!templates.length||!measureGrid){patternTemplate.innerHTML='';draftBtn.disabled=compareBtn.disabled=true;return}
+  patternPanel.hidden=false;   // templates give the block something to offer before any loop is drawn
+  const map=templateLandmarks();
+  const {available,blocked}=templatesFor(null,map,templates);
+  const keep=patternTemplate.value;
+  patternTemplate.innerHTML=[...available.map(a=>`<option value="${a.template.id}">${a.template.label_en}</option>`),
+    ...blocked.map(b=>`<option value="${b.template.id}" disabled>${b.template.label_en} — needs ${b.needs.join(', ')}</option>`)].join('');
+  if([...patternTemplate.options].some(o=>o.value===keep&&!o.disabled))patternTemplate.value=keep;
+  else if(available.length)patternTemplate.value=available[0].template.id;
+  draftBtn.disabled=!available.length;compareBtn.disabled=!available.length;
+  prototypeState.templates={available:available.map(a=>a.template.id),blocked:Object.fromEntries(blocked.map(b=>[b.template.id,b.needs]))};
+}
+function templateLinesOf(id){
+  const out=[];const n=pen.summary().lines.length;
+  for(let i=0;i<n;i++){const g=pen.lineGeometry(i);if(g?.origin?.template&&(!id||g.origin.template===id))out.push({index:i,geo:g})}
+  return out;
+}
+/** Draft: the template's lines become ordinary pen lines (through the pen, so
+ *  every tool applies), pre-selected as outline and seam, and flattened. */
+function draftTemplate(id){
+  const t=templates.find(x=>x.id===id);
+  if(!t||!pen){setPatternStatus('No template chosen.',true);return false}
+  const map=templateLandmarks();
+  const r=resolveTemplate(t,map);
+  if(r.needs){setPatternStatus(`${t.label_en}: needs ${r.needs.join(', ')} — place them in the Landmarks panel (Space walks them).`,true);return false}
+  for(const {index} of templateLinesOf(id).reverse())pen.deleteLine(index);
+  const origin=(role,ids)=>({template:id,role,landmarks:ids,edited:false});
+  const outlineIndex=pen.addLine(r.outline.anchors,true,r.outline.name,origin('outline',r.outline.landmark_ids));
+  const seamIndex=r.seam?pen.addLine(r.seam.anchors,false,r.seam.name,origin('seam',r.seam.landmark_ids)):null;
+  patternOutline.value=String(outlineIndex);patternSeam.value=seamIndex===null?'':String(seamIndex);
+  patternCompareTable.hidden=true;
+  try{runPattern()}catch(error){setPatternStatus(`Flatten failed: ${error.message}`,true)}
+  return true;
+}
+/** Compare: every available template flattened in memory (no pen lines), listed
+ *  with what each cut costs; a row drafts that template. */
+function compareTemplates(){
+  if(!measureGrid||!torsoTris)return false;
+  const map=templateLandmarks();
+  const {available,blocked}=templatesFor(null,map,templates);
+  if(!patternMesh)patternMesh=draftMesh(torsoTris);
+  const started=performance.now();
+  const rows=available.map(({template:t,resolved:r})=>{
+    const outline=templatePolyline(r.outline.anchors,true,measureGrid);
+    const seam=r.seam?templatePolyline(r.seam.anchors,false,measureGrid):null;
+    const cut=draftPieces({mesh:patternMesh,closest:patternClosest,outline:{name:t.id,points:outline.points},seam:seam?{name:r.seam.name,points:seam.points}:null,measurementSurface:registry.measurement_surface});
+    if(cut.error)return {id:t.id,label:t.label_en,error:cut.error};
+    const flat=flattenDraft(cut.pieces),summary=draftSummary(cut.pieces,flat);
+    return {id:t.id,label:t.label_en,sound:flat.sound,pieces:summary.pieces.map(p=>p.seam_error_mm),mismatch:summary.shared_seam?.mismatch_mm??null};
+  });
+  patternCompareTable.innerHTML=`<thead><tr><th style="width:52%">Template</th><th class="n">Seam Δ mm</th><th class="n">Shared</th></tr></thead><tbody>`
+    +rows.map(r=>`<tr data-template="${r.id}" title="Draft this template">`+(r.error
+      ?`<td>${r.label}</td><td colspan="2" class="pshared">${r.error}</td>`
+      :`<td>${r.label}</td><td class="n">${r.pieces.map(v=>v.toFixed(1)).join(' / ')}${r.sound?'':' ⚠'}</td><td class="n">${r.mismatch===null?'—':r.mismatch.toFixed(2)}</td>`)+'</tr>').join('')
+    +blocked.map(b=>`<tr class="landmark"><td>${b.template.label_en}</td><td colspan="2" class="pshared">needs ${b.needs.join(', ')}</td></tr>`).join('')
+    +`<tr><td colspan="3" class="pshared">${TEMPLATE_LIMIT} Seam Δ is each panel's flattened seam against the body; shared is the mismatch between panels. ${Math.round(performance.now()-started)} ms. Click a row to draft it.</td></tr></tbody>`;
+  patternCompareTable.querySelectorAll('tr[data-template]').forEach(tr=>tr.addEventListener('click',()=>{patternTemplate.value=tr.dataset.template;draftTemplate(tr.dataset.template)}));
+  patternCompareTable.hidden=false;
+  prototypeState.templateCompare=rows;
+  return true;
+}
+/** A template line follows the landmarks it was drafted from — rebuilt in place
+ *  while a root is dragged, re-flattened if it was the flattened outline. Lines
+ *  a person edited by hand are theirs and are left alone. */
+let templateRefreshTimer=null,templateRefreshAt=0,lastTemplateFlatten=null;   // the template whose lines were last flattened
+function refreshTemplateLines(){
+  if(!pen||!measureGrid||!templates.length)return;
+  const lines=templateLinesOf(null).filter(l=>!l.geo.origin.edited);
+  if(!lines.length)return;
+  const now=performance.now();
+  if(now-templateRefreshAt<150){clearTimeout(templateRefreshTimer);templateRefreshTimer=setTimeout(refreshTemplateLines,160);return}
+  templateRefreshAt=now;
+  const map=templateLandmarks();
+  // re-flatten the template last flattened even if a hand edit staled the
+  // result since: the edited line is the person's and is kept as they left it
+  const flattened=lastTemplateFlatten;
+  let touched=false;
+  for(const {index,geo} of lines){
+    const t=templates.find(x=>x.id===geo.origin.template);if(!t)continue;
+    const r=resolveTemplate(t,map);if(r.needs)continue;
+    const line=geo.origin.role==='seam'?r.seam:r.outline;if(!line)continue;
+    pen.replaceLine(index,line.anchors,line.closed,geo.origin);touched=true;
+  }
+  if(touched&&flattened){
+    const outlineIndex=templateLinesOf(flattened).find(l=>l.geo.origin.role==='outline')?.index;
+    const seamIndex=templateLinesOf(flattened).find(l=>l.geo.origin.role==='seam')?.index;
+    if(outlineIndex!==undefined){patternOutline.value=String(outlineIndex);patternSeam.value=seamIndex===undefined?'':String(seamIndex);try{runPattern()}catch(error){setPatternStatus(`Flatten failed: ${error.message}`,true)}}
+  }
+}
+function templateRecordFor(outline,seam){
+  const id=outline?.origin?.template||seam?.origin?.template;
+  const t=id&&templates.find(x=>x.id===id);
+  if(!t)return null;
+  return templateRecord(t,templateLandmarks(),landmarkProvenance(),Boolean(outline?.origin?.edited||seam?.origin?.edited));
+}
+document.getElementById('patternDraft').addEventListener('click',()=>draftTemplate(patternTemplate.value));
+document.getElementById('patternCompare').addEventListener('click',()=>compareTemplates());
+window.__templates={draft:draftTemplate,compare:compareTemplates,landmarks:templateLandmarks,lines:()=>templateLinesOf(null)};
 function downloadText(name,text,type){
   const blob=new Blob([text],{type});const link=document.createElement('a');
   link.href=URL.createObjectURL(blob);link.download=name;document.body.appendChild(link);link.click();link.remove();
@@ -1419,6 +1552,7 @@ const KEY_ACTIONS={
   'landmarks.mirror':()=>{if(placingLandmark&&!acceptMirror(placingLandmark))tipEl.textContent='Mirror: the other side is not hand-placed · '+tipBase},
   'landmarks.reset-one':()=>{if(placingLandmark)clearLandmark(placingLandmark)},
   'pattern.flatten':()=>clickIfEnabled('patternFlatten'),'pattern.export':()=>clickIfEnabled('patternExport'),
+  'pattern.template':()=>clickIfEnabled('patternDraft'),'pattern.compare':()=>clickIfEnabled('patternCompare'),
 };
 window.addEventListener('keydown',event=>{
   const contexts=activeContexts();

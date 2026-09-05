@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "registry": "contracts/measurement-registry.json",
+  "status_note": "Every template is a PROPOSAL: a conventional bra cut expressed as landmarks, drafted as ordinary pen lines the person can edit, flattened by the same engine as any hand-drawn loop, and reported with its seam error per panel. A template does not decide where a cup is cut; it shows what a conventional cut costs on this body. Templates whose landmarks are manual_only stay unavailable until a person places them (AUTHORING_UX_PLAN.md section 8, PATTERN_2D_DXF_PLAN.md section 2 and 12.4).",
+  "declared_limit": "Template seams are conventional cuts, not a fit recommendation.",
+  "templates": [
+    {
+      "id": "CUP_1PIECE_L", "side": "L", "status": "proposal",
+      "label_en": "Cup, one piece (left)",
+      "requires": ["ROOT_TOP_L", "ROOT_OUTER_L", "ROOT_BOTTOM_L", "ROOT_INNER_L"],
+      "outline": { "closed": true, "anchors": ["ROOT_TOP_L", "ROOT_OUTER_L", "ROOT_BOTTOM_L", "ROOT_INNER_L"] },
+      "seam": null,
+      "comment": "The root loop as one piece. Its seam error is the cup's whole curvature; shown so the two-panel cuts have a baseline."
+    },
+    {
+      "id": "CUP_2PANEL_VERTICAL_L", "side": "L", "status": "proposal",
+      "label_en": "Cup, two panels, vertical seam through the apex (left)",
+      "requires": ["ROOT_TOP_L", "ROOT_OUTER_L", "ROOT_BOTTOM_L", "ROOT_INNER_L", "BUST_APEX_L"],
+      "outline": { "closed": true, "anchors": ["ROOT_TOP_L", "ROOT_OUTER_L", "ROOT_BOTTOM_L", "ROOT_INNER_L"] },
+      "seam": { "closed": false, "anchors": ["ROOT_TOP_L", "BUST_APEX_L", "ROOT_BOTTOM_L"] },
+      "comment": "A conventional cut, not a recommendation. Seam error is reported per panel; the person chooses."
+    },
+    {
+      "id": "CUP_2PANEL_HORIZONTAL_L", "side": "L", "status": "proposal",
+      "label_en": "Cup, two panels, horizontal seam through the apex (left)",
+      "requires": ["ROOT_TOP_L", "ROOT_OUTER_L", "ROOT_BOTTOM_L", "ROOT_INNER_L", "BUST_APEX_L"],
+      "outline": { "closed": true, "anchors": ["ROOT_TOP_L", "ROOT_OUTER_L", "ROOT_BOTTOM_L", "ROOT_INNER_L"] },
+      "seam": { "closed": false, "anchors": ["ROOT_INNER_L", "BUST_APEX_L", "ROOT_OUTER_L"] },
+      "comment": "A conventional cut, not a recommendation. Seam error is reported per panel; the person chooses."
+    },
+    {
+      "id": "CRADLE_FRONT_L", "side": "L", "status": "proposal",
+      "label_en": "Cradle, front (left): underbust line to the root",
+      "requires": ["CF_UNDERBUST", "SIDE_UNDERBUST_L", "ROOT_OUTER_L", "ROOT_BOTTOM_L", "ROOT_INNER_L"],
+      "outline": { "closed": true, "anchors": ["CF_UNDERBUST", "SIDE_UNDERBUST_L", "ROOT_OUTER_L", "ROOT_BOTTOM_L", "ROOT_INNER_L"] },
+      "seam": null,
+      "comment": "The band's front between the underbust line and the cup root. Only the two root ends are hand-placed; the rest is detected."
+    },
+    {
+      "id": "CUP_1PIECE_R", "side": "R", "status": "proposal",
+      "label_en": "Cup, one piece (right)",
+      "requires": ["ROOT_TOP_R", "ROOT_OUTER_R", "ROOT_BOTTOM_R", "ROOT_INNER_R"],
+      "outline": { "closed": true, "anchors": ["ROOT_TOP_R", "ROOT_OUTER_R", "ROOT_BOTTOM_R", "ROOT_INNER_R"] },
+      "seam": null,
+      "comment": "The root loop as one piece. Its seam error is the cup's whole curvature; shown so the two-panel cuts have a baseline."
+    },
+    {
+      "id": "CUP_2PANEL_VERTICAL_R", "side": "R", "status": "proposal",
+      "label_en": "Cup, two panels, vertical seam through the apex (right)",
+      "requires": ["ROOT_TOP_R", "ROOT_OUTER_R", "ROOT_BOTTOM_R", "ROOT_INNER_R", "BUST_APEX_R"],
+      "outline": { "closed": true, "anchors": ["ROOT_TOP_R", "ROOT_OUTER_R", "ROOT_BOTTOM_R", "ROOT_INNER_R"] },
+      "seam": { "closed": false, "anchors": ["ROOT_TOP_R", "BUST_APEX_R", "ROOT_BOTTOM_R"] },
+      "comment": "A conventional cut, not a recommendation. Seam error is reported per panel; the person chooses."
+    },
+    {
+      "id": "CUP_2PANEL_HORIZONTAL_R", "side": "R", "status": "proposal",
+      "label_en": "Cup, two panels, horizontal seam through the apex (right)",
+      "requires": ["ROOT_TOP_R", "ROOT_OUTER_R", "ROOT_BOTTOM_R", "ROOT_INNER_R", "BUST_APEX_R"],
+      "outline": { "closed": true, "anchors": ["ROOT_TOP_R", "ROOT_OUTER_R", "ROOT_BOTTOM_R", "ROOT_INNER_R"] },
+      "seam": { "closed": false, "anchors": ["ROOT_INNER_R", "BUST_APEX_R", "ROOT_OUTER_R"] },
+      "comment": "A conventional cut, not a recommendation. Seam error is reported per panel; the person chooses."
+    },
+    {
+      "id": "CRADLE_FRONT_R", "side": "R", "status": "proposal",
+      "label_en": "Cradle, front (right): underbust line to the root",
+      "requires": ["CF_UNDERBUST", "SIDE_UNDERBUST_R", "ROOT_OUTER_R", "ROOT_BOTTOM_R", "ROOT_INNER_R"],
+      "outline": { "closed": true, "anchors": ["CF_UNDERBUST", "SIDE_UNDERBUST_R", "ROOT_OUTER_R", "ROOT_BOTTOM_R", "ROOT_INNER_R"] },
+      "seam": null,
+      "comment": "The band's front between the underbust line and the cup root. Only the two root ends are hand-placed; the rest is detected."
+    }
+  ]
+}
