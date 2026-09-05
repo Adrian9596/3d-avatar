@@ -62,13 +62,17 @@ for (const [label, source] of [['prototype', prototype], ['production', producti
     'imports scripts/measure_core.mjs');
 }
 
-// The 2D pattern draft lives in the authoring lane only, on the shared engine.
-record('the prototype lane imports the shared flattening engine',
-  /from\s+['"][^'"]*flatten_core\.mjs['"]/.test(prototype), 'imports scripts/flatten_core.mjs');
-record('the prototype lane imports the shared DXF writer',
-  /from\s+['"][^'"]*dxf_writer\.mjs['"]/.test(prototype), 'imports scripts/dxf_writer.mjs');
+// The 2D pattern draft lives in the authoring lane only, through one module
+// that sits on the shared engine and the shared DXF writer.
+const DRAFT = join(ROOT, 'scripts', 'pattern_draft.mjs');
+const draft = existsSync(DRAFT) ? readFileSync(DRAFT, 'utf8') : '';
+record('the prototype lane drafts patterns through scripts/pattern_draft.mjs',
+  /from\s+['"][^'"]*pattern_draft\.mjs['"]/.test(prototype), 'imports scripts/pattern_draft.mjs');
+record('pattern_draft.mjs sits on the shared flattening engine and DXF writer',
+  /from\s+['"][^'"]*flatten_core\.mjs['"]/.test(draft) && /from\s+['"][^'"]*dxf_writer\.mjs['"]/.test(draft),
+  'imports scripts/flatten_core.mjs and scripts/dxf_writer.mjs');
 record('the production lane carries no pattern drafting',
-  !/flatten_core\.mjs|dxf_writer\.mjs/.test(production), 'read-only presentation: no flatten, no DXF');
+  !/pattern_draft\.mjs|flatten_core\.mjs|dxf_writer\.mjs/.test(production), 'read-only presentation: no flatten, no DXF');
 
 // Reimplementing any of these in a lane is how the two would start to disagree.
 const ENGINE_FUNCTIONS = ['convexHull', 'sectionSegments', 'ringPerimeter', 'findLandmarks', 'computePoms',

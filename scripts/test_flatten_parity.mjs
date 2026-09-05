@@ -12,14 +12,14 @@
  * Exit codes: 0 the engines agree, 1 they drifted, 2 an input is missing/stale.
  */
 
-import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { flattenPatch, flattenPieces, patchStats } from './flatten_core.mjs';
 import { loadAvatarContext, resolveCase } from './flatten_fixtures.mjs';
+import { createGate, sha256File as sha256, mm as mmOf } from './gate_report.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // an alternative case file may be passed as the first argument (negative tests)
@@ -33,22 +33,19 @@ const REPORT_PATH = join(ROOT, 'qa', 'avatar_master', 'flatten-parity.json');
 // this budget catches a real divergence and nothing else.
 const TOLERANCE_MM = 0.001;
 
-const checks = [];
-const record = (name, ok, detail) => { checks.push({ name, status: ok ? 'PASS' : 'FAIL', detail }); return ok; };
-const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
-const mm = (v) => Number((v * 1000).toFixed(6));
+const { checks, record, finish, blocked } = createGate();
+const mm = (v) => mmOf(v, 6);
 
 const cases = JSON.parse(readFileSync(CASES_PATH, 'utf8'));
 const ctx = loadAvatarContext(ROOT);
-if (ctx.error) { console.error(`BLOCKED: ${ctx.error}`); process.exit(2); }
+if (ctx.error) blocked(ctx.error);
 
 let python;
 try {
   const out = execFileSync('python3', [PYTHON, '--cases', CASES_PATH], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 600000 });
   python = JSON.parse(out);
 } catch (error) {
-  console.error(`BLOCKED: scripts/flatten.py did not run — ${error.message}`);
-  process.exit(2);
+  blocked(`scripts/flatten.py did not run — ${error.message}`);
 }
 record('both engines flattened the same asset', python.asset_sha256 === ctx.assetSha,
   `js ${ctx.assetSha.slice(0, 12)}… · python ${String(python.asset_sha256).slice(0, 12)}…`);
@@ -109,10 +106,7 @@ for (const spec of cases.cases) {
   });
 }
 
-const failures = checks.filter((c) => c.status === 'FAIL');
-const report = {
-  schema_version: 1,
-  generated_at: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+finish({ reportPath: REPORT_PATH, relativeTo: ROOT, okDecision: 'ENGINES_AGREE', lines: [`WORST  Δ ${mm(worst)}mm (tolerance ${TOLERANCE_MM}mm)`], body: {
   purpose: 'Agreement between the JavaScript flattening engine and its independent Python port on the same patches.',
   asset: { file: 'assets/export/avatar_master.glb', sha256: ctx.assetSha },
   cases: { file: relative(ROOT, CASES_PATH), sha256: sha256(CASES_PATH) },
@@ -120,14 +114,4 @@ const report = {
   tolerance_mm: TOLERANCE_MM,
   worst_delta_mm: mm(worst),
   cases_compared: rows,
-  checks,
-  decision: failures.length ? 'FAIL' : 'ENGINES_AGREE',
-};
-mkdirSync(dirname(REPORT_PATH), { recursive: true });
-writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-
-for (const check of checks) console.log(`${check.status} ${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
-console.log(`WORST  Δ ${mm(worst)}mm (tolerance ${TOLERANCE_MM}mm)`);
-console.log(`REPORT ${relative(ROOT, REPORT_PATH)}`);
-if (failures.length) { console.error(`FAIL   ${failures.length} check(s) failed`); process.exit(1); }
-console.log('DECISION ENGINES_AGREE');
+} });

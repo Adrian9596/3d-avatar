@@ -213,23 +213,35 @@ without the two viewer lanes silently diverging": one shared engine, one indepen
 one parity gate. The same shape applies here.
 
 ```
-scripts/flatten_core.mjs      — (built) shared JS engine: weld, patch extraction from a
-                                 closed loop, hinge-unfolding start, seam-exact relaxation,
-                                 stats, loop mapping. To be imported by the prototype pen
-                                 tool in Phase 4 the way scripts/measure_core.mjs is today.
-scripts/flatten.py             — (built) independent Python re-implementation, stdlib only,
-                                 gated against the JS engine by validate:flatten-parity —
-                                 the relationship measure_avatar.py has to measure_core.mjs.
-scripts/flatten_cases.json     — (built) the one list of patches both engines are tested on;
-                                 its SHA is recorded in both evidence files.
-scripts/flatten_fixtures.mjs   — (built) test scaffolding: analytic cylinder/cone soups and
-                                 avatar patches around a landmark of the authority pass.
-scripts/dxf_writer.mjs         — (Phase 3) DXF R12 serializer, asset-agnostic, taking only
-                                 {pieces:[{layer, points_mm, closed}]}.
+scripts/flatten_core.mjs       — barrel: the one import the lanes and gates use
+  flatten_mesh.mjs             — weld, edges, face adjacency, edge geodesics, sub-meshes,
+                                 boundary loops/components
+  flatten_patch.mjs            — loop → samples (canonical resampling), flood fill,
+                                 chord constraints, loopCentroidSeed, splitLoopBySeam
+  flatten_solver.mjs           — DEFAULT_SOLVER, hingeUnfold, relaxPieces (per-sweep
+                                 helpers: constraints, Jacobi move, drift removal,
+                                 Chebyshev step), flattenPatch, flattenPieces
+  flatten_report.mjs           — patchStats, chordReport, mapLoopToFlat
+scripts/flatten_{mesh,patch,solver,report}.py
+                               — the Python port, file for file, stdlib only
+scripts/flatten_fixtures.{mjs,py} — the test patches, built identically on both sides
+scripts/flatten.py             — Python CLI the parity gate runs
+scripts/flatten_cases.json     — the one list of patches both engines are tested on
+scripts/pattern_draft.mjs      — pen lines → pieces → reports → DXF + evidence (no DOM);
+                                 what the authoring lane's pattern block calls
+scripts/dxf_pieces.mjs         — flattened piece → DXF record (outline, turn points,
+                                 default grain, annotation)
+scripts/dxf_writer.mjs         — ASTM D6673-10 / Gerber-dialect serializer
+scripts/gate_report.mjs        — shared plumbing of the flatten-family gates
 ```
 
-`validate:lane-parity` already lists the engine's functions (`hingeUnfold`, `relaxSeamExact`,
-`extractPatch`) among those neither viewer lane may redefine.
+Every module carries a header saying what it owns; a change to one side of the
+JS/Python pair belongs in the twin file, and the parity gate is what catches a miss.
+
+`validate:lane-parity` lists the engine's functions (`hingeUnfold`, `relaxPieces`,
+`flattenPieces`, `extractPatch`, `loopChords`) among those neither viewer lane may redefine,
+and checks that the authoring lane reaches the engine only through `pattern_draft.mjs` while
+the production lane reaches none of it.
 
 Do not reimplement the geodesic/curvature/flattening maths a second time inside either
 viewer lane — the existing `validate:lane-parity` gate's method (grep both lanes for

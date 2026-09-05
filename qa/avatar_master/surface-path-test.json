@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T07:36:50Z",
+  "generated_at": "2026-09-05T08:04:49Z",
   "purpose": "Accuracy of the surface-path routine against an analytic geodesic, and the continuity property the control points depend on.",
   "settings": {
     "schedule": [

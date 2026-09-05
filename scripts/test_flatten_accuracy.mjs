@@ -26,13 +26,13 @@
  * Exit codes: 0 all gates pass, 1 a gate failed, 2 an input is missing/stale.
  */
 
-import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { flattenPatch, flattenPieces, patchStats, chordReport, mapLoopToFlat, edgeList } from './flatten_core.mjs';
 import { loadAvatarContext, resolveCase } from './flatten_fixtures.mjs';
+import { createGate, sha256File as sha256, mm } from './gate_report.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // an alternative case file may be passed as the first argument (negative tests)
@@ -48,15 +48,12 @@ const DEVELOPABLE_ANGLE_BUDGET_RAD = 1e-8;
 // the barrier faces themselves.
 const LEAK_SLACK_EDGES = 3;
 
-const checks = [];
-const record = (name, ok, detail) => { checks.push({ name, status: ok ? 'PASS' : 'FAIL', detail }); return ok; };
-const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
-const mm = (v) => Number((v * 1000).toFixed(4));
+const { checks, record, finish, blocked } = createGate();
 
 const cases = JSON.parse(readFileSync(CASES_PATH, 'utf8'));
 const solver = cases.solver;
 const ctx = loadAvatarContext(ROOT);
-if (ctx.error) { console.error(`BLOCKED: ${ctx.error}`); process.exit(2); }
+if (ctx.error) blocked(ctx.error);
 
 let meshMaxEdge = 0;
 {
@@ -243,10 +240,13 @@ function roundStats(s) {
   };
 }
 
-const failures = checks.filter((c) => c.status === 'FAIL');
-const report = {
-  schema_version: 1,
-  generated_at: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+const caseLines = [];
+for (const r of results) {
+  if (r.pieces) { for (const p of r.pieces) caseLines.push(`CASE   ${(r.id + '/' + p.name).padEnd(30)} seam Δ ${String(p.seam.error_mm).padStart(8)}mm of ${p.seam.length_3d_mm}mm · interior rms ${p.interior_rms_error_mm}mm · ${r.iterations} it`); continue; }
+  const seam = r.seam ? `loop seam Δ ${String(r.seam.error_mm).padStart(8)}mm of ${r.seam.length_3d_mm}mm` : `seam Δ ${String(r.boundary_error_mm).padStart(8)}mm of ${r.boundary_length_3d_mm}mm`;
+  caseLines.push(`CASE   ${r.id.padEnd(30)} ${seam} · interior rms ${r.interior_rms_error_mm}mm · ${r.iterations} it`);
+}
+finish({ reportPath: REPORT_PATH, relativeTo: ROOT, okDecision: 'FLATTEN_OK', lines: caseLines, body: {
   purpose: 'Accuracy of the flattening engine against analytic developable surfaces, and soundness on patches of the avatar.',
   asset: { file: 'assets/export/avatar_master.glb', sha256: ctx.assetSha },
   cases: { file: relative(ROOT, CASES_PATH), sha256: sha256(CASES_PATH) },
@@ -260,18 +260,4 @@ const report = {
     'A loop-cut piece keeps a ring of scaffold faces the loop passes through; its outline is the loop, held to length as the seam, and the scaffold boundary is reported separately.',
   ],
   results,
-  checks,
-  decision: failures.length ? 'FAIL' : 'FLATTEN_OK',
-};
-mkdirSync(dirname(REPORT_PATH), { recursive: true });
-writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-
-for (const check of checks) console.log(`${check.status} ${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
-for (const r of results) {
-  if (r.pieces) { for (const p of r.pieces) console.log(`CASE   ${(r.id + '/' + p.name).padEnd(30)} seam Δ ${String(p.seam.error_mm).padStart(8)}mm of ${p.seam.length_3d_mm}mm · interior rms ${p.interior_rms_error_mm}mm · ${r.iterations} it`); continue; }
-  const seam = r.seam ? `loop seam Δ ${String(r.seam.error_mm).padStart(8)}mm of ${r.seam.length_3d_mm}mm` : `seam Δ ${String(r.boundary_error_mm).padStart(8)}mm of ${r.boundary_length_3d_mm}mm`;
-  console.log(`CASE   ${r.id.padEnd(30)} ${seam} · interior rms ${r.interior_rms_error_mm}mm · ${r.iterations} it`);
-}
-console.log(`REPORT ${relative(ROOT, REPORT_PATH)}`);
-if (failures.length) { console.error(`FAIL   ${failures.length} check(s) failed`); process.exit(1); }
-console.log('DECISION FLATTEN_OK');
+} });

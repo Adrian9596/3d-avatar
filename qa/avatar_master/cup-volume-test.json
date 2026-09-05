@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T07:36:53+00:00",
+  "generated_at": "2026-09-05T08:04:52+00:00",
   "purpose": "Cup volume checked against spherical caps, whose volume is arithmetic.",
   "budget_pct": 1.0,
   "method": "closed_surface_divergence",

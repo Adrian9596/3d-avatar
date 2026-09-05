@@ -86,7 +86,7 @@ npm run validate:gltf -- assets/export/avatar_master.glb qa/avatar_master/gltf-v
 # viewer's morph/animation contract tests (asset-agnostic)
 npm run validate:viewer-contracts
 
-# full measurement chain: sync registry → measure → 4 parity/accuracy gates
+# full measurement chain: sync registry → measure → 8 accuracy/parity gates
 npm run validate:measurements
 ```
 

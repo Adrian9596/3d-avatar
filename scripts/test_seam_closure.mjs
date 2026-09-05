@@ -17,33 +17,29 @@
  * Exit codes: 0 the panels close, 1 they do not, 2 an input is missing/stale.
  */
 
-import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { flattenPieces, patchStats, chordReport } from './flatten_core.mjs';
 import { loadAvatarContext, resolveCase } from './flatten_fixtures.mjs';
+import { createGate, sha256File as sha256, mm } from './gate_report.mjs';
+// 1/8 in, the tolerance a bra seam is conventionally held to — one definition,
+// shared with the viewer's pattern block; a factory reference pending TD confirmation.
+import { SEAM_TOLERANCE_MM } from './pattern_draft.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CASES_PATH = process.argv[2] ? join(process.cwd(), process.argv[2]) : join(ROOT, 'scripts', 'flatten_cases.json');
 const REPORT_PATH = join(ROOT, 'qa', 'avatar_master', 'seam-closure.json');
 
-// 1/8 in: the tolerance a bra seam is conventionally held to. A factory
-// reference pending TD confirmation, stated here so it can be changed in one
-// place and its provenance is not lost.
-const SEAM_TOLERANCE_MM = 3.175;
 
-const checks = [];
-const record = (name, ok, detail) => { checks.push({ name, status: ok ? 'PASS' : 'FAIL', detail }); return ok; };
-const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
-const mm = (v) => Number((v * 1000).toFixed(4));
+const { checks, record, finish, blocked } = createGate();
 
 const cases = JSON.parse(readFileSync(CASES_PATH, 'utf8'));
 const specs = cases.cases.filter((c) => c.type === 'avatar_panels');
-if (!specs.length) { console.error('BLOCKED: no avatar_panels case in the case list'); process.exit(2); }
+if (!specs.length) blocked('no avatar_panels case in the case list');
 const ctx = loadAvatarContext(ROOT);
-if (ctx.error) { console.error(`BLOCKED: ${ctx.error}`); process.exit(2); }
+if (ctx.error) blocked(ctx.error);
 
 const results = [];
 for (const spec of specs) {
@@ -101,10 +97,7 @@ for (const spec of specs) {
   });
 }
 
-const failures = checks.filter((c) => c.status === 'FAIL');
-const report = {
-  schema_version: 1,
-  generated_at: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+finish({ reportPath: REPORT_PATH, relativeTo: ROOT, okDecision: 'SEAMS_CLOSE', body: {
   purpose: 'Two pattern pieces flattened together must agree on the length of the seam they share.',
   asset: { file: 'assets/export/avatar_master.glb', sha256: ctx.assetSha },
   cases: { file: relative(ROOT, CASES_PATH), sha256: sha256(CASES_PATH) },
@@ -118,13 +111,4 @@ const report = {
     'A flattened piece is the rigid mesh surface at 1:1. Not a pattern: no ease, no seam allowance, no grading.',
   ],
   results,
-  checks,
-  decision: failures.length ? 'FAIL' : 'SEAMS_CLOSE',
-};
-mkdirSync(dirname(REPORT_PATH), { recursive: true });
-writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-
-for (const check of checks) console.log(`${check.status} ${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
-console.log(`REPORT ${relative(ROOT, REPORT_PATH)}`);
-if (failures.length) { console.error(`FAIL   ${failures.length} check(s) failed`); process.exit(1); }
-console.log('DECISION SEAMS_CLOSE');
+} });

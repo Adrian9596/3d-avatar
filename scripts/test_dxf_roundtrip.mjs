@@ -29,7 +29,6 @@
  * Exit codes: 0 pass, 1 a check failed, 2 an input is missing/stale.
  */
 
-import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,6 +37,7 @@ import { flattenPieces, chordReport } from './flatten_core.mjs';
 import { loadAvatarContext, resolveCase } from './flatten_fixtures.mjs';
 import { writeAstmDxf, ASTM_LAYERS, NAME_LIMIT } from './dxf_writer.mjs';
 import { dxfPiece } from './dxf_pieces.mjs';
+import { createGate, sha256Bytes as sha256 } from './gate_report.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CASES_PATH = join(ROOT, 'scripts', 'flatten_cases.json');
@@ -45,9 +45,7 @@ const DXF_PATH = join(ROOT, 'qa', 'avatar_master', 'flatten-draft.dxf');
 const REPORT_PATH = join(ROOT, 'qa', 'avatar_master', 'dxf-roundtrip.json');
 const CHECK_ONLY = process.argv[2] ? join(process.cwd(), process.argv[2]) : null;
 
-const checks = [];
-const record = (name, ok, detail) => { checks.push({ name, status: ok ? 'PASS' : 'FAIL', detail }); return ok; };
-const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
+const { checks, record, finish, blocked } = createGate();
 const SST_KEYS = ['Style Name', 'Creation Date', 'Creation Time', 'Author', 'Sample Size', 'Grade Rule Table', 'Units', 'ASTM/D13 Proposal 1 Version', 'Curve Tolerance'];
 const PST_KEYS = ['Piece Name', 'Quantity'];
 
@@ -111,11 +109,11 @@ if (!CHECK_ONLY) {
   const cases = JSON.parse(readFileSync(CASES_PATH, 'utf8'));
   casesSha = sha256(readFileSync(CASES_PATH));
   const ctx = loadAvatarContext(ROOT);
-  if (ctx.error) { console.error(`BLOCKED: ${ctx.error}`); process.exit(2); }
+  if (ctx.error) blocked(ctx.error);
   assetSha = ctx.assetSha;
   const spec = cases.cases.find((c) => c.type === 'avatar_panels');
   const built = resolveCase(spec, ctx);
-  if (built.error) { console.error(`BLOCKED: ${built.error}`); process.exit(2); }
+  if (built.error) blocked(built.error);
   const run = flattenPieces(built.pieces, cases.solver);
   const pairs = new Set(run.shared.map((x) => x.pair));
   const reports = built.pieces.map((p, i) => chordReport(p.chords, p.sub, run.pieces[i].uv, pairs));
@@ -210,11 +208,10 @@ for (const block of doc.blocks) {
   }
 }
 
-const failures = checks.filter((c) => c.status === 'FAIL');
-if (!CHECK_ONLY) {
-  const report = {
-    schema_version: 1,
-    generated_at: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+finish({
+  reportPath: CHECK_ONLY ? null : REPORT_PATH, relativeTo: ROOT, okDecision: 'DXF_ROUNDTRIPS',
+  lines: CHECK_ONLY ? [] : [`WROTE  ${relative(ROOT, DXF_PATH)} (${bytes.length} bytes)`],
+  body: {
     purpose: 'The pattern-draft DXF is structurally what Gerber AccuMark imports (ASTM D6673-10, R12 dialect) and its geometry survives a read-back by an independent parser.',
     asset: { file: 'assets/export/avatar_master.glb', sha256: assetSha },
     cases: { file: relative(ROOT, CASES_PATH), sha256: casesSha },
@@ -233,13 +230,5 @@ if (!CHECK_ONLY) {
       'Turn points are vertices turning more than 30 degrees, a geometric rule; curve points are every other outline vertex.',
       'Coordinates are written to 0.01mm per the metric convention; the rounding loss is recorded above.',
     ],
-    checks,
-    decision: failures.length ? 'FAIL' : 'DXF_ROUNDTRIPS',
-  };
-  writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-}
-
-for (const check of checks) console.log(`${check.status} ${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
-if (!CHECK_ONLY) console.log(`WROTE  ${relative(ROOT, DXF_PATH)} (${bytes.length} bytes) · REPORT ${relative(ROOT, REPORT_PATH)}`);
-if (failures.length) { console.error(`FAIL   ${failures.length} check(s) failed`); process.exit(1); }
-console.log('DECISION DXF_ROUNDTRIPS');
+  },
+});
