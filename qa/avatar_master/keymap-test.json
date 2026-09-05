@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T14:59:55Z",
+  "generated_at": "2026-09-05T16:29:06Z",
   "purpose": "One keyboard map for both lanes: conflict-free, browser-safe, and the doc regenerated from it.",
   "module": {
     "file": "scripts/keymap.mjs",

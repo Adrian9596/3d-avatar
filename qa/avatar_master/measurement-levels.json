@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T14:59:56Z",
+  "generated_at": "2026-09-05T16:29:06Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -230,14 +230,24 @@
       "detail": "identical for every measured level (worst difference 0)"
     },
     {
-      "name": "every level either yields a closed ring or says why it does not",
+      "name": "a level reports a girth exactly when it is not blocked",
       "status": "PASS",
       "detail": "14 measured, 0 withheld"
+    },
+    {
+      "name": "a measured level always has the section its girth came from",
+      "status": "PASS",
+      "detail": "no girth without the ring it was computed from"
     },
     {
       "name": "no level reports a girth where a section is not trustworthy",
       "status": "PASS",
       "detail": "nothing above y = 1.39m or outside the scan yields a number"
+    },
+    {
+      "name": "a level blocked by the range ceiling still carries its ring, only the girth withheld",
+      "status": "PASS",
+      "detail": "y = 1.4200m, above the 1.39m ceiling — blocked: above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring, section: 52 pts"
     },
     {
       "name": "the whole stack lands on the reliable part of this torso",

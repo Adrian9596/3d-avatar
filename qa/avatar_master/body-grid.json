@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T14:59:56Z",
+  "generated_at": "2026-09-05T16:29:06Z",
   "purpose": "The vertical half of the reference frame: centre, side and apex curves read off this mesh, and the four lines it is cut on.",
   "asset": {
     "path": "assets/export/avatar_master.glb",

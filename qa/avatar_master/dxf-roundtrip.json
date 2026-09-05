@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T14:59:54Z",
+  "generated_at": "2026-09-05T16:29:04Z",
   "purpose": "The pattern-draft DXF is structurally what Gerber AccuMark imports (ASTM D6673-10, R12 dialect) and its geometry survives a read-back by an independent parser.",
   "asset": {
     "file": "assets/export/avatar_master.glb",

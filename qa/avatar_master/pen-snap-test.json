@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T14:59:55Z",
+  "generated_at": "2026-09-05T16:29:05Z",
   "purpose": "Where a pen anchor goes when a click lands near something it should meet: nearest within the radius, priority on ties, held constraints first; level and mirror on the skin with residuals recorded.",
   "module": {
     "file": "scripts/pen_snap.mjs",

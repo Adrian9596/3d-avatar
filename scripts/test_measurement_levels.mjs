@@ -152,14 +152,26 @@ gate.record('a level girth is the shared engine\'s section girth, not a second m
 
 const reported = measured.levels.filter((l) => l.girth_m !== null);
 const withheld = measured.levels.filter((l) => l.girth_m === null);
-gate.record('every level either yields a closed ring or says why it does not',
-  measured.levels.every((l) => (l.girth_m === null
-    ? Boolean(l.blocked) && l.section === null
-    : l.blocked === null && l.section !== null)),
+gate.record('a level reports a girth exactly when it is not blocked',
+  measured.levels.every((l) => (l.girth_m === null) === Boolean(l.blocked)),
   `${reported.length} measured, ${withheld.length} withheld${withheld.length ? ` (${withheld.map((l) => `${l.id}: ${l.blocked}`).join('; ')})` : ''}`);
+gate.record('a measured level always has the section its girth came from',
+  measured.levels.every((l) => l.girth_m === null || l.section !== null),
+  'no girth without the ring it was computed from');
 gate.record('no level reports a girth where a section is not trustworthy',
   measured.levels.every((l) => (outOfRange(l.y_m, { scan, maxY }) === null) || l.girth_m === null),
   `nothing above y = ${maxY}m or outside the scan yields a number`);
+
+// A level blocked only because it is out of the trustworthy range usually
+// still has real mesh geometry there — the ring should stay drawable even
+// though the number is withheld. On this asset every level currently falls
+// inside range, so this is checked on a synthetic level pushed past the
+// armhole ceiling, on the real mesh.
+const pushedHigh = { ...resolved, levels: [{ ...resolved.levels[0], y_m: maxY + 0.03 }] };
+const [highLevel] = measureLevels(pushedHigh, ctx.tri, { scan, maxY, inchDenominator: ctx.registry.reporting.inch_denominator }).levels;
+gate.record('a level blocked by the range ceiling still carries its ring, only the girth withheld',
+  highLevel.girth_m === null && Boolean(highLevel.blocked) && highLevel.section !== null,
+  `y = ${highLevel.y_m.toFixed(4)}m, ${(maxY + 0.03 > maxY) ? 'above' : 'at'} the ${maxY}m ceiling — blocked: ${highLevel.blocked}, section: ${highLevel.section ? `${highLevel.section.ring.length} pts` : 'null'}`);
 
 // The contract claims the stack fits between the waist and the armhole on this
 // body. That is a property of THIS avatar, so it is measured, not asserted.
