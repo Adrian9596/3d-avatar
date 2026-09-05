@@ -37,7 +37,9 @@ from surface_path import build_grid, closest_on_mesh  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 
-DEFAULT_SOLVER = {"interior_weight": 0.25, "max_iterations": 10000, "convergence_m": 5e-9}
+DEFAULT_SOLVER = {"interior_weight": 0.25, "seam_weight": 1.0, "couple_weight": 4.0, "max_iterations": 10000,
+                  "convergence_m": 5e-9, "chebyshev_rho": 0.999, "chebyshev_gamma": 0.75, "chebyshev_delay": 10,
+                  "rho_fallback": [0.99, 0.9, 0], "fold_min_area_fraction": 0.25}
 DEFAULT_WELD_QUANTUM = 1e-6
 DEFAULT_LOOP_SPACING = 0.002
 
@@ -166,9 +168,34 @@ def _barycentric(P, F, face: int, q):
     return (1.0 - b1 - b2, b1, b2)
 
 
+def _edge_face_map(F):
+    edge_faces: dict[int, list[int]] = {}
+    for f in range(len(F) // 3):
+        for k in range(3):
+            i, j = F[f * 3 + k], F[f * 3 + (k + 1) % 3]
+            key = (i if i < j else j) * 16777216 + (j if i < j else i)
+            edge_faces.setdefault(key, []).append(f)
+    return edge_faces
+
+
+def point_key(p) -> str:
+    """Identity of a sample for matching across pieces (same floats -> same key)."""
+    return f"{math.floor(p[0] * 1e9 + 0.5)},{math.floor(p[1] * 1e9 + 0.5)},{math.floor(p[2] * 1e9 + 0.5)}"
+
+
+def _lex_less(A, B) -> bool:
+    if A[0] != B[0]:
+        return A[0] < B[0]
+    if A[1] != B[1]:
+        return A[1] < B[1]
+    return A[2] < B[2]
+
+
 def extract_patch(mesh, closest, loop_points, seed, spacing: float = DEFAULT_LOOP_SPACING) -> dict:
     """Closed loop on the skin -> faces inside it (flood fill bounded by the faces
-    the resampled loop lands on, plus those barrier faces themselves)."""
+    the resampled loop lands on, plus those barrier faces themselves). Segments
+    are resampled in a canonical direction so a run two loops share yields
+    bit-identical samples in both."""
     P, F = mesh["positions"], mesh["faces"]
     nf = len(F) // 3
     samples = []
@@ -176,17 +203,24 @@ def extract_patch(mesh, closest, loop_points, seed, spacing: float = DEFAULT_LOO
     n = len(loop_points)
     for s in range(n):
         A, B = loop_points[s], loop_points[(s + 1) % n]
-        dx, dy, dz = B[0] - A[0], B[1] - A[1], B[2] - A[2]
+        forward = _lex_less(A, B) or (A[0] == B[0] and A[1] == B[1] and A[2] == B[2])
+        S, E = (A, B) if forward else (B, A)
+        dx, dy, dz = E[0] - S[0], E[1] - S[1], E[2] - S[2]
         chord = math.sqrt(dx * dx + dy * dy + dz * dz)
         steps = max(1, math.ceil(chord / spacing))
-        for k in range(steps):
+        raw = []
+        for k in range(steps + 1):
             t = k / steps
-            hit = closest((A[0] + dx * t, A[1] + dy * t, A[2] + dz * t))
+            raw.append((E[0], E[1], E[2]) if k == steps else (S[0] + dx * t, S[1] + dy * t, S[2] + dz * t))
+        ordered = raw[:steps] if forward else list(reversed(raw[1:]))
+        for q in ordered:
+            hit = closest(q)
             if hit is None:
                 return {"error": "loop sample found no surface"}
             face = hit["triangle"] // 9
             barrier.add(face)
-            samples.append({"point": tuple(hit["point"]), "face": face, "bary": _barycentric(P, F, face, hit["point"])})
+            pt = tuple(hit["point"])
+            samples.append({"point": pt, "key": point_key(pt), "face": face, "bary": _barycentric(P, F, face, pt)})
     seed_hit = closest(seed)
     if seed_hit is None:
         return {"error": "seed found no surface"}
@@ -194,12 +228,7 @@ def extract_patch(mesh, closest, loop_points, seed, spacing: float = DEFAULT_LOO
     if seed_face in barrier:
         return {"error": "the loop passes through the seed face"}
 
-    edge_faces: dict[int, list[int]] = {}
-    for f in range(nf):
-        for k in range(3):
-            i, j = F[f * 3 + k], F[f * 3 + (k + 1) % 3]
-            key = (i if i < j else j) * 16777216 + (j if i < j else i)
-            edge_faces.setdefault(key, []).append(f)
+    edge_faces = _edge_face_map(F)
     flooded = {seed_face}
     queue = [seed_face]
     q = 0
@@ -249,6 +278,25 @@ def submesh(mesh, face_ids) -> dict:
     return {"positions": positions, "faces": faces, "vertex_map": vertex_map, "face_ids": kept, "degenerate": degenerate}
 
 
+def loop_chords(samples, sub) -> dict:
+    """Consecutive loop samples as barycentric distance constraints on a piece."""
+    local_face = {g: i for i, g in enumerate(sub["face_ids"])}
+    chords = []
+    n = len(samples)
+    for s in range(n):
+        a, b = samples[s], samples[(s + 1) % n]
+        fa, fb = local_face.get(a["face"]), local_face.get(b["face"])
+        if fa is None or fb is None:
+            return {"error": f"loop sample {s if fa is None else (s + 1) % n} lies outside the patch"}
+        dx = b["point"][0] - a["point"][0]
+        dy = b["point"][1] - a["point"][1]
+        dz = b["point"][2] - a["point"][2]
+        chords.append({"fa": fa, "ba": a["bary"], "fb": fb, "bb": b["bary"],
+                       "rest": math.sqrt(dx * dx + dy * dy + dz * dz),
+                       "pair": f"{a['key']}|{b['key']}" if a["key"] < b["key"] else f"{b['key']}|{a['key']}"})
+    return {"chords": chords}
+
+
 # --------------------------------------------------------------------- flatten
 
 
@@ -278,12 +326,7 @@ def hinge_unfold(sub) -> list[float]:
         sq = gx * gx + gy * gy + gz * gz
         if sq < seed_sq:
             seed_sq, seed = sq, f
-    edge_faces: dict[int, list[int]] = {}
-    for f in range(nf):
-        for k in range(3):
-            i, j = F[f * 3 + k], F[f * 3 + (k + 1) % 3]
-            key = (i if i < j else j) * 16777216 + (j if i < j else i)
-            edge_faces.setdefault(key, []).append(f)
+    edge_faces = _edge_face_map(F)
     corner = [math.nan] * (nf * 6)
     placed = [False] * nf
 
@@ -348,59 +391,221 @@ def hinge_unfold(sub) -> list[float]:
     return uv
 
 
-def relax_seam_exact(sub, uv, solver: dict = DEFAULT_SOLVER) -> dict:
-    """Jacobi distance relaxation: boundary edges weigh 1.0, interior edges
-    solver['interior_weight']; corrections applied together after each sweep."""
-    edges = edge_list(sub["faces"])
-    rest = _edge_lengths(sub["positions"], edges)
-    ea, eb, ecount = edges["a"], edges["b"], edges["count"]
-    m = len(ea)
-    wi = solver["interior_weight"]
-    w = [1.0 if ecount[e] == 1 else wi for e in range(m)]
-    n = len(uv) // 2
-    U = list(uv)
-    max_iterations, tol = solver["max_iterations"], solver["convergence_m"]
+def relax_pieces(pieces, solver: dict = DEFAULT_SOLVER) -> dict:
+    """Jacobi seam-exact relaxation of one or more pieces at once — see
+    relaxPieces in flatten_core.mjs for the constraint set, the fold-over push,
+    the rigid-drift removal and the Chebyshev acceleration; this is its port."""
     sqrt = math.sqrt
+    wi, ws, wcpl = solver["interior_weight"], solver["seam_weight"], solver["couple_weight"]
+    rho = solver.get("chebyshev_rho", 0.0)
+    gamma = solver.get("chebyshev_gamma", 1.0)
+    delay = solver.get("chebyshev_delay", 0)
+    ladder = [r for r in solver.get("rho_fallback", []) if r < rho]
+    fold_fraction = solver.get("fold_min_area_fraction", 0.0)
+    restarts, sweep_base = 0, 0
+    states = []
+    for piece in pieces:
+        sub, uv = piece["sub"], piece["uv"]
+        chords = piece.get("chords") or []
+        edges = edge_list(sub["faces"])
+        rest = _edge_lengths(sub["positions"], edges)
+        has_loop = len(chords) > 0
+        w = [ws if (c == 1 and not has_loop) else wi for c in edges["count"]]
+        P, F = sub["positions"], sub["faces"]
+        area3 = []
+        for f in range(0, len(F), 3):
+            i, j, k = F[f] * 3, F[f + 1] * 3, F[f + 2] * 3
+            ax, ay, az = P[j] - P[i], P[j + 1] - P[i + 1], P[j + 2] - P[i + 2]
+            bx, by, bz = P[k] - P[i], P[k + 1] - P[i + 1], P[k + 2] - P[i + 2]
+            cx, cy, cz = ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx
+            area3.append(0.5 * math.sqrt(cx * cx + cy * cy + cz * cz))
+        states.append({"sub": sub, "start": list(uv), "U": list(uv), "prev": list(uv), "edges": edges, "rest": rest,
+                       "w": w, "chords": chords, "n": len(uv) // 2, "omega": 1.0, "last_move": math.inf,
+                       "area3": area3, "diverged": False})
+    groups: dict[str, list[tuple[int, int]]] = {}
+    for p, st in enumerate(states):
+        for ci, c in enumerate(st["chords"]):
+            groups.setdefault(c["pair"], []).append((p, ci))
+    shared = [(pair, members) for pair, members in groups.items() if len({m[0] for m in members}) > 1]
+    chord_len = [[0.0] * len(st["chords"]) for st in states]
+    chord_target = [[c["rest"] for c in st["chords"]] for st in states]
+    chord_weight = [[ws] * len(st["chords"]) for st in states]
+    for _, members in shared:
+        for p, ci in members:
+            chord_weight[p][ci] = ws + wcpl
+
+    def point(st, f, b):
+        F, U = st["sub"]["faces"], st["U"]
+        i, j, k = F[f * 3], F[f * 3 + 1], F[f * 3 + 2]
+        return (b[0] * U[i * 2] + b[1] * U[j * 2] + b[2] * U[k * 2],
+                b[0] * U[i * 2 + 1] + b[1] * U[j * 2 + 1] + b[2] * U[k * 2 + 1])
+
+    max_iterations, tol = solver["max_iterations"], solver["convergence_m"]
     iterations, converged = 0, False
     while iterations < max_iterations:
-        acc = [0.0] * (n * 2)
-        cw = [0.0] * n
-        for e in range(m):
-            i, j = ea[e], eb[e]
-            i2, j2 = i * 2, j * 2
-            dx, dy = U[i2] - U[j2], U[i2 + 1] - U[j2 + 1]
-            ln = sqrt(dx * dx + dy * dy)
-            if ln < 1e-12:
-                ln = 1e-12
-            we = w[e]
-            s = we * (ln - rest[e]) / ln * 0.5
-            cx, cy = s * dx, s * dy
-            acc[i2] -= cx
-            acc[i2 + 1] -= cy
-            acc[j2] += cx
-            acc[j2 + 1] += cy
-            cw[i] += we
-            cw[j] += we
+        for p, st in enumerate(states):
+            for ci, c in enumerate(st["chords"]):
+                pa, pb = point(st, c["fa"], c["ba"]), point(st, c["fb"], c["bb"])
+                dx, dy = pa[0] - pb[0], pa[1] - pb[1]
+                chord_len[p][ci] = sqrt(dx * dx + dy * dy)
+        for _, members in shared:
+            mean = 0.0
+            for p, ci in members:
+                mean += chord_len[p][ci]
+            mean /= len(members)
+            for p, ci in members:
+                chord_target[p][ci] = (ws * states[p]["chords"][ci]["rest"] + wcpl * mean) / (ws + wcpl)
         max_move = 0.0
-        for i in range(n):
-            c = cw[i]
-            if c <= 0:
-                continue
-            mx, my = acc[i * 2] / c, acc[i * 2 + 1] / c
-            U[i * 2] += mx
-            U[i * 2 + 1] += my
-            mv = sqrt(mx * mx + my * my)
-            if mv > max_move:
-                max_move = mv
+        for p, st in enumerate(states):
+            U, edges, rest, w, n = st["U"], st["edges"], st["rest"], st["w"], st["n"]
+            F = st["sub"]["faces"]
+            ea, eb = edges["a"], edges["b"]
+            acc = [0.0] * (n * 2)
+            cw = [0.0] * n
+            for e in range(len(ea)):
+                i, j = ea[e], eb[e]
+                i2, j2 = i * 2, j * 2
+                dx, dy = U[i2] - U[j2], U[i2 + 1] - U[j2 + 1]
+                ln = sqrt(dx * dx + dy * dy)
+                if ln < 1e-12:
+                    ln = 1e-12
+                we = w[e]
+                s = we * (ln - rest[e]) / ln * 0.5
+                cx, cy = s * dx, s * dy
+                acc[i2] -= cx
+                acc[i2 + 1] -= cy
+                acc[j2] += cx
+                acc[j2 + 1] += cy
+                cw[i] += we
+                cw[j] += we
+            for ci, c in enumerate(st["chords"]):
+                pa, pb = point(st, c["fa"], c["ba"]), point(st, c["fb"], c["bb"])
+                dx, dy = pa[0] - pb[0], pa[1] - pb[1]
+                ln = sqrt(dx * dx + dy * dy)
+                if ln < 1e-12:
+                    ln = 1e-12
+                gap = ln - chord_target[p][ci]
+                ba, bb = c["ba"], c["bb"]
+                denom = ba[0] * ba[0] + ba[1] * ba[1] + ba[2] * ba[2] + bb[0] * bb[0] + bb[1] * bb[1] + bb[2] * bb[2]
+                s = gap / denom / ln
+                wc = chord_weight[p][ci]
+                fa, fb = c["fa"], c["fb"]
+                for k in range(3):
+                    v, b = F[fa * 3 + k], ba[k]
+                    acc[v * 2] -= wc * b * b * s * dx
+                    acc[v * 2 + 1] -= wc * b * b * s * dy
+                    cw[v] += wc * b
+                for k in range(3):
+                    v, b = F[fb * 3 + k], bb[k]
+                    acc[v * 2] += wc * b * b * s * dx
+                    acc[v * 2 + 1] += wc * b * b * s * dy
+                    cw[v] += wc * b
+            # orientation: a face whose flat signed area has fallen below a fraction
+            # of its 3D area is folding; push it back along the (linear) area gradient
+            area3 = st["area3"]
+            for f in range(0, len(F), 3):
+                a, b, c = F[f], F[f + 1], F[f + 2]
+                ax, ay, bx, by, cx, cy = U[a * 2], U[a * 2 + 1], U[b * 2], U[b * 2 + 1], U[c * 2], U[c * 2 + 1]
+                area2 = 0.5 * ((bx - ax) * (cy - ay) - (cx - ax) * (by - ay))
+                floor = fold_fraction * area3[f // 3]
+                if area2 >= floor:
+                    continue
+                gap = area2 - floor
+                gax, gay = 0.5 * (by - cy), 0.5 * (cx - bx)
+                gbx, gby = 0.5 * (cy - ay), 0.5 * (ax - cx)
+                gcx, gcy = 0.5 * (ay - by), 0.5 * (bx - ax)
+                gg = gax * gax + gay * gay + gbx * gbx + gby * gby + gcx * gcx + gcy * gcy
+                if gg < 1e-30:
+                    continue
+                lam = gap / gg
+                acc[a * 2] -= ws * lam * gax
+                acc[a * 2 + 1] -= ws * lam * gay
+                cw[a] += ws
+                acc[b * 2] -= ws * lam * gbx
+                acc[b * 2 + 1] -= ws * lam * gby
+                cw[b] += ws
+                acc[c * 2] -= ws * lam * gcx
+                acc[c * 2 + 1] -= ws * lam * gcy
+                cw[c] += ws
+            move = [0.0] * (n * 2)
+            for i in range(n):
+                cwi = cw[i]
+                if cwi <= 0:
+                    continue
+                move[i * 2] = acc[i * 2] / cwi
+                move[i * 2 + 1] = acc[i * 2 + 1] / cwi
+            mx = my = gx = gy = 0.0
+            for i in range(n):
+                mx += move[i * 2]
+                my += move[i * 2 + 1]
+                gx += U[i * 2]
+                gy += U[i * 2 + 1]
+            mx, my, gx, gy = mx / n, my / n, gx / n, gy / n
+            cross = rr = 0.0
+            for i in range(n):
+                rx, ry = U[i * 2] - gx, U[i * 2 + 1] - gy
+                cross += rx * (move[i * 2 + 1] - my) - ry * (move[i * 2] - mx)
+                rr += rx * rx + ry * ry
+            omega_rot = cross / rr if rr > 0 else 0.0
+            for i in range(n):
+                rx, ry = U[i * 2] - gx, U[i * 2 + 1] - gy
+                move[i * 2] -= mx - omega_rot * ry
+                move[i * 2 + 1] -= my + omega_rot * rx
+            if rho <= 0 or iterations - sweep_base < delay:
+                omega = 1.0
+            elif iterations - sweep_base == delay:
+                omega = 2 / (2 - rho * rho)
+            else:
+                omega = 4 / (4 - rho * rho * st["omega"])
+            prev = st["prev"]
+            for i in range(n * 2):
+                xk = U[i]
+                xnew = omega * (gamma * move[i] + xk - prev[i]) + prev[i]
+                prev[i] = xk
+                U[i] = xnew
+            piece_move = 0.0
+            for i in range(n):
+                dx, dy = U[i * 2] - prev[i * 2], U[i * 2 + 1] - prev[i * 2 + 1]
+                mv = sqrt(dx * dx + dy * dy)
+                if mv > piece_move:
+                    piece_move = mv
+            st["omega"] = omega
+            st["last_move"] = piece_move
+            if not math.isfinite(piece_move) or piece_move > 0.05:
+                st["diverged"] = True
+            if piece_move > max_move:
+                max_move = piece_move
         iterations += 1
+        if any(st["diverged"] for st in states):
+            if not ladder:
+                break
+            rho = ladder.pop(0)
+            restarts += 1
+            sweep_base = iterations
+            for st in states:
+                st["U"] = list(st["start"])
+                st["prev"] = list(st["start"])
+                st["omega"] = 1.0
+                st["last_move"] = math.inf
+                st["diverged"] = False
+            continue
         if max_move < tol:
             converged = True
             break
-    return {"uv": U, "iterations": iterations, "converged": converged}
+    return {"diverged": any(st["diverged"] for st in states), "restarts": restarts, "rho_used": rho,
+            "pieces": [{"uv": st["U"]} for st in states],
+            "shared": [{"pair": pair, "members": members} for pair, members in shared],
+            "iterations": iterations, "converged": converged}
 
 
-def flatten_patch(sub, solver: dict = DEFAULT_SOLVER) -> dict:
-    return relax_seam_exact(sub, hinge_unfold(sub), solver)
+def flatten_patch(sub, solver: dict = DEFAULT_SOLVER, chords=None) -> dict:
+    out = relax_pieces([{"sub": sub, "uv": hinge_unfold(sub), "chords": chords}], solver)
+    return {"uv": out["pieces"][0]["uv"], "iterations": out["iterations"], "converged": out["converged"],
+            "diverged": out["diverged"], "restarts": out["restarts"]}
+
+
+def flatten_pieces(pieces, solver: dict = DEFAULT_SOLVER) -> dict:
+    return relax_pieces([{"sub": p["sub"], "uv": hinge_unfold(p["sub"]), "chords": p.get("chords")} for p in pieces], solver)
 
 
 # ----------------------------------------------------------------- reporting
@@ -434,6 +639,28 @@ def boundary_loops(sub) -> list[list[int]]:
             prev, cur = cur, nx
         loops.append(loop)
     return loops
+
+
+def boundary_components(sub) -> int:
+    """Connected components of the boundary edge graph (robust to pinches)."""
+    edges = edge_list(sub["faces"])
+    parent: dict[int, int] = {}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, b, c in zip(edges["a"], edges["b"], edges["count"]):
+        if c != 1:
+            continue
+        parent.setdefault(a, a)
+        parent.setdefault(b, b)
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+    return len({find(v) for v in parent})
 
 
 def patch_stats(sub, uv) -> dict:
@@ -470,12 +697,11 @@ def patch_stats(sub, uv) -> dict:
         area2 += 0.5 * abs(s)
         if s < 0:
             flips += 1
-    loops = boundary_loops(sub)
     nv, ne, nfc = len(P) // 3, len(edges["a"]), len(F) // 3
     return {
         "vertex_count": nv, "face_count": nfc, "edge_count": ne,
         "euler_characteristic": nv - ne + nfc,
-        "boundary_loop_count": len(loops),
+        "boundary_loop_count": boundary_components(sub),
         "boundary_length_3d_m": b3, "boundary_length_flat_m": b2, "boundary_error_m": b2 - b3,
         "worst_boundary_edge_error_m": worst_b,
         "interior_rms_error_m": math.sqrt(sum_sq_i / n_i) if n_i else 0.0,
@@ -485,6 +711,39 @@ def patch_stats(sub, uv) -> dict:
         "area_error_pct": 100 * (area2 - area3) / area3 if area3 else 0.0,
         "triangle_flips": flips,
     }
+
+
+def chord_report(chords, sub, uv, pairs=None) -> dict:
+    F = sub["faces"]
+
+    def flat_len(c):
+        i, j, k = F[c["fa"] * 3], F[c["fa"] * 3 + 1], F[c["fa"] * 3 + 2]
+        l, m, n = F[c["fb"] * 3], F[c["fb"] * 3 + 1], F[c["fb"] * 3 + 2]
+        ba, bb = c["ba"], c["bb"]
+        ax = ba[0] * uv[i * 2] + ba[1] * uv[j * 2] + ba[2] * uv[k * 2]
+        ay = ba[0] * uv[i * 2 + 1] + ba[1] * uv[j * 2 + 1] + ba[2] * uv[k * 2 + 1]
+        bx = bb[0] * uv[l * 2] + bb[1] * uv[m * 2] + bb[2] * uv[n * 2]
+        by = bb[0] * uv[l * 2 + 1] + bb[1] * uv[m * 2 + 1] + bb[2] * uv[n * 2 + 1]
+        dx, dy = ax - bx, ay - by
+        return math.sqrt(dx * dx + dy * dy)
+
+    l3 = l2 = worst = s3 = s2 = 0.0
+    sn = 0
+    for c in chords:
+        f = flat_len(c)
+        l3 += c["rest"]
+        l2 += f
+        if abs(f - c["rest"]) > worst:
+            worst = abs(f - c["rest"])
+        if pairs is not None and c["pair"] in pairs:
+            s3 += c["rest"]
+            s2 += f
+            sn += 1
+    out = {"chord_count": len(chords), "seam_length_3d_m": l3, "seam_length_flat_m": l2,
+           "seam_error_m": l2 - l3, "worst_chord_error_m": worst}
+    if pairs is not None:
+        out.update({"shared_chord_count": sn, "shared_length_3d_m": s3, "shared_length_flat_m": s2})
+    return out
 
 
 def map_loop_to_flat(samples, sub, uv) -> dict:
@@ -574,25 +833,41 @@ def load_avatar_context(root: Path) -> dict:
     mesh = weld(tri)
     grid = build_grid(tri)
     landmarks = {k: v["xyz_m"] for k, v in (evidence.get("landmarks") or {}).items() if "xyz_m" in v}
-    return {"asset_sha": asset_sha, "registry": registry, "mesh": mesh,
+    return {"asset_sha": asset_sha, "registry": registry, "mesh": mesh, "grid": grid,
             "closest": lambda p: closest_on_mesh(grid, p), "landmarks": landmarks}
 
 
-def loop_around(closest, seed, radius: float, count: int):
-    hit = closest(seed)
-    nx, ny, nz = hit["normal"]
+def tangent_frame(normal):
+    nx, ny, nz = normal
     ax, ay, az = (1.0, 0.0, 0.0) if abs(nx) < 0.9 else (0.0, 1.0, 0.0)
     ux, uy, uz = ny * az - nz * ay, nz * ax - nx * az, nx * ay - ny * ax
     ul = math.sqrt(ux * ux + uy * uy + uz * uz)
     ux, uy, uz = ux / ul, uy / ul, uz / ul
-    vx, vy, vz = ny * uz - nz * uy, nz * ux - nx * uz, nx * uy - ny * ux
+    return (ux, uy, uz), (ny * uz - nz * uy, nz * ux - nx * uz, nx * uy - ny * ux)
+
+
+def loop_around(closest, seed, radius: float, count: int):
+    u, v = tangent_frame(closest(seed)["normal"])
     points = []
     for k in range(count):
         th = 2 * math.pi * k / count
         c, s = math.cos(th) * radius, math.sin(th) * radius
-        q = closest((seed[0] + c * ux + s * vx, seed[1] + c * uy + s * vy, seed[2] + c * uz + s * vz))
+        q = closest((seed[0] + c * u[0] + s * v[0], seed[1] + c * u[1] + s * v[1], seed[2] + c * u[2] + s * v[2]))
         points.append(tuple(q["point"]))
     return points
+
+
+def seam_through(closest, A, via, B, spacing: float = 0.008):
+    out = []
+    for S, E in ((A, via), (via, B)):
+        dx, dy, dz = E[0] - S[0], E[1] - S[1], E[2] - S[2]
+        steps = max(1, math.ceil(math.sqrt(dx * dx + dy * dy + dz * dz) / spacing))
+        for k in range(1, steps):
+            t = k / steps
+            out.append(tuple(closest((S[0] + dx * t, S[1] + dy * t, S[2] + dz * t))["point"]))
+        if E is via:
+            out.append(tuple(closest(via)["point"]))
+    return out
 
 
 def resolve_case(spec: dict, ctx: dict | None) -> dict:
@@ -613,7 +888,34 @@ def resolve_case(spec: dict, ctx: dict | None) -> dict:
         patch = extract_patch(ctx["mesh"], ctx["closest"], loop, seed)
         if "error" in patch:
             return {"error": patch["error"]}
-        return {"sub": submesh(ctx["mesh"], patch["faces"]), "seed": seed, "patch": patch}
+        sub = submesh(ctx["mesh"], patch["faces"])
+        chords = loop_chords(patch["samples"], sub)
+        if "error" in chords:
+            return {"error": chords["error"]}
+        return {"sub": sub, "seed": seed, "patch": patch, "chords": chords["chords"]}
+    if spec["type"] == "avatar_panels":
+        n = spec["loop_points"]
+        if n % 2:
+            return {"error": "loop_points must be even"}
+        outer = loop_around(ctx["closest"], seed, spec["radius_m"], n)
+        seam = seam_through(ctx["closest"], outer[0], seed, outer[n // 2])
+        loop_a = outer[:n // 2 + 1] + list(reversed(seam))
+        loop_b = outer[n // 2:] + [outer[0]] + seam
+        _, v = tangent_frame(ctx["closest"](seed)["normal"])
+        off = 0.5 * spec["radius_m"]
+        seed_a = tuple(ctx["closest"]((seed[0] + off * v[0], seed[1] + off * v[1], seed[2] + off * v[2]))["point"])
+        seed_b = tuple(ctx["closest"]((seed[0] - off * v[0], seed[1] - off * v[1], seed[2] - off * v[2]))["point"])
+        pieces = []
+        for name, loop, piece_seed in (("panel_a", loop_a, seed_a), ("panel_b", loop_b, seed_b)):
+            patch = extract_patch(ctx["mesh"], ctx["closest"], loop, piece_seed)
+            if "error" in patch:
+                return {"error": f"{name}: {patch['error']}"}
+            sub = submesh(ctx["mesh"], patch["faces"])
+            chords = loop_chords(patch["samples"], sub)
+            if "error" in chords:
+                return {"error": f"{name}: {chords['error']}"}
+            pieces.append({"name": name, "sub": sub, "patch": patch, "chords": chords["chords"], "seed": piece_seed})
+        return {"pieces": pieces, "seed": seed, "seam_points": len(seam)}
     return {"error": f"unknown case type {spec['type']}"}
 
 
@@ -636,10 +938,25 @@ def main() -> int:
         if "error" in built:
             results.append({"id": spec["id"], "error": built["error"]})
             continue
+        if "pieces" in built:
+            run = flatten_pieces(built["pieces"], solver)
+            pairs = {g["pair"] for g in run["shared"]}
+            row = {"id": spec["id"], "iterations": run["iterations"], "converged": run["converged"],
+                   "diverged": run["diverged"], "restarts": run["restarts"],
+                   "shared_chord_groups": len(run["shared"]), "pieces": []}
+            for piece, flat in zip(built["pieces"], run["pieces"]):
+                row["pieces"].append({"name": piece["name"], "stats": patch_stats(piece["sub"], flat["uv"]),
+                                      "chords": chord_report(piece["chords"], piece["sub"], flat["uv"], pairs),
+                                      "uv": flat["uv"]})
+            results.append(row)
+            continue
         sub = built["sub"]
-        run = flatten_patch(sub, solver)
+        run = flatten_patch(sub, solver, built.get("chords"))
         row = {"id": spec["id"], "iterations": run["iterations"], "converged": run["converged"],
+               "diverged": run["diverged"], "restarts": run["restarts"],
                "stats": patch_stats(sub, run["uv"]), "uv": run["uv"]}
+        if "chords" in built:
+            row["chords"] = chord_report(built["chords"], sub, run["uv"])
         if "patch" in built:
             mapped = map_loop_to_flat(built["patch"]["samples"], sub, run["uv"])
             row["loop"] = {"flooded": built["patch"]["flooded"], "barrier": built["patch"]["barrier"],

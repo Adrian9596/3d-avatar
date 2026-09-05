@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "purpose": "The one list of patches both flattening engines are tested on. scripts/test_flatten_accuracy.mjs and scripts/test_flatten_parity.mjs (which runs scripts/flatten.py) read this file, so the two sides cannot drift on which patch they measured.",
-  "solver": { "interior_weight": 0.25, "max_iterations": 10000, "convergence_m": 5e-9 },
+  "solver": { "interior_weight": 0.25, "seam_weight": 1.0, "couple_weight": 4.0, "max_iterations": 10000, "convergence_m": 5e-9, "chebyshev_rho": 0.999, "chebyshev_gamma": 0.75, "chebyshev_delay": 10, "rho_fallback": [0.99, 0.9, 0], "fold_min_area_fraction": 0.25 },
   "cases": [
     {
       "id": "cylinder_120deg",
@@ -24,6 +24,8 @@
     { "id": "apex_disc_80mm_upper", "type": "avatar_disc", "seed_landmark": "BUST_APEX_L", "radius_m": 0.08, "half": "above_seed" },
     { "id": "apex_disc_80mm_lower", "type": "avatar_disc", "seed_landmark": "BUST_APEX_L", "radius_m": 0.08, "half": "below_seed" },
     { "id": "apex_loop_60mm", "type": "avatar_loop", "seed_landmark": "BUST_APEX_L", "radius_m": 0.06, "loop_points": 48,
-      "note": "A closed loop on the skin, the shape the pen tool produces, filled by flood-fill. Exercises patch extraction rather than a face set handed in." }
+      "note": "A closed loop on the skin, the shape the pen tool produces, filled by flood-fill and held to length by chord constraints. Exercises patch extraction rather than a face set handed in." },
+    { "id": "apex_panels_80mm", "type": "avatar_panels", "seed_landmark": "BUST_APEX_L", "radius_m": 0.08, "loop_points": 48,
+      "note": "The one-cup loop cut through the apex into two panels that share the seam. Solved together so the shared chords agree in length in both pieces; scripts/test_seam_closure.mjs gates the mismatch." }
   ]
 }

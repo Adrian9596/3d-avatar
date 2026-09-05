@@ -64,7 +64,7 @@ for (const [label, source] of [['prototype', prototype], ['production', producti
 
 // Reimplementing any of these in a lane is how the two would start to disagree.
 const ENGINE_FUNCTIONS = ['convexHull', 'sectionSegments', 'ringPerimeter', 'findLandmarks', 'computePoms',
-  'hingeUnfold', 'relaxSeamExact', 'extractPatch'];   // the last three: scripts/flatten_core.mjs
+  'hingeUnfold', 'relaxPieces', 'flattenPieces', 'extractPatch', 'loopChords'];   // scripts/flatten_core.mjs
 for (const [label, source] of [['prototype', prototype], ['production', production]]) {
   const redefined = ENGINE_FUNCTIONS.filter((name) => new RegExp(`function\\s+${name}\\s*\\(`).test(source));
   record(`the ${label} lane does not reimplement the engine`, redefined.length === 0,

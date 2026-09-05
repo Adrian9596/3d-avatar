@@ -14,7 +14,7 @@ import { join } from 'node:path';
 
 import { trianglesByMaterial } from './glb_reader.mjs';
 import { buildGrid, closestOnMesh } from './surface_path.mjs';
-import { weld, geodesicDisc, extractPatch, submesh } from './flatten_core.mjs';
+import { weld, geodesicDisc, extractPatch, submesh, loopChords } from './flatten_core.mjs';
 
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
@@ -84,28 +84,49 @@ export function loadAvatarContext(root) {
   const closest = (p) => closestOnMesh(grid, p);
   const landmarks = {};
   for (const [id, mark] of Object.entries(evidence.landmarks || {})) if (mark.xyz_m) landmarks[id] = mark.xyz_m;
-  return { assetSha, registry, tri, mesh, closest, landmarks, materials: registry.measurement_surface };
+  return { assetSha, registry, tri, mesh, grid, closest, landmarks, materials: registry.measurement_surface };
 }
 
-/** Closed loop of `count` points on the skin around a seed, at radius r in the
- *  seed's tangent plane, each snapped to the surface. The tangent frame is
- *  built by one fixed rule so the Python port lands on the same points. */
-export function loopAround(closest, seed, radius, count) {
-  const hit = closest(seed);
-  const [nx, ny, nz] = hit.normal;
+/** A tangent frame from a normal by one fixed rule, so the Python port lands on
+ *  the same points. (u, v, n) is right-handed. */
+export function tangentFrame(normal) {
+  const [nx, ny, nz] = normal;
   const [ax, ay, az] = Math.abs(nx) < 0.9 ? [1, 0, 0] : [0, 1, 0];
   let ux = ny * az - nz * ay, uy = nz * ax - nx * az, uz = nx * ay - ny * ax;
   const ul = Math.sqrt(ux * ux + uy * uy + uz * uz);
   ux /= ul; uy /= ul; uz /= ul;
-  const vx = ny * uz - nz * uy, vy = nz * ux - nx * uz, vz = nx * uy - ny * ux;
+  return { u: [ux, uy, uz], v: [ny * uz - nz * uy, nz * ux - nx * uz, nx * uy - ny * ux] };
+}
+
+/** Closed loop of `count` points on the skin around a seed, at radius r in the
+ *  seed's tangent plane, each snapped to the surface. Point k sits at angle
+ *  2πk/count from u towards v. */
+export function loopAround(closest, seed, radius, count) {
+  const { u, v } = tangentFrame(closest(seed).normal);
   const points = [];
   for (let k = 0; k < count; k++) {
     const th = (2 * Math.PI * k) / count;
     const c = Math.cos(th) * radius, s = Math.sin(th) * radius;
-    const q = closest([seed[0] + c * ux + s * vx, seed[1] + c * uy + s * vy, seed[2] + c * uz + s * vz]);
-    points.push(q.point);
+    points.push(closest([seed[0] + c * u[0] + s * v[0], seed[1] + c * u[1] + s * v[1], seed[2] + c * u[2] + s * v[2]]).point);
   }
   return points;
+}
+
+/** A seam polyline on the skin through `via`: the chords A->via->B resampled at
+ *  `spacing` and snapped to the surface. Endpoints excluded — the caller's loop
+ *  already holds them — so it can be spliced into two loops as a shared run. */
+export function seamThrough(closest, A, via, B, spacing = 0.008) {
+  const out = [];
+  for (const [S, E] of [[A, via], [via, B]]) {
+    const dx = E[0] - S[0], dy = E[1] - S[1], dz = E[2] - S[2];
+    const steps = Math.max(1, Math.ceil(Math.sqrt(dx * dx + dy * dy + dz * dz) / spacing));
+    for (let k = 1; k < steps; k++) {
+      const t = k / steps;
+      out.push(closest([S[0] + dx * t, S[1] + dy * t, S[2] + dz * t]).point);
+    }
+    if (E === via) out.push(closest(via).point);
+  }
+  return out;
 }
 
 /** Build the patch for one case. Returns {sub, seed?, patch?} or {error}. */
@@ -127,7 +148,33 @@ export function resolveCase(spec, ctx) {
     const loop = loopAround(ctx.closest, seed, spec.radius_m, spec.loop_points);
     const patch = extractPatch(ctx.mesh, ctx.closest, loop, seed);
     if (patch.error) return { error: patch.error };
-    return { sub: submesh(ctx.mesh, patch.faces), seed, patch };
+    const sub = submesh(ctx.mesh, patch.faces);
+    const chords = loopChords(patch.samples, sub);
+    if (chords.error) return { error: chords.error };
+    return { sub, seed, patch, chords: chords.chords };
+  }
+  if (spec.type === 'avatar_panels') {
+    // one outer loop, cut through the seed into two panels that share the seam
+    const n = spec.loop_points;
+    if (n % 2) return { error: 'loop_points must be even' };
+    const outer = loopAround(ctx.closest, seed, spec.radius_m, n);
+    const seam = seamThrough(ctx.closest, outer[0], seed, outer[n / 2]);
+    const loopA = outer.slice(0, n / 2 + 1).concat(seam.slice().reverse());
+    const loopB = outer.slice(n / 2).concat([outer[0]], seam);
+    const { v } = tangentFrame(ctx.closest(seed).normal);
+    const off = 0.5 * spec.radius_m;
+    const seedA = ctx.closest([seed[0] + off * v[0], seed[1] + off * v[1], seed[2] + off * v[2]]).point;
+    const seedB = ctx.closest([seed[0] - off * v[0], seed[1] - off * v[1], seed[2] - off * v[2]]).point;
+    const pieces = [];
+    for (const [name, loop, pieceSeed] of [['panel_a', loopA, seedA], ['panel_b', loopB, seedB]]) {
+      const patch = extractPatch(ctx.mesh, ctx.closest, loop, pieceSeed);
+      if (patch.error) return { error: `${name}: ${patch.error}` };
+      const sub = submesh(ctx.mesh, patch.faces);
+      const chords = loopChords(patch.samples, sub);
+      if (chords.error) return { error: `${name}: ${chords.error}` };
+      pieces.push({ name, sub, patch, chords: chords.chords, seed: pieceSeed });
+    }
+    return { pieces, seed, seam_points: seam.length };
   }
   return { error: `unknown case type ${spec.type}` };
 }

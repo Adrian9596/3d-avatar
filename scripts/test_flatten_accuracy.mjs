@@ -17,8 +17,11 @@
  *    being looked at.
  *
  * 3. PATCH EXTRACTION from a closed loop, the pen tool's shape: the flood fill
- *    must not leak past the loop into the rest of the body, and every loop
- *    sample must map through the flattening.
+ *    must not leak past the loop into the rest of the body, every loop sample
+ *    must map through the flattening, and the loop — held to length as the
+ *    piece's seam — has its residual recorded. Two panels cut from one loop are
+ *    solved together and each gated for soundness; their shared seam is the
+ *    business of scripts/test_seam_closure.mjs.
  *
  * Exit codes: 0 all gates pass, 1 a gate failed, 2 an input is missing/stale.
  */
@@ -28,7 +31,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { flattenPatch, patchStats, mapLoopToFlat, edgeList } from './flatten_core.mjs';
+import { flattenPatch, flattenPieces, patchStats, chordReport, mapLoopToFlat, edgeList } from './flatten_core.mjs';
 import { loadAvatarContext, resolveCase } from './flatten_fixtures.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -113,10 +116,31 @@ for (const spec of cases.cases) {
     record(`${spec.id}: patch builds`, false, built.error);
     continue;
   }
+  if (built.pieces) {
+    // several pieces solved together: soundness per piece here
+    const run = flattenPieces(built.pieces, solver);
+    const pairs = new Set(run.shared.map((g) => g.pair));
+    record(`${spec.id}: the joint relaxation converged`, run.converged && !run.diverged,
+      `${run.iterations} iterations${run.restarts ? `, ${run.restarts} restart(s)` : ''}`);
+    const row = { id: spec.id, type: spec.type, iterations: run.iterations, converged: run.converged, restarts: run.restarts, shared_chords: run.shared.length, pieces: [] };
+    built.pieces.forEach((p, i) => {
+      const stats = patchStats(p.sub, run.pieces[i].uv);
+      const ch = chordReport(p.chords, p.sub, run.pieces[i].uv, pairs);
+      record(`${spec.id}/${p.name}: no triangle folds over`, stats.triangle_flips === 0, `${stats.triangle_flips} flips`);
+      record(`${spec.id}/${p.name}: the piece is a disc`, stats.euler_characteristic === 1 && stats.boundary_loop_count === 1,
+        `χ=${stats.euler_characteristic}, ${stats.boundary_loop_count} boundary loop(s)`);
+      const limit = spec.radius_m + LEAK_SLACK_EDGES * meshMaxEdge;
+      record(`${spec.id}/${p.name}: the flood fill did not leak past the loop`, p.patch.flood_reach_m <= limit,
+        `reached ${mm(p.patch.flood_reach_m)}mm from the seed (limit ${mm(limit)}mm)`);
+      row.pieces.push({ name: p.name, ...roundStats(stats), seam: seamRow(ch) });
+    });
+    results.push(row);
+    continue;
+  }
   const { sub } = built;
-  const run = flattenPatch(sub, solver);
+  const run = flattenPatch(sub, solver, built.chords || null);
   const stats = patchStats(sub, run.uv);
-  const row = { id: spec.id, type: spec.type, iterations: run.iterations, converged: run.converged, ...roundStats(stats) };
+  const row = { id: spec.id, type: spec.type, iterations: run.iterations, converged: run.converged, restarts: run.restarts, ...roundStats(stats) };
   byId[spec.id] = { spec, sub, run, stats, built };
 
   if (spec.type === 'cylinder' || spec.type === 'cone') {
@@ -172,7 +196,8 @@ for (const spec of cases.cases) {
     record(`${spec.id}: no triangle folds over`, stats.triangle_flips === 0, `${stats.triangle_flips} flips`);
     record(`${spec.id}: the patch is a disc`, stats.euler_characteristic === 1 && stats.boundary_loop_count === 1,
       `χ=${stats.euler_characteristic}, ${stats.boundary_loop_count} boundary loop(s)`);
-    record(`${spec.id}: the relaxation converged`, run.converged, `${run.iterations} iterations`);
+    record(`${spec.id}: the relaxation converged`, run.converged && !run.diverged,
+      `${run.iterations} iterations${run.restarts ? `, ${run.restarts} restart(s)` : ''}`);
     if (spec.type === 'avatar_loop') {
       const { patch } = built;
       const limit = spec.radius_m + LEAK_SLACK_EDGES * meshMaxEdge;
@@ -181,13 +206,9 @@ for (const spec of cases.cases) {
         `reached ${mm(patch.flood_reach_m)}mm from the seed (limit ${mm(limit)}mm)`);
       const mapped = mapLoopToFlat(patch.samples, sub, run.uv);
       record(`${spec.id}: every loop sample maps into the flat piece`, !mapped.error, mapped.error || `${patch.samples.length} samples`);
-      if (!mapped.error) {
-        row.loop = {
-          length_3d_mm: mm(mapped.loop_length_3d_m), length_flat_mm: mm(mapped.loop_length_flat_m),
-          error_mm: mm(mapped.loop_length_flat_m - mapped.loop_length_3d_m),
-          note: 'The drawn loop sits one barrier face inside the patch boundary, so it is not itself held to length yet — a declared limit of this phase.',
-        };
-      }
+      // the loop IS the seam of this piece; the mesh boundary is scaffolding
+      row.seam = seamRow(chordReport(built.chords, sub, run.uv));
+      row.scaffold_boundary_error_mm = row.boundary_error_mm;
     }
   }
   results.push(row);
@@ -200,6 +221,13 @@ if (byId.apex_disc_80mm && byId.apex_disc_80mm_upper && byId.apex_disc_80mm_lowe
   const lo = byId.apex_disc_80mm_lower.stats.boundary_error_m;
   record('cutting the cup into two panels reduces the seam error', Math.max(Math.abs(up), Math.abs(lo)) < Math.abs(one),
     `one piece ${mm(one)}mm; panels ${mm(up)}mm / ${mm(lo)}mm`);
+}
+
+function seamRow(ch) {
+  return {
+    chord_count: ch.chord_count, length_3d_mm: mm(ch.seam_length_3d_m), length_flat_mm: mm(ch.seam_length_flat_m),
+    error_mm: mm(ch.seam_error_m), worst_chord_error_mm: mm(ch.worst_chord_error_m),
+  };
 }
 
 function roundStats(s) {
@@ -229,7 +257,7 @@ const report = {
   declared_limits: [
     'A flattened patch is the rigid mesh surface at 1:1. It is not a pattern: no ease, no seam allowance, no grading.',
     'Boundary errors on the avatar are curvature the body carries, reported per piece and never rescaled away.',
-    'A loop-extracted patch overshoots the drawn loop by up to one triangle; the loop itself is mapped but not yet held to length.',
+    'A loop-cut piece keeps a ring of scaffold faces the loop passes through; its outline is the loop, held to length as the seam, and the scaffold boundary is reported separately.',
   ],
   results,
   checks,
@@ -239,7 +267,11 @@ mkdirSync(dirname(REPORT_PATH), { recursive: true });
 writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 
 for (const check of checks) console.log(`${check.status} ${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
-for (const r of results) console.log(`CASE   ${r.id.padEnd(22)} seam Δ ${String(r.boundary_error_mm).padStart(8)}mm of ${r.boundary_length_3d_mm}mm · interior rms ${r.interior_rms_error_mm}mm · ${r.iterations} it`);
+for (const r of results) {
+  if (r.pieces) { for (const p of r.pieces) console.log(`CASE   ${(r.id + '/' + p.name).padEnd(30)} seam Δ ${String(p.seam.error_mm).padStart(8)}mm of ${p.seam.length_3d_mm}mm · interior rms ${p.interior_rms_error_mm}mm · ${r.iterations} it`); continue; }
+  const seam = r.seam ? `loop seam Δ ${String(r.seam.error_mm).padStart(8)}mm of ${r.seam.length_3d_mm}mm` : `seam Δ ${String(r.boundary_error_mm).padStart(8)}mm of ${r.boundary_length_3d_mm}mm`;
+  console.log(`CASE   ${r.id.padEnd(30)} ${seam} · interior rms ${r.interior_rms_error_mm}mm · ${r.iterations} it`);
+}
 console.log(`REPORT ${relative(ROOT, REPORT_PATH)}`);
 if (failures.length) { console.error(`FAIL   ${failures.length} check(s) failed`); process.exit(1); }
 console.log('DECISION FLATTEN_OK');

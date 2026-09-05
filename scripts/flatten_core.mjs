@@ -4,29 +4,51 @@
  *
  * One objective, on purpose. A pattern piece is judged at its SEAM, not in its
  * middle: two pieces that meet must have equal seam length or they cannot be
- * sewn. So the solver holds boundary edges hard to their 3D length and lets only
- * the interior absorb the curvature — which is what fabric does. Measured on a
+ * sewn. So the solver holds the seam hard to its 3D length and lets only the
+ * interior absorb the curvature — which is what fabric does. Measured on a
  * one-cup patch of this body it halves the seam error of a conformal (LSCM) or
  * as-rigid-as-possible layout, and neither of those needs to run first: from a
  * hinge unfolding this relaxation converges to the same minimum to 0.01mm.
  *
+ * What "the seam" is. For a patch handed in as a set of faces it is the mesh
+ * boundary. For a patch cut out by a drawn loop it is the LOOP: each loop sample
+ * is a point inside a face (barycentric), and the chord between consecutive
+ * samples is a distance constraint on that face's vertices — so the drawn line is
+ * held to length without remeshing, and the ring of faces the loop passes through
+ * is scaffolding the exported outline never includes. When several pieces share
+ * a seam, the shared chords are additionally pulled to a common length in every
+ * piece, because two pieces that disagree on their shared seam cannot be sewn.
+ *
  * What it cannot do, and says so: a doubly curved patch has curvature that no
- * flattening removes (Gauss). The residual boundary error is reported per piece
- * so the reason a cup is cut into panels stays visible in the evidence; it is
+ * flattening removes (Gauss). The residual seam error is reported per piece so
+ * the reason a cup is cut into panels stays visible in the evidence; it is
  * never hidden by rescaling.
  *
  * Numerics are written out longhand (no hypot, no reductions whose order the
  * runtime chooses) because scripts/flatten.py is an independent port and the
- * parity gate compares the two to a fraction of a millimetre.
+ * parity gate compares the two to a micrometre.
  *
  * Coordinates are metres. Meshes are flat arrays: positions [x,y,z,...],
  * faces [i,j,k,...]. The output `uv` is a flat [u,v,...] array in metres.
  */
 
 export const DEFAULT_SOLVER = Object.freeze({
-  interior_weight: 0.25,   // boundary edges weigh 1.0; the interior yields first
+  interior_weight: 0.25,   // interior edges, and the scaffold boundary of a loop-cut patch
+  seam_weight: 1.0,        // mesh boundary of a face-set patch; loop chords of a loop-cut patch
+  couple_weight: 4.0,      // extra pull of a shared chord towards its mean length across pieces
   max_iterations: 10000,
   convergence_m: 5e-9,     // stop when no vertex moved more than this in a sweep
+  // Chebyshev semi-iteration over the Jacobi sweep (Wang 2015): same fixed point,
+  // 10-20x fewer sweeps. rho is the assumed spectral radius; too high diverges,
+  // which the guard below catches by dropping the momentum for that sweep.
+  chebyshev_rho: 0.999,
+  chebyshev_gamma: 0.75,
+  chebyshev_delay: 10,
+  rho_fallback: [0.99, 0.9, 0],   // on divergence: restart from the unfolding with the next rho
+  // a face whose flat signed area drops below this fraction of its 3D area is
+  // about to fold over and is pushed back; sound faces sit far above it, so the
+  // constraint is inactive on them and does not move the fixed point
+  fold_min_area_fraction: 0.25,
 });
 export const DEFAULT_WELD_QUANTUM = 1e-6;   // 1µm: below float32 resolution here
 export const DEFAULT_LOOP_SPACING = 0.002;   // barrier samples 2mm apart, < any edge
@@ -80,6 +102,20 @@ function edgeLengths(positions, edges) {
     out[e] = Math.sqrt(dx * dx + dy * dy + dz * dz);
   }
   return out;
+}
+
+function edgeFaceMap(F) {
+  const edgeFaces = new Map();
+  for (let f = 0; f < F.length / 3; f++) {
+    for (let k = 0; k < 3; k++) {
+      const i = F[f * 3 + k], j = F[f * 3 + ((k + 1) % 3)];
+      const key = (i < j ? i : j) * 16777216 + (i < j ? j : i);
+      let list = edgeFaces.get(key);
+      if (!list) { list = []; edgeFaces.set(key, list); }
+      list.push(f);
+    }
+  }
+  return edgeFaces;
 }
 
 // ------------------------------------------------------------- patch selection
@@ -183,6 +219,19 @@ function barycentric(P, F, face, q) {
   return [1 - b1 - b2, b1, b2];
 }
 
+/** A point's identity for matching the same loop sample across pieces: the
+ *  same 3D coordinates produce the same key, so a seam two pieces share is
+ *  recognised without any tolerance. */
+export function pointKey(p) {
+  return `${Math.floor(p[0] * 1e9 + 0.5)},${Math.floor(p[1] * 1e9 + 0.5)},${Math.floor(p[2] * 1e9 + 0.5)}`;
+}
+
+function lexLess(A, B) {
+  if (A[0] !== B[0]) return A[0] < B[0];
+  if (A[1] !== B[1]) return A[1] < B[1];
+  return A[2] < B[2];
+}
+
 /**
  * Turn a closed loop drawn on the skin into a patch of faces.
  *
@@ -190,13 +239,19 @@ function barycentric(P, F, face, q) {
  * samples cannot skip a face), each sample snapped to the mesh, and every face a
  * sample lands on becomes a barrier. A flood fill over edge-adjacent faces from
  * the seed's face stops at the barrier; the patch is the flood plus the barrier,
- * so the loop lies entirely inside it and can be mapped through the flattening.
+ * so the loop lies entirely inside it and can be held to length by chord
+ * constraints on the faces it crosses (see `loopChords`).
+ *
+ * Each segment is resampled in one canonical direction regardless of which way
+ * the loop traverses it, so two pieces whose loops share a run of the same pen
+ * line produce bit-identical samples along it — that is how a shared seam is
+ * recognised.
  *
  * `closest` is a function p -> {point, normal, triangle} over the SAME soup the
  * mesh was welded from (scripts/surface_path.mjs closestOnMesh with its grid).
- * Declared limit: the patch boundary is the outer edge of the barrier faces, so
- * it overshoots the loop by up to one triangle (~10mm on this mesh); the exact
- * loop outline is what `mapLoopToFlat` returns.
+ * Declared limit: the ring of barrier faces is scaffolding that overshoots the
+ * loop by up to one triangle; the piece's outline is the loop's image
+ * (`mapLoopToFlat`), never the mesh boundary.
  */
 export function extractPatch(mesh, closest, loopPoints, seed, spacing = DEFAULT_LOOP_SPACING) {
   const P = mesh.positions, F = mesh.faces;
@@ -206,16 +261,24 @@ export function extractPatch(mesh, closest, loopPoints, seed, spacing = DEFAULT_
   const n = loopPoints.length;
   for (let s = 0; s < n; s++) {
     const A = loopPoints[s], B = loopPoints[(s + 1) % n];
-    const dx = B[0] - A[0], dy = B[1] - A[1], dz = B[2] - A[2];
+    const forward = lexLess(A, B) || (A[0] === B[0] && A[1] === B[1] && A[2] === B[2]);
+    const S = forward ? A : B, E = forward ? B : A;
+    const dx = E[0] - S[0], dy = E[1] - S[1], dz = E[2] - S[2];
     const chord = Math.sqrt(dx * dx + dy * dy + dz * dz);
     const steps = Math.max(1, Math.ceil(chord / spacing));
-    for (let k = 0; k < steps; k++) {
+    const raw = [];
+    for (let k = 0; k <= steps; k++) {
       const t = k / steps;
-      const hit = closest([A[0] + dx * t, A[1] + dy * t, A[2] + dz * t]);
+      raw.push(k === steps ? [E[0], E[1], E[2]] : [S[0] + dx * t, S[1] + dy * t, S[2] + dz * t]);
+    }
+    // the traversal keeps its start point and drops its end point
+    const ordered = forward ? raw.slice(0, steps) : raw.slice(1).reverse();
+    for (const q of ordered) {
+      const hit = closest(q);
       if (!hit) return { error: 'loop sample found no surface' };
       const face = hit.triangle / 9;
       barrier.add(face);
-      samples.push({ point: hit.point, face, bary: barycentric(P, F, face, hit.point) });
+      samples.push({ point: hit.point, key: pointKey(hit.point), face, bary: barycentric(P, F, face, hit.point) });
     }
   }
   const seedHit = closest(seed);
@@ -223,17 +286,7 @@ export function extractPatch(mesh, closest, loopPoints, seed, spacing = DEFAULT_
   const seedFace = seedHit.triangle / 9;
   if (barrier.has(seedFace)) return { error: 'the loop passes through the seed face' };
 
-  // face adjacency across shared edges
-  const edgeFaces = new Map();
-  for (let f = 0; f < nf; f++) {
-    for (let k = 0; k < 3; k++) {
-      const i = F[f * 3 + k], j = F[f * 3 + ((k + 1) % 3)];
-      const key = (i < j ? i : j) * 16777216 + (i < j ? j : i);
-      let list = edgeFaces.get(key);
-      if (!list) { list = []; edgeFaces.set(key, list); }
-      list.push(f);
-    }
-  }
+  const edgeFaces = edgeFaceMap(F);
   const flooded = new Set([seedFace]);
   const queue = [seedFace];
   for (let q = 0; q < queue.length; q++) {
@@ -286,6 +339,31 @@ export function submesh(mesh, faceIds) {
   return { positions, faces, vertexMap, faceIds: kept, degenerate };
 }
 
+/**
+ * The chords of a drawn loop as constraints on a piece: consecutive samples,
+ * each a barycentric point in a local face, held to their 3D chord length.
+ * `pair` names the chord by its two sample keys, orientation-free, so the same
+ * chord in another piece is recognised as shared.
+ */
+export function loopChords(samples, sub) {
+  const localFace = new Map();
+  sub.faceIds.forEach((g, i) => localFace.set(g, i));
+  const chords = [];
+  const n = samples.length;
+  for (let s = 0; s < n; s++) {
+    const a = samples[s], b = samples[(s + 1) % n];
+    const fa = localFace.get(a.face), fb = localFace.get(b.face);
+    if (fa === undefined || fb === undefined) return { error: `loop sample ${fa === undefined ? s : (s + 1) % n} lies outside the patch` };
+    const dx = b.point[0] - a.point[0], dy = b.point[1] - a.point[1], dz = b.point[2] - a.point[2];
+    chords.push({
+      fa, ba: a.bary, fb, bb: b.bary,
+      rest: Math.sqrt(dx * dx + dy * dy + dz * dz),
+      pair: a.key < b.key ? `${a.key}|${b.key}` : `${b.key}|${a.key}`,
+    });
+  }
+  return { chords };
+}
+
 // --------------------------------------------------------------------- flatten
 
 /**
@@ -319,16 +397,7 @@ export function hingeUnfold(sub) {
     const sq = gx * gx + gy * gy + gz * gz;
     if (sq < seedSq) { seedSq = sq; seed = f; }
   }
-  const edgeFaces = new Map();
-  for (let f = 0; f < nf; f++) {
-    for (let k = 0; k < 3; k++) {
-      const i = F[f * 3 + k], j = F[f * 3 + ((k + 1) % 3)];
-      const key = (i < j ? i : j) * 16777216 + (i < j ? j : i);
-      let list = edgeFaces.get(key);
-      if (!list) { list = []; edgeFaces.set(key, list); }
-      list.push(f);
-    }
-  }
+  const edgeFaces = edgeFaceMap(F);
   // per-face 2D corners, in the face's own vertex order
   const corner = new Array(nf * 6).fill(NaN);
   const placed = new Uint8Array(nf);
@@ -388,51 +457,227 @@ export function hingeUnfold(sub) {
 }
 
 /**
- * Seam-exact relaxation. Every edge is a distance constraint to its 3D length;
- * boundary edges weigh 1.0 and interior edges `interior_weight`. Corrections are
- * accumulated over a whole sweep and applied together (Jacobi, not Gauss-Seidel),
- * so the result does not depend on edge order and the Python port can match it.
+ * Seam-exact relaxation of one or more pieces at once.
+ *
+ * Every mesh edge is a distance constraint to its 3D length: the boundary at
+ * `seam_weight` when the piece is a face set, or at `interior_weight` when the
+ * piece was cut by a loop (its mesh boundary is then scaffolding); interior
+ * edges at `interior_weight`. Every loop chord is a distance constraint between
+ * two barycentric points at `seam_weight`, spread over the vertices of the two
+ * faces by their barycentric weights. A chord that appears in more than one
+ * piece is additionally pulled, with `couple_weight`, towards the mean of its
+ * current lengths across those pieces.
+ *
+ * Three things keep the iteration honest:
+ * - Corrections are accumulated over a whole sweep and applied together
+ *   (Jacobi, not Gauss-Seidel), so the result does not depend on constraint
+ *   order and the Python port can match it.
+ * - A mirrored triangle has exactly the edge lengths of the right one, so
+ *   distance constraints cannot see a fold-over. A one-sided signed-area
+ *   constraint catches it: only a face whose flat area falls below a fraction of
+ *   its 3D area is touched, and its gradient is linear in the positions — a
+ *   reflection-based push was impulsive and made the acceleration diverge.
+ * - No constraint can see a rigid motion of a piece, and per-vertex weighting
+ *   does not conserve momentum, so the mean translation and rotation of each
+ *   sweep are removed — otherwise a piece whose shape has settled keeps drifting
+ *   and the convergence test never fires.
+ * The sweep is then Chebyshev-accelerated (see DEFAULT_SOLVER). A sweep that
+ * blows up (non-finite or metre-scale moves) restarts every piece from its
+ * unfolding with the next rho of `rho_fallback`, so a fixed rho can never turn
+ * a sound patch into garbage; the result says how many restarts it took.
+ *
+ * Returns per-piece uv plus the shared-chord groups.
  */
-export function relaxSeamExact(sub, uv, solver = DEFAULT_SOLVER) {
-  const edges = edgeList(sub.faces);
-  const rest = edgeLengths(sub.positions, edges);
-  const m = edges.a.length;
-  const w = new Array(m);
-  for (let e = 0; e < m; e++) w[e] = edges.count[e] === 1 ? 1.0 : solver.interior_weight;
-  const n = uv.length / 2;
-  const U = uv.slice();
-  const acc = new Array(n * 2), cw = new Array(n);
+export function relaxPieces(pieces, solver = DEFAULT_SOLVER) {
+  const states = pieces.map(({ sub, uv, chords }) => {
+    const edges = edgeList(sub.faces);
+    const rest = edgeLengths(sub.positions, edges);
+    const hasLoop = chords && chords.length > 0;
+    const w = edges.count.map((c) => (c === 1 && !hasLoop ? solver.seam_weight : solver.interior_weight));
+    const n = uv.length / 2;
+    const P = sub.positions, F = sub.faces, area3 = [];
+    for (let f = 0; f < F.length; f += 3) {
+      const i = F[f] * 3, j = F[f + 1] * 3, k = F[f + 2] * 3;
+      const ax = P[j] - P[i], ay = P[j + 1] - P[i + 1], az = P[j + 2] - P[i + 2];
+      const bx = P[k] - P[i], by = P[k + 1] - P[i + 1], bz = P[k + 2] - P[i + 2];
+      const cx = ay * bz - az * by, cy = az * bx - ax * bz, cz = ax * by - ay * bx;
+      area3.push(0.5 * Math.sqrt(cx * cx + cy * cy + cz * cz));
+    }
+    return { sub, start: uv, U: uv.slice(), prev: uv.slice(), edges, rest, w, chords: chords || [], n, omega: 1, lastMove: Infinity, area3, diverged: false };
+  });
+  // shared chords: same pair key in different pieces
+  const groups = new Map();
+  states.forEach((st, p) => st.chords.forEach((c, ci) => {
+    let g = groups.get(c.pair);
+    if (!g) { g = []; groups.set(c.pair, g); }
+    g.push([p, ci]);
+  }));
+  const shared = [...groups.entries()].filter(([, members]) => new Set(members.map((m) => m[0])).size > 1);
+  const chordLen = states.map((st) => new Array(st.chords.length).fill(0));
+  const chordTarget = states.map((st) => st.chords.map((c) => c.rest));
+  const chordWeight = states.map((st) => new Array(st.chords.length).fill(solver.seam_weight));
+  for (const [, members] of shared) for (const [p, ci] of members) chordWeight[p][ci] = solver.seam_weight + solver.couple_weight;
+
+  let rho = solver.chebyshev_rho ?? 0;
+  const gamma = solver.chebyshev_gamma ?? 1, delay = solver.chebyshev_delay ?? 0;
+  const ladder = (solver.rho_fallback ?? []).filter((r) => r < rho);
+  const foldFraction = solver.fold_min_area_fraction ?? 0;
+  let restarts = 0, sweepBase = 0;
+  const point = (st, f, b, out) => {
+    const F = st.sub.faces, U = st.U;
+    const i = F[f * 3], j = F[f * 3 + 1], k = F[f * 3 + 2];
+    out[0] = b[0] * U[i * 2] + b[1] * U[j * 2] + b[2] * U[k * 2];
+    out[1] = b[0] * U[i * 2 + 1] + b[1] * U[j * 2 + 1] + b[2] * U[k * 2 + 1];
+  };
+  const pa = [0, 0], pb = [0, 0];
   let iterations = 0, converged = false;
   while (iterations < solver.max_iterations) {
-    acc.fill(0); cw.fill(0);
-    for (let e = 0; e < m; e++) {
-      const i = edges.a[e], j = edges.b[e];
-      const dx = U[i * 2] - U[j * 2], dy = U[i * 2 + 1] - U[j * 2 + 1];
-      let len = Math.sqrt(dx * dx + dy * dy);
-      if (len < 1e-12) len = 1e-12;
-      const s = w[e] * (len - rest[e]) / len * 0.5;
-      const cx = s * dx, cy = s * dy;
-      acc[i * 2] -= cx; acc[i * 2 + 1] -= cy;
-      acc[j * 2] += cx; acc[j * 2 + 1] += cy;
-      cw[i] += w[e]; cw[j] += w[e];
+    // current chord lengths first, so coupled chords can see each other
+    for (let p = 0; p < states.length; p++) {
+      const st = states[p];
+      for (let ci = 0; ci < st.chords.length; ci++) {
+        const c = st.chords[ci];
+        point(st, c.fa, c.ba, pa); point(st, c.fb, c.bb, pb);
+        const dx = pa[0] - pb[0], dy = pa[1] - pb[1];
+        chordLen[p][ci] = Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+    for (const [, members] of shared) {
+      let mean = 0;
+      for (const [p, ci] of members) mean += chordLen[p][ci];
+      mean /= members.length;
+      for (const [p, ci] of members) {
+        // one constraint towards rest at seam_weight and one towards the mean at
+        // couple_weight add up to a single constraint towards their blend
+        chordTarget[p][ci] = (solver.seam_weight * states[p].chords[ci].rest + solver.couple_weight * mean)
+          / (solver.seam_weight + solver.couple_weight);
+      }
     }
     let maxMove = 0;
-    for (let i = 0; i < n; i++) {
-      if (cw[i] <= 0) continue;
-      const mx = acc[i * 2] / cw[i], my = acc[i * 2 + 1] / cw[i];
-      U[i * 2] += mx; U[i * 2 + 1] += my;
-      const mv = Math.sqrt(mx * mx + my * my);
-      if (mv > maxMove) maxMove = mv;
+    for (let p = 0; p < states.length; p++) {
+      const st = states[p];
+      const { U, edges, rest, w, n } = st;
+      const F = st.sub.faces;
+      const acc = new Array(n * 2).fill(0), cw = new Array(n).fill(0);
+      for (let e = 0; e < edges.a.length; e++) {
+        const i = edges.a[e], j = edges.b[e];
+        const dx = U[i * 2] - U[j * 2], dy = U[i * 2 + 1] - U[j * 2 + 1];
+        let len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 1e-12) len = 1e-12;
+        const s = w[e] * (len - rest[e]) / len * 0.5;
+        const cx = s * dx, cy = s * dy;
+        acc[i * 2] -= cx; acc[i * 2 + 1] -= cy;
+        acc[j * 2] += cx; acc[j * 2 + 1] += cy;
+        cw[i] += w[e]; cw[j] += w[e];
+      }
+      for (let ci = 0; ci < st.chords.length; ci++) {
+        const c = st.chords[ci];
+        point(st, c.fa, c.ba, pa); point(st, c.fb, c.bb, pb);
+        const dx = pa[0] - pb[0], dy = pa[1] - pb[1];
+        let len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 1e-12) len = 1e-12;
+        const gap = len - chordTarget[p][ci];
+        const denom = c.ba[0] * c.ba[0] + c.ba[1] * c.ba[1] + c.ba[2] * c.ba[2]
+          + c.bb[0] * c.bb[0] + c.bb[1] * c.bb[1] + c.bb[2] * c.bb[2];
+        const s = gap / denom / len;
+        const wc = chordWeight[p][ci];
+        for (let k = 0; k < 3; k++) {
+          const v = F[c.fa * 3 + k], b = c.ba[k];
+          acc[v * 2] -= wc * b * b * s * dx; acc[v * 2 + 1] -= wc * b * b * s * dy; cw[v] += wc * b;
+        }
+        for (let k = 0; k < 3; k++) {
+          const v = F[c.fb * 3 + k], b = c.bb[k];
+          acc[v * 2] += wc * b * b * s * dx; acc[v * 2 + 1] += wc * b * b * s * dy; cw[v] += wc * b;
+        }
+      }
+      // orientation: a face whose flat signed area has fallen below a fraction of
+      // its 3D area is folding; push it back along the (linear) area gradient
+      for (let f = 0; f < F.length; f += 3) {
+        const a = F[f], b = F[f + 1], c = F[f + 2];
+        const ax = U[a * 2], ay = U[a * 2 + 1], bx = U[b * 2], by = U[b * 2 + 1], cx = U[c * 2], cy = U[c * 2 + 1];
+        const area2 = 0.5 * ((bx - ax) * (cy - ay) - (cx - ax) * (by - ay));
+        const floor = foldFraction * st.area3[f / 3];
+        if (area2 >= floor) continue;
+        const gap = area2 - floor;
+        const gax = 0.5 * (by - cy), gay = 0.5 * (cx - bx);
+        const gbx = 0.5 * (cy - ay), gby = 0.5 * (ax - cx);
+        const gcx = 0.5 * (ay - by), gcy = 0.5 * (bx - ax);
+        const gg = gax * gax + gay * gay + gbx * gbx + gby * gby + gcx * gcx + gcy * gcy;
+        if (gg < 1e-30) continue;
+        const lam = gap / gg, wa = solver.seam_weight;
+        acc[a * 2] -= wa * lam * gax; acc[a * 2 + 1] -= wa * lam * gay; cw[a] += wa;
+        acc[b * 2] -= wa * lam * gbx; acc[b * 2 + 1] -= wa * lam * gby; cw[b] += wa;
+        acc[c * 2] -= wa * lam * gcx; acc[c * 2 + 1] -= wa * lam * gcy; cw[c] += wa;
+      }
+      const move = new Array(n * 2).fill(0);
+      for (let i = 0; i < n; i++) {
+        if (cw[i] <= 0) continue;
+        move[i * 2] = acc[i * 2] / cw[i]; move[i * 2 + 1] = acc[i * 2 + 1] / cw[i];
+      }
+      // remove the rigid part of the sweep: mean translation, mean rotation about the centroid
+      let mx = 0, my = 0, gx = 0, gy = 0;
+      for (let i = 0; i < n; i++) { mx += move[i * 2]; my += move[i * 2 + 1]; gx += U[i * 2]; gy += U[i * 2 + 1]; }
+      mx /= n; my /= n; gx /= n; gy /= n;
+      let cross = 0, rr = 0;
+      for (let i = 0; i < n; i++) {
+        const rx = U[i * 2] - gx, ry = U[i * 2 + 1] - gy;
+        cross += rx * (move[i * 2 + 1] - my) - ry * (move[i * 2] - mx);
+        rr += rx * rx + ry * ry;
+      }
+      const omegaRot = rr > 0 ? cross / rr : 0;
+      for (let i = 0; i < n; i++) {
+        const rx = U[i * 2] - gx, ry = U[i * 2 + 1] - gy;
+        move[i * 2] -= mx - omegaRot * ry; move[i * 2 + 1] -= my + omegaRot * rx;
+      }
+      // Chebyshev step: x_new = omega * (gamma * (xhat - x) + x - x_prev) + x_prev
+      let omega;
+      if (rho <= 0 || iterations - sweepBase < delay) omega = 1;
+      else if (iterations - sweepBase === delay) omega = 2 / (2 - rho * rho);
+      else omega = 4 / (4 - rho * rho * st.omega);
+      let pieceMove = 0;
+      const prev = st.prev;
+      for (let i = 0; i < n * 2; i++) {
+        const xk = U[i];
+        const xnew = omega * (gamma * move[i] + xk - prev[i]) + prev[i];
+        prev[i] = xk; U[i] = xnew;
+      }
+      for (let i = 0; i < n; i++) {
+        const dx = U[i * 2] - prev[i * 2], dy = U[i * 2 + 1] - prev[i * 2 + 1];
+        const mv = Math.sqrt(dx * dx + dy * dy);
+        if (mv > pieceMove) pieceMove = mv;
+      }
+      st.omega = omega;
+      st.lastMove = pieceMove;
+      if (!Number.isFinite(pieceMove) || pieceMove > 0.05) st.diverged = true;
+      if (pieceMove > maxMove) maxMove = pieceMove;
     }
     iterations++;
+    if (states.some((st) => st.diverged)) {
+      if (!ladder.length) break;
+      rho = ladder.shift(); restarts++; sweepBase = iterations;
+      for (const st of states) { st.U = st.start.slice(); st.prev = st.start.slice(); st.omega = 1; st.lastMove = Infinity; st.diverged = false; }
+      continue;
+    }
     if (maxMove < solver.convergence_m) { converged = true; break; }
   }
-  return { uv: U, iterations, converged };
+  return {
+    diverged: states.some((st) => st.diverged), restarts, rho_used: rho,
+    pieces: states.map((st) => ({ uv: st.U })),
+    shared: shared.map(([pair, members]) => ({ pair, members })),
+    iterations, converged,
+  };
 }
 
-/** Hinge unfolding followed by seam-exact relaxation: the one flattening. */
-export function flattenPatch(sub, solver = DEFAULT_SOLVER) {
-  return relaxSeamExact(sub, hingeUnfold(sub), solver);
+/** Hinge unfolding followed by seam-exact relaxation: the one flattening of a
+ *  single piece. `chords` (from `loopChords`) makes a drawn loop the seam. */
+export function flattenPatch(sub, solver = DEFAULT_SOLVER, chords = null) {
+  const out = relaxPieces([{ sub, uv: hingeUnfold(sub), chords }], solver);
+  return { uv: out.pieces[0].uv, iterations: out.iterations, converged: out.converged, diverged: out.diverged, restarts: out.restarts };
+}
+
+/** Several pieces solved together so the chords they share agree in length. */
+export function flattenPieces(pieces, solver = DEFAULT_SOLVER) {
+  return relaxPieces(pieces.map(({ sub, chords }) => ({ sub, uv: hingeUnfold(sub), chords })), solver);
 }
 
 // ----------------------------------------------------------------- reporting
@@ -467,7 +712,29 @@ export function boundaryLoops(sub) {
   return loops;
 }
 
-/** Everything the evidence file says about one flattened piece, in metres. */
+/** Number of connected components of the boundary edge graph. Unlike walking
+ *  the boundary, this is not fooled by a pinch (a face attached to the piece
+ *  by one vertex), which splits a walk but not the boundary. */
+export function boundaryComponents(sub) {
+  const edges = edgeList(sub.faces);
+  const parent = new Map();
+  const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+  for (let e = 0; e < edges.a.length; e++) {
+    if (edges.count[e] !== 1) continue;
+    const a = edges.a[e], b = edges.b[e];
+    if (!parent.has(a)) parent.set(a, a);
+    if (!parent.has(b)) parent.set(b, b);
+    const ra = find(a), rb = find(b);
+    if (ra !== rb) parent.set(ra, rb);
+  }
+  const roots = new Set();
+  for (const v of parent.keys()) roots.add(find(v));
+  return roots.size;
+}
+
+/** Everything the evidence file says about one flattened piece's MESH, in
+ *  metres. For a loop-cut piece the mesh boundary is scaffolding; the seam
+ *  figures that matter are `chordReport`'s. */
 export function patchStats(sub, uv) {
   const P = sub.positions, F = sub.faces;
   const edges = edgeList(F);
@@ -499,12 +766,11 @@ export function patchStats(sub, uv) {
     area2 += 0.5 * Math.abs(s);
     if (s < 0) flips++;
   }
-  const loops = boundaryLoops(sub);
   const nv = P.length / 3, ne = edges.a.length, nfc = F.length / 3;
   return {
     vertex_count: nv, face_count: nfc, edge_count: ne,
     euler_characteristic: nv - ne + nfc,
-    boundary_loop_count: loops.length,
+    boundary_loop_count: boundaryComponents(sub),
     boundary_length_3d_m: b3, boundary_length_flat_m: b2, boundary_error_m: b2 - b3,
     worst_boundary_edge_error_m: worstB,
     interior_rms_error_m: nI ? Math.sqrt(sumSqI / nI) : 0,
@@ -515,10 +781,36 @@ export function patchStats(sub, uv) {
   };
 }
 
+/** The seam of a loop-cut piece: total 3D and flat length of its chords, the
+ *  worst single chord, and — for chords shared with other pieces (`pairs`, a
+ *  Set of pair keys) — the same figures for the shared run alone. */
+export function chordReport(chords, sub, uv, pairs = null) {
+  const F = sub.faces;
+  const flatLen = (c) => {
+    const i = F[c.fa * 3], j = F[c.fa * 3 + 1], k = F[c.fa * 3 + 2];
+    const l = F[c.fb * 3], m = F[c.fb * 3 + 1], n = F[c.fb * 3 + 2];
+    const ax = c.ba[0] * uv[i * 2] + c.ba[1] * uv[j * 2] + c.ba[2] * uv[k * 2];
+    const ay = c.ba[0] * uv[i * 2 + 1] + c.ba[1] * uv[j * 2 + 1] + c.ba[2] * uv[k * 2 + 1];
+    const bx = c.bb[0] * uv[l * 2] + c.bb[1] * uv[m * 2] + c.bb[2] * uv[n * 2];
+    const by = c.bb[0] * uv[l * 2 + 1] + c.bb[1] * uv[m * 2 + 1] + c.bb[2] * uv[n * 2 + 1];
+    const dx = ax - bx, dy = ay - by;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+  let l3 = 0, l2 = 0, worst = 0, s3 = 0, s2 = 0, sn = 0;
+  for (const c of chords) {
+    const f = flatLen(c);
+    l3 += c.rest; l2 += f;
+    if (Math.abs(f - c.rest) > worst) worst = Math.abs(f - c.rest);
+    if (pairs && pairs.has(c.pair)) { s3 += c.rest; s2 += f; sn++; }
+  }
+  const out = { chord_count: chords.length, seam_length_3d_m: l3, seam_length_flat_m: l2, seam_error_m: l2 - l3, worst_chord_error_m: worst };
+  if (pairs) Object.assign(out, { shared_chord_count: sn, shared_length_3d_m: s3, shared_length_flat_m: s2 });
+  return out;
+}
+
 /** Where the drawn loop lands in the flat piece: each sample through the
- *  barycentric coordinates of the face it sat on. Also both lengths of the
- *  loop polyline, on the body and flat, since that — not the jagged mesh
- *  boundary — is the pen's measured seam. */
+ *  barycentric coordinates of the face it sat on. This, not the jagged mesh
+ *  boundary, is the piece's outline. */
 export function mapLoopToFlat(samples, sub, uv) {
   const localFace = new Map();
   sub.faceIds.forEach((g, i) => localFace.set(g, i));

@@ -1,6 +1,6 @@
 # 2D Pattern Draft & DXF Export — Research Plan
 
-Status: **Phase 1 implemented (engine + gates, no UI); Phases 2–4 proposal for review**. No
+Status: **Phases 1–2 implemented (engine, loop-as-seam, joint multi-panel solve, three gates; no UI); Phases 3–4 proposal for review**. No
 shape produced here is an approved pattern, and nothing is wired into either viewer lane
 yet. §4–§7 record what a numerical spike found on a real patch of `avatar_master.glb`;
 §8–§10 describe what was then built from it — `scripts/flatten_core.mjs`, its independent
@@ -12,6 +12,12 @@ Phase 1 update (2026-09-05): the spike's LSCM → ARAP → seam-exact pipeline w
 shipped. The seam-exact relaxation alone, started from a hinge unfolding, reaches the same
 minimum on every case to 0.01 mm (§8.2) — and the two stages it drops are the only ones that
 need a sparse linear solver, which the repo's stdlib-only Python side cannot have.
+
+Phase 2 update (2026-09-05): a drawn loop is now the piece's **seam**, held to length through
+barycentric chord constraints on the faces it crosses (no remeshing), and pieces that share a
+run of pen line are solved **together** so the shared seam agrees in both — §8.2, §10. Getting
+the joint solve to converge exposed two real solver defects (rigid drift; fold-over invisible
+to distance constraints) and fixed them; the disc numbers of Phase 1 are unchanged to 0.001 mm.
 
 Written 2026-09-05 against `assets/export/avatar_master.glb`
 (SHA-256 `0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4`).
@@ -148,9 +154,11 @@ seam length measured on the 3D body                : 204.48 mm
 
 For reference, a bra seam is conventionally held to about 1/8 in (3.18 mm). 0.46 mm sits
 well inside that, **without the two panels being told about each other** — each was solved
-against its own 3D geometry only. Constraining them to a literally identical shared boundary
-(rather than two independently-measured approximations of it) would remove even that 0.46 mm
-by construction, and is the more correct design for a production tool (§9).
+against its own 3D geometry only. Phase 2 (§8.2) pulls the shared chords to a common length in
+both pieces; on the loop-cut panels that halves the mismatch (1.01 → 0.55 mm) and
+`validate:seam-closure` gates it. The spike's hope of removing it "by construction" was
+too strong: a shared *length* can be coupled, but two separately flattened pieces cannot be
+welded, so agreement is to solver tolerance and is measured, not assumed.
 
 ## 7. DXF export: verified round-trip, not yet a factory-conformant layer scheme
 
@@ -241,7 +249,43 @@ Why LSCM/ARAP were dropped: on the six avatar patches the relaxation alone lands
 2.207 / 2.339 vs 2.2 / 2.3 mm for the panels), because the seam-exact step dominates the
 minimum regardless of how it is started. The two dropped stages are the only ones needing a
 sparse linear solver, which `DEPENDENCY_INVENTORY.md`'s stdlib-only rule for project-side
-Python rules out. One start, one objective; the parity gate is what keeps it that way. Multiple patches sharing an edge (e.g. two cup panels split
+Python rules out. One start, one objective; the parity gate is what keeps it that way.
+
+**Phase 2 additions, as built.**
+
+- *The loop is the seam.* `extractPatch` resamples the drawn loop at 2 mm and snaps each sample
+  to the mesh, recording the face and barycentric coordinates. `loopChords` turns consecutive
+  samples into distance constraints between two barycentric points, spread over the vertices
+  of their faces by the barycentric weights — so the pen line is held to its measured length
+  without cutting the mesh. The ring of faces the loop crosses stays in the piece as
+  scaffolding at interior weight; the outline is the loop's image (`mapLoopToFlat`), never
+  the mesh boundary. Segments are resampled in a canonical direction, so two loops that share
+  a run of pen line produce bit-identical samples and the shared chords are recognised by
+  key, without a tolerance.
+- *Shared seams are solved together.* `flattenPieces` relaxes several pieces in one sweep; a
+  chord present in more than one piece gets, besides its pull to the 3D length, a pull with
+  `couple_weight` (4.0) towards the mean of its current lengths across pieces. One constraint
+  towards rest at 1.0 and one towards the mean at 4.0 add up to a single constraint towards
+  their blend at weight 5.0 — so the seam's stiffness against the *body* is unchanged and only
+  the two pieces' disagreement is stiffened. Measured: mismatch 1.014 mm apart → 0.550 mm
+  together on the 116 mm shared seam.
+- *Rigid drift removed.* No constraint can see a translation or rotation of a piece, and
+  per-vertex weighting does not conserve momentum; with chord constraints the residual drift
+  was ~60 nm per sweep forever, so the shape had settled but the convergence test never
+  fired. The mean translation and mean rotation of each sweep are now subtracted.
+- *Fold-over caught by area, one-sided.* A mirrored triangle has exactly the edge lengths of
+  the right one, so distance constraints are blind to a flip, and one scaffold face at a loop
+  corner did flip. A reflection-based push fixed it but was impulsive and made the
+  acceleration diverge; a two-sided signed-area constraint was stable but moved the cup's
+  seam error from 22.11 to 23.43 mm because area and length cannot both be preserved on a
+  curved patch. The one-sided form — active only when a face's flat area falls below 25 % of
+  its 3D area — is inactive on every sound face, so the Phase 1 numbers are unchanged to
+  0.001 mm, and no fold-over survives on any case.
+- *Chebyshev acceleration.* Wang (2015)'s semi-iterative scheme over the Jacobi sweep, ρ =
+  0.999, γ = 0.75, 10-sweep delay: the same fixed point, 10–20× fewer sweeps (7 694 → 541 on
+  the lower cup panel; the whole Python case list now runs in 7 s). A fixed fallback ladder
+  (0.99, 0.9, 0) restarts every piece from its unfolding if a sweep blows up; forcing ρ =
+  0.999999 exercises it, and both ports take the same restart at the same sweep. Multiple patches sharing an edge (e.g. two cup panels split
 by an internal pen line) should be solved with that shared edge held to one common measured
 length, not to two independently-approximated ones — removing even the 0.46 mm of §6 by
 construction rather than by coincidence.
@@ -299,8 +343,8 @@ Non-negotiables carried over from the measurement plan's own rules:
 
 ## 10. Validation plan
 
-Four gates, mirroring `validate:measurements`'s structure. The first two exist and run in
-the chain; the last two are Phase 2–3.
+Four gates, mirroring `validate:measurements`'s structure. The first three exist and run in
+the chain; the last is Phase 3.
 
 - **`validate:flatten-accuracy`** (built) — a 120° cylinder patch must unroll to its analytic
   rectangle (209.3731 × 200 mm, chord sum × height) and a 150° cone frustum's two straight
@@ -320,11 +364,13 @@ the chain; the last two are Phase 2–3.
   Negative-tested: an interior weight of 0.30 on one side moves vertices by 0.29 mm, 290×
   the tolerance. Both evidence files refuse landmarks measured on a different asset SHA
   (`BLOCKED`, naming both hashes) rather than flattening around a stale apex.
-- **`validate:seam-closure`** — for every pair of pieces declared adjacent, the shared-seam
-  mismatch (§6, §9) is below a stated tolerance (proposed: the 3.18 mm / 1/8 in factory
-  reference from §6, pending TD confirmation). This is the gate that actually decides whether
-  an exported DXF is usable, and should fail the build the way a stale-evidence check does
-  elsewhere in this repo.
+- **`validate:seam-closure`** (built) — the one-cup loop cut through the apex into two panels
+  and flattened together; the shared seam (65 chords, 116.47 mm on the body) measures
+  119.46 mm in one flat piece and 118.91 mm in the other, a mismatch of 0.55 mm against the
+  3.175 mm (1/8 in) tolerance — stated in one place as a factory reference pending TD
+  confirmation. The gate also records the independent solve (1.01 mm) and requires the joint
+  solve to beat it. Negative-tested: with coupling disabled that check fails. Each panel's own
+  seam error against the body (7.17 / 4.90 mm) is recorded, not budgeted — it is curvature.
 - **`validate:dxf-roundtrip`** — write, then read back with an independent parser, and assert
   coordinates match exactly (§7's spike check, promoted to a gate).
 
@@ -361,11 +407,14 @@ finished spec.
   into `npm run validate:measurements`. Declared limits carried in the evidence: the
   loop-extracted patch overshoots the drawn loop by up to one triangle and the loop itself is
   mapped through the flattening but not yet held to length (289.4 mm on the body, 306.7 mm
-  flat on the 60 mm test loop) — Phase 2's shared-edge constraint is the place to fix that,
-  by making the loop a real seam rather than a curve inside the piece.
-- **Phase 2 — seam-closure gate + multi-panel solve.** Shared-edge-constrained flattening
-  for adjacent panels (§8.2), `validate:seam-closure` passing on the cup upper/lower case
-  measured in §6.
+  flat on the 60 mm test loop) — closed in Phase 2, which made the loop the seam: the same
+  loop now flattens to 305.9 mm, a 16.5 mm residual that is the disc's curvature (the 60 mm
+  face-set disc carries 10.0 mm on a 333 mm boundary), not a missing constraint.
+- **Phase 2 — loop-as-seam, multi-panel solve, seam-closure gate. Done 2026-09-05.** The
+  Phase 1 limit (the loop mapped but not held to length) is closed: the loop is the seam. The
+  scaffold ring the loop crosses remains in the piece (declared; its outer boundary is
+  reported separately) and the residual seam error per piece remains the body's curvature.
+  `validate:seam-closure` runs in the chain.
 - **Phase 3 — DXF export + round-trip gate**, with layer scheme confirmed against a named
   target CAD system (§12.1).
 - **Phase 4 — pen-tool UI**: draft a closed loop, designate interior, flatten, preview

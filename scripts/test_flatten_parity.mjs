@@ -18,7 +18,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { flattenPatch, patchStats } from './flatten_core.mjs';
+import { flattenPatch, flattenPieces, patchStats } from './flatten_core.mjs';
 import { loadAvatarContext, resolveCase } from './flatten_fixtures.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -64,7 +64,25 @@ for (const spec of cases.cases) {
   if (py.error) { record(`${spec.id}: python produced a result`, false, py.error); continue; }
   const built = resolveCase(spec, ctx);
   if (built.error) { record(`${spec.id}: javascript produced a result`, false, built.error); continue; }
-  const run = flattenPatch(built.sub, cases.solver);
+  if (built.pieces) {
+    const run = flattenPieces(built.pieces, cases.solver);
+    let caseWorst = 0;
+    const detail = [];
+    built.pieces.forEach((p, i) => {
+      const pyPiece = (py.pieces || [])[i];
+      const uv = run.pieces[i].uv;
+      let maxDelta = Infinity;
+      if (pyPiece && pyPiece.uv.length === uv.length) { maxDelta = 0; for (let k = 0; k < uv.length; k++) { const d = Math.abs(uv[k] - pyPiece.uv[k]); if (d > maxDelta) maxDelta = d; } }
+      if (maxDelta > caseWorst) caseWorst = maxDelta;
+      detail.push(`${p.name} Δ ${mm(maxDelta)}mm`);
+    });
+    if (caseWorst > worst) worst = caseWorst;
+    record(`${spec.id}: layouts agree to ${TOLERANCE_MM}mm`, caseWorst * 1000 <= TOLERANCE_MM && run.iterations === py.iterations && run.restarts === py.restarts,
+      `${detail.join(' · ')} · iterations js ${run.iterations} / python ${py.iterations} · restarts js ${run.restarts} / python ${py.restarts}`);
+    rows.push({ id: spec.id, pieces: built.pieces.map((p) => p.name), iterations: { js: run.iterations, python: py.iterations }, max_vertex_delta_mm: mm(caseWorst) });
+    continue;
+  }
+  const run = flattenPatch(built.sub, cases.solver, built.chords || null);
   const stats = patchStats(built.sub, run.uv);
   const sameSize = stats.vertex_count === py.stats.vertex_count && stats.face_count === py.stats.face_count;
   record(`${spec.id}: same patch on both sides`, sameSize,

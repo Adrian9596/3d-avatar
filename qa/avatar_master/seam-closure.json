@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T05:11:04Z",
+  "purpose": "Two pattern pieces flattened together must agree on the length of the seam they share.",
+  "asset": {
+    "file": "assets/export/avatar_master.glb",
+    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+  },
+  "cases": {
+    "file": "scripts/flatten_cases.json",
+    "sha256": "6c52127a37594b4bcd5312a20d30be3631796cfa4d16327337540418f4366e05"
+  },
+  "engine": "scripts/flatten_core.mjs",
+  "solver": {
+    "interior_weight": 0.25,
+    "seam_weight": 1,
+    "couple_weight": 4,
+    "max_iterations": 10000,
+    "convergence_m": 5e-9,
+    "chebyshev_rho": 0.999,
+    "chebyshev_gamma": 0.75,
+    "chebyshev_delay": 10,
+    "rho_fallback": [
+      0.99,
+      0.9,
+      0
+    ],
+    "fold_min_area_fraction": 0.25
+  },
+  "tolerance_mm": 3.175,
+  "tolerance_basis": "1/8 in, the conventional bra-seam tolerance; a factory reference pending TD confirmation",
+  "declared_limits": [
+    "Each piece's own seam error against the body is curvature the body carries; it is recorded per piece, not budgeted here.",
+    "Agreement is to solver tolerance, not by construction: the shared chords are pulled to a common length, not welded.",
+    "A flattened piece is the rigid mesh surface at 1:1. Not a pattern: no ease, no seam allowance, no grading."
+  ],
+  "results": [
+    {
+      "id": "apex_panels_80mm",
+      "shared_seam": {
+        "chord_count": 65,
+        "length_3d_mm": 116.4655,
+        "coupled": {
+          "panel_a": 119.459,
+          "panel_b": 118.9092,
+          "mismatch_mm": 0.5498,
+          "iterations": 2416,
+          "restarts": 0
+        },
+        "independent": {
+          "panel_a": 119.6497,
+          "panel_b": 118.6355,
+          "mismatch_mm": 1.0142,
+          "iterations": 6365
+        }
+      },
+      "pieces": [
+        {
+          "name": "panel_a",
+          "vertex_count": 262,
+          "face_count": 462,
+          "triangle_flips": 0,
+          "seam_length_3d_mm": 283.506,
+          "seam_length_flat_mm": 290.6754,
+          "seam_error_mm": 7.1694,
+          "worst_chord_error_mm": 0.2231,
+          "interior_rms_pct": 1.513
+        },
+        {
+          "name": "panel_b",
+          "vertex_count": 174,
+          "face_count": 287,
+          "triangle_flips": 0,
+          "seam_length_3d_mm": 293.5842,
+          "seam_length_flat_mm": 298.4849,
+          "seam_error_mm": 4.9007,
+          "worst_chord_error_mm": 0.0918,
+          "interior_rms_pct": 1.066
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "apex_panels_80mm: the two panels see the same shared seam",
+      "status": "PASS",
+      "detail": "65 shared chords, 116.4655mm on the body in both"
+    },
+    {
+      "name": "apex_panels_80mm: the joint solve converged",
+      "status": "PASS",
+      "detail": "2416 sweeps"
+    },
+    {
+      "name": "apex_panels_80mm/panel_a: no triangle folds over",
+      "status": "PASS",
+      "detail": "0 flips"
+    },
+    {
+      "name": "apex_panels_80mm/panel_a: the piece is a disc",
+      "status": "PASS",
+      "detail": "χ=1, 1 boundary loop(s)"
+    },
+    {
+      "name": "apex_panels_80mm/panel_b: no triangle folds over",
+      "status": "PASS",
+      "detail": "0 flips"
+    },
+    {
+      "name": "apex_panels_80mm/panel_b: the piece is a disc",
+      "status": "PASS",
+      "detail": "χ=1, 1 boundary loop(s)"
+    },
+    {
+      "name": "apex_panels_80mm: the shared seam agrees between the pieces to 1/8in",
+      "status": "PASS",
+      "detail": "119.459mm vs 118.9092mm — mismatch 0.5498mm (tolerance 3.175mm)"
+    },
+    {
+      "name": "apex_panels_80mm: solving the panels together beats solving them apart",
+      "status": "PASS",
+      "detail": "together 0.5498mm · apart 1.0142mm"
+    }
+  ],
+  "decision": "SEAMS_CLOSE"
+}
