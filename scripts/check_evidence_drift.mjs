@@ -9,10 +9,19 @@
  * as committed against the evidence as just regenerated, so a PR cannot carry
  * a number that its own run does not reproduce.
  *
- * Timestamps are the only difference allowed: `generated_at` and `measured_at`
- * change on every run by design. They are matched by EXACT key name, never by
- * substring -- "poms" contains "ms", and a sloppy filter would quietly excuse
- * every measurement in the file.
+ * Two narrow kinds of difference are allowed, and nothing else:
+ *
+ *   - `generated_at` / `measured_at`, which change on every run by design.
+ *     Matched by EXACT key name, never by substring -- "poms" contains "ms",
+ *     and a sloppy filter would quietly excuse every measurement in the file.
+ *
+ *   - `tool.python` and `tool.node`, the interpreter that happened to run.
+ *     A developer on macOS and CI on Linux legitimately differ here. Matched by
+ *     exact PATH, not key name, so `tool.script` and `tool.implementation` --
+ *     which are real claims about how a number was produced -- keep being
+ *     compared. Ignoring a version string cannot hide a changed result: every
+ *     value the interpreter produced is still compared in full, so a version
+ *     that actually altered a number fails on the number.
  *
  * Usage:  node scripts/check_evidence_drift.mjs <committed-dir> <fresh-dir>
  * Exit:   0 the record matches reality, 1 it drifted, 2 an input is missing.
@@ -22,6 +31,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, basename } from 'node:path';
 
 const VOLATILE_KEYS = new Set(['generated_at', 'measured_at']);
+const VOLATILE_PATHS = new Set(['tool.python', 'tool.node']);
 
 const [committedDir, freshDir] = process.argv.slice(2);
 if (!committedDir || !freshDir) {
@@ -35,14 +45,15 @@ for (const dir of [committedDir, freshDir]) {
   }
 }
 
-/** Drop only the timestamp keys, at any depth, leaving everything else intact. */
-function strip(value) {
-  if (Array.isArray(value)) return value.map(strip);
+/** Drop only the allowed-to-vary fields, leaving everything else intact. */
+function strip(value, path = '') {
+  if (Array.isArray(value)) return value.map((item, i) => strip(item, `${path}[${i}]`));
   if (value && typeof value === 'object') {
     const out = {};
     for (const key of Object.keys(value).sort()) {
-      if (VOLATILE_KEYS.has(key)) continue;
-      out[key] = strip(value[key]);
+      const here = path ? `${path}.${key}` : key;
+      if (VOLATILE_KEYS.has(key) || VOLATILE_PATHS.has(here)) continue;
+      out[key] = strip(value[key], here);
     }
     return out;
   }
