@@ -38,6 +38,20 @@ const STATUS_MARK = { needs_review: "?", diagnostic: "·" };
 
 const lineMaterials = new Set();
 
+/**
+ * Digest of the exact bytes fetched — the same value scripts/test_lane_parity.mjs
+ * computes over contracts/measurement-registry.json, so a running session can
+ * prove which registry drove it instead of asserting one. SubtleCrypto exists
+ * only on a secure origin, and saying it is unavailable beats reporting a hash
+ * that was never computed.
+ */
+async function sha256Hex(bytes) {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) return "unavailable: no SubtleCrypto on this origin";
+  const digest = await subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function makeLine(points, { color, width, opacity = 1, depthTest = true, order = 0 }, canvas) {
   const geometry = new LineGeometry();
   const flat = [];
@@ -107,11 +121,14 @@ function pathPoints(path) {
  */
 export async function mountMeasurements({ root, scene, canvas, tableBody, toggle }) {
   let registry;
+  let registrySha = null;
   let registryError = null;
   try {
     const response = await fetch(REGISTRY_URL, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    registry = await response.json();
+    const bytes = await response.arrayBuffer();
+    registry = JSON.parse(new TextDecoder().decode(bytes));
+    registrySha = await sha256Hex(bytes);
   } catch (error) {
     registryError = String(error?.message || error);
   }
@@ -120,14 +137,15 @@ export async function mountMeasurements({ root, scene, canvas, tableBody, toggle
     // it this lane reports nothing rather than inventing a default.
     tableBody.innerHTML = '<tr><td colspan="3">Unavailable — the measurement registry could not be '
       + `loaded (${registryError}). Run npm run sync:registry.</td></tr>`;
-    return { status: "NO_REGISTRY", error: registryError };
+    // No registry, so no digest: null here means "none loaded", not "unrecorded".
+    return { status: "NO_REGISTRY", registry_sha256: null, error: registryError };
   }
 
   const triangles = collectSurfaceTriangles(root, registry.measurement_surface);
   if (!triangles.length) {
     tableBody.innerHTML = '<tr><td colspan="3">Unavailable — the measurement surface '
       + `${registry.measurement_surface.join(", ")} is not in this asset.</td></tr>`;
-    return { status: "NO_SURFACE" };
+    return { status: "NO_SURFACE", registry_sha256: registrySha };
   }
 
   const started = performance.now();
@@ -222,6 +240,7 @@ export async function mountMeasurements({ root, scene, canvas, tableBody, toggle
   return {
     status: "MEASURED",
     registry_schema_version: registry.schema_version,
+    registry_sha256: registrySha,
     measurement_surface: registry.measurement_surface,
     scan: registry.scan,
     elapsed_ms: elapsed,

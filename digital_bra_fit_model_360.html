@@ -303,7 +303,7 @@ function prepareModel(root){
    and its 2D coordinates are (x, z). Front-most = maximum z.
 --------------------------------------------------------------------------- */
 const REGISTRY_URL='contracts/measurement-registry.json';
-let registry=null,torsoTris=null,measureScan=[],tapeGroup=null;
+let registry=null,registrySha=null,torsoTris=null,measureScan=[],tapeGroup=null;
 let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
 let sectionOpen=false,sectionGroup=null;
 let landmarksVisible=false,placingLandmark=null,landmarkGroup=null;
@@ -334,14 +334,29 @@ function collectSurfaceTriangles(root,materialNames){
   return new Float32Array(out);
 }
 
+// Provenance for a running session: the digest is taken over the exact bytes
+// fetched, the same way scripts/test_lane_parity.mjs hashes contracts/ on disk,
+// so a session can prove which registry drove it rather than asserting one.
+async function sha256Hex(bytes){
+  const subtle=globalThis.crypto&&globalThis.crypto.subtle;
+  // SubtleCrypto only exists on a secure origin; over file:// there is none, and
+  // saying so beats reporting a hash we did not compute.
+  if(!subtle)return 'unavailable: no SubtleCrypto on this origin';
+  const digest=await subtle.digest('SHA-256',bytes);
+  return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// Returns {registry, sha}; sha is null only when these are the fallback defaults
+// below, so a null in diagnostics means "no registry", never "unrecorded".
 async function loadRegistry(){
   try{
     const response=await fetch(REGISTRY_URL,{cache:'no-store'});
     if(!response.ok)throw new Error('HTTP '+response.status);
-    return await response.json();
+    const bytes=await response.arrayBuffer();
+    return {registry:JSON.parse(new TextDecoder().decode(bytes)),sha:await sha256Hex(bytes)};
   }catch(error){
     // Degrade to the engine defaults rather than showing nothing, and say so.
-    return {
+    return {sha:null,registry:{
       fallback:String(error&&error.message||error),
       measurement_surface:['Mara:body3'],
       scan:DEFAULT_SCAN,
@@ -354,7 +369,7 @@ async function loadRegistry(){
         {id:'DIAG_MAX_TORSO_GIRTH',label_short:'Max girth',method:'plane_section',status:'diagnostic'},
         {id:'BODY_APEX_TO_APEX',label_short:'Apex to apex',method:'euclidean',status:'auto'},
       ],
-    };
+    }};
   }
 }
 
@@ -488,7 +503,7 @@ function renderMeasurements(marks,poms,elapsedMs){
 
 async function runMeasurements(root){
   const started=performance.now();
-  registry=await loadRegistry();
+  ({registry,sha:registrySha}=await loadRegistry());
   torsoTris=collectSurfaceTriangles(root,registry.measurement_surface);
   if(!torsoTris.length){renderMeasurements(null,null,0);return}
   measureScan=scanSurface(torsoTris,registry.scan);
@@ -527,7 +542,7 @@ function recomputeMeasurements(elapsedMs){
   renderMeasurements(marks,poms,elapsed);
   renderLandmarkList();
   redrawLandmarks();
-  prototypeState.registrySha=null;
+  prototypeState.registrySha=registrySha;
   prototypeState.measurements=poms
     ? Object.fromEntries(Object.entries(poms).map(([id,r])=>[id,{
         value_mm:+(r.value*1000).toFixed(1),at_y:+r.at_y.toFixed(4),
