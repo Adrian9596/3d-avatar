@@ -41,28 +41,27 @@
         </div>
       </section>
       <section>
+        <div class="section-head">
+          <h2>Pen</h2>
+          <button id="penToggle" class="chip" aria-pressed="false">Pen</button>
+        </div>
+        <div class="button-grid">
+          <button id="penFinish" disabled>Finish line</button><button id="penUndo" disabled>Undo point</button>
+          <button id="penClear" disabled>Clear</button><button id="penExport" disabled>Export</button>
+        </div>
+        <div class="strokes" id="penList" hidden></div>
+        <p id="penHint" class="notice">Click the body to pin points · drag a teal control point to shape the run · right-click it to re-centre, or an anchor to remove · Enter to finish.</p>
+      </section>
+      <section>
         <h2>Display</h2>
         <div class="toggle-list">
           <button data-role="BODY" aria-pressed="true">Body <span>On</span></button>
           <button data-role="WIREFRAME" aria-pressed="false">Wireframe <span>Off</span></button>
         </div>
       </section>
-      <section>
-        <h2>Arm motion</h2>
-        <p id="motionNotice" class="notice">Inspecting animation contract…</p>
-        <div class="button-grid motion" id="motionControls">
-          <button data-clip="arms_down" disabled>Down</button><button data-clip="arms_45" disabled>45°</button>
-          <button data-clip="arms_90_lateral" disabled>90°</button><button data-clip="arms_120" disabled>120°</button>
-          <button data-clip="arms_overhead" disabled>Overhead</button><button data-clip="arms_forward_90" disabled>Forward</button>
-          <button data-clip="arms_sweep" class="wide" disabled>Sweep down → overhead → down</button>
-        </div>
-      </section>
-      <section>
-        <h2>Shape contract</h2>
-        <p id="morphNotice" class="notice">Inspecting the six semantic morphs…</p>
-      </section>
     </aside>
 
+    <div class="pen-labels" id="penLabels" aria-hidden="true"></div>
     <div id="assetTag" class="asset-tag">avatar_master.glb · loading</div>
     <output id="viewerDiagnostics" hidden aria-hidden="true"></output>
   </main>

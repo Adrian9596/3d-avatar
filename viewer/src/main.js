@@ -5,6 +5,8 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { AnimationController } from "./animation-controller.js";
 import { validateMorphContract } from "./contracts.js";
 import { mountMeasurements, resizeMeasurementLines } from "./measurements.js";
+import { createPenTool } from "../../scripts/pen_tool.mjs";
+import { inchFraction } from "../../scripts/measure_core.mjs";
 import "./styles.css";
 
 const ASSET_URL = new URL("../../assets/export/avatar_master.glb", import.meta.url).href;
@@ -20,8 +22,6 @@ const errorCard = document.querySelector("#errorCard");
 const errorMessage = document.querySelector("#errorMessage");
 const assetTag = document.querySelector("#assetTag");
 const diagnosticOutput = document.querySelector("#viewerDiagnostics");
-const motionNotice = document.querySelector("#motionNotice");
-const morphNotice = document.querySelector("#morphNotice");
 fallbackImage.src = FALLBACK_URL;
 
 const loadStartedAt = performance.now();
@@ -49,6 +49,7 @@ let camera;
 let controls;
 let avatarRoot;
 let animationController;
+let pen = null;
 let cameraGoal = null;
 let modelCenter = new THREE.Vector3(0, 0.85, 0);
 let modelSize = new THREE.Vector3(1, 1.7, 0.5);
@@ -128,31 +129,24 @@ function resize() {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   resizeMeasurementLines(width, height);
+  pen?.updateResolution(width, height);
 }
 
 function roleFor(object) {
   return object.userData?.object_role || object.parent?.userData?.object_role || null;
 }
 
+/**
+ * The contract check still runs even though the panel that displayed it is gone.
+ * It is what stops this lane from implying a capability the asset lacks: the
+ * result lands in the published diagnostics, and `npm run validate:viewer-contracts`
+ * asserts the engine reports BLOCKED rather than inventing substitute controls.
+ * Do not delete the check along with its UI.
+ */
 function configureContracts(gltf, morphNames) {
   state.morphContract = validateMorphContract([...morphNames]);
   animationController = new AnimationController(gltf.scene, gltf.animations || []);
   state.animationContract = animationController.contract;
-
-  const morphPass = state.morphContract.status === "PASS";
-  morphNotice.classList.toggle("pass", morphPass);
-  morphNotice.textContent = morphPass
-    ? "Six semantic morphs mapped exactly once."
-    : `Blocked: missing ${state.morphContract.missing.join(", ") || "none"}. No substitute controls are generated.`;
-
-  const motionPass = state.animationContract.status === "PASS";
-  motionNotice.classList.toggle("pass", motionPass);
-  motionNotice.textContent = motionPass
-    ? "Required arm pose and sweep clips are available."
-    : `Blocked: ${state.animationContract.missing.length} required clips are absent. Final rig authoring waits for the TD-fitted master.`;
-  document.querySelectorAll("#motionControls button").forEach((button) => {
-    button.disabled = !state.animationContract.actual.includes(button.dataset.clip);
-  });
 }
 
 function prepareModel(gltf) {
@@ -242,6 +236,16 @@ function loadAvatar() {
       state.measurementLane = { status: "ERROR", error: String(error?.message || error) };
       syncDiagnostics();
     });
+
+    // The pen is the SAME module the prototype lane uses. It draws ad-hoc
+    // measured lines and touches no POM and no landmark file, so it does not
+    // create a second source of truth — unlike landmark editing, which stays in
+    // the authoring lane so there is one place to correct the record.
+    pen = createPenTool({
+      scene, canvas, camera, controls, root: avatarRoot, onChange: renderPen,
+    });
+    wirePen();
+    renderPen();
   }, (event) => {
     loadingDetail.textContent = event.total
       ? `${Math.min(100, Math.round(event.loaded / event.total * 100))}% · ${(event.loaded / 1048576).toFixed(1)} MB`
@@ -259,12 +263,138 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.05);
   animationController?.update(delta);
   controls?.update();
+  positionPenLabels();
   if (camera && controls) state.camera = {
     position: camera.position.toArray().map((value) => +value.toFixed(5)),
     target: controls.target.toArray().map((value) => +value.toFixed(5)),
   };
   syncDiagnostics();
   renderer?.render(scene, camera);
+}
+
+/* ---- pen chrome: buttons, the line list, and on-body labels ---------------
+   Only the DOM lives here; the geometry, drawing and interaction are in the
+   shared scripts/pen_tool.mjs that the prototype lane also imports. */
+const penLabels = document.querySelector("#penLabels");
+let penLabelEls = [];
+
+function positionPenLabels() {
+  if (!pen || !camera) return;
+  const labels = pen.getLabels();
+  while (penLabelEls.length < labels.length) {
+    const el = document.createElement("div");
+    el.className = "mlabel";
+    penLabels.appendChild(el);
+    penLabelEls.push(el);
+  }
+  penLabelEls.forEach((el, i) => { el.hidden = i >= labels.length; });
+  const projected = new THREE.Vector3();
+  labels.forEach((label, i) => {
+    const el = penLabelEls[i];
+    projected.copy(label.position).project(camera);
+    if (projected.z > 1) { el.hidden = true; return; }
+    el.textContent = `${(label.length * 100).toFixed(1)}cm · ${inchFraction(label.length)}`
+      + (label.approximated ? " ·straight" : "");
+    el.style.left = `${(projected.x * 0.5 + 0.5) * canvas.clientWidth}px`;
+    el.style.top = `${(-projected.y * 0.5 + 0.5) * canvas.clientHeight - 20}px`;
+  });
+}
+
+function renderPen() {
+  const summary = pen.summary();
+  const list = document.querySelector("#penList");
+  const hasLines = summary.lines.length > 0;
+  document.querySelector("#penFinish").disabled = !(summary.active && summary.active.anchors > 1);
+  document.querySelector("#penUndo").disabled = !hasLines && !(summary.active && summary.active.anchors);
+  document.querySelector("#penClear").disabled = !hasLines;
+  document.querySelector("#penExport").disabled = !hasLines;
+  state.penLines = summary.lines.map((l) => ({
+    name: l.name, length_mm: Number((l.length * 1000).toFixed(1)), on_surface: !l.approximated,
+  }));
+  syncDiagnostics();
+
+  list.hidden = !hasLines && !(summary.active && summary.active.anchors);
+  list.innerHTML = "";
+  summary.lines.forEach((line) => {
+    const row = document.createElement("div");
+    row.className = "stroke-row";
+    row.dataset.selected = String(summary.selected === line.index);
+    row.title = line.approximated
+      ? "Part of this line could not follow the surface and is measured straight."
+      : "Shortest path along the surface through its control points.";
+    row.innerHTML = `<i></i><span class="lname">${line.name}</span>`
+      + `<b>${(line.length * 100).toFixed(1)}cm</b>`;
+    row.addEventListener("click", (event) => {
+      if (event.target.tagName === "BUTTON" || event.target.isContentEditable) return;
+      pen.selectLine(line.index);
+    });
+    const nameEl = row.querySelector(".lname");
+    const rename = document.createElement("button");
+    rename.textContent = "✎";
+    rename.setAttribute("aria-label", "Rename this line");
+    rename.addEventListener("click", () => {
+      nameEl.contentEditable = "true";
+      nameEl.focus();
+      const range = document.createRange();
+      range.selectNodeContents(nameEl);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    });
+    nameEl.addEventListener("blur", () => {
+      nameEl.contentEditable = "false";
+      pen.renameLine(line.index, nameEl.textContent.trim());
+    });
+    nameEl.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); nameEl.blur(); }
+      if (event.key === "Escape") { nameEl.textContent = line.name; nameEl.blur(); }
+    });
+    row.appendChild(rename);
+    const label = document.createElement("button");
+    label.textContent = line.labelVisible ? "◉" : "◎";
+    label.setAttribute("aria-label", "Show or hide this line's measurement on the body");
+    label.addEventListener("click", () => pen.toggleLabel(line.index));
+    row.appendChild(label);
+    const remove = document.createElement("button");
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", "Delete this line");
+    remove.addEventListener("click", () => pen.deleteLine(line.index));
+    row.appendChild(remove);
+    list.appendChild(row);
+  });
+  if (summary.active && summary.active.anchors) {
+    const row = document.createElement("div");
+    row.className = "stroke-row";
+    row.dataset.active = "true";
+    row.innerHTML = `<i></i><span>${summary.active.anchors > 1
+      ? `${(summary.active.length * 100).toFixed(1)}cm` : "click the body to pin the next point"}</span>`;
+    list.appendChild(row);
+  }
+}
+
+function wirePen() {
+  const toggle = document.querySelector("#penToggle");
+  toggle.addEventListener("click", () => {
+    pen.setEnabled(!pen.enabled);
+    toggle.setAttribute("aria-pressed", String(pen.enabled));
+  });
+  document.querySelector("#penFinish").addEventListener("click", () => pen.finishLine());
+  document.querySelector("#penUndo").addEventListener("click", () => pen.undoPoint());
+  document.querySelector("#penClear").addEventListener("click", () => pen.clear());
+  document.querySelector("#penExport").addEventListener("click", () => {
+    const payload = pen.toExport({
+      asset: "avatar_master.glb", assetSha: ASSET_SHA, inchFraction,
+    });
+    const text = `${JSON.stringify(payload, null, 2)}\n`;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    link.download = "draft-lines.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    try { navigator.clipboard.writeText(text); } catch (error) { /* no clipboard permission */ }
+    console.log(`draft-lines.json — save into qa/avatar_master/\n${text}`);
+  });
 }
 
 document.querySelectorAll("#cameraControls button").forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
@@ -287,12 +417,6 @@ document.querySelectorAll(".toggle-list button").forEach((button) => button.addE
     state.roleVisibility[role] = enabled;
   }
   syncDiagnostics();
-}));
-document.querySelectorAll("#motionControls button").forEach((button) => button.addEventListener("click", () => {
-  const played = animationController?.play(button.dataset.clip);
-  if (played) {
-    document.querySelectorAll("#motionControls button").forEach((item) => item.classList.toggle("active", item === button));
-  }
 }));
 
 syncDiagnostics();
