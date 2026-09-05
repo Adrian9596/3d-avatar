@@ -75,7 +75,7 @@ for (const { template, resolved } of available) {
   results.push({
     id: template.id, side: template.side, pieces: summary.pieces.map((p) => ({ name: p.name, seam_error_mm: p.seam_error_mm, seam_3d_mm: p.seam_length_3d_mm, triangle_flips: p.triangle_flips })),
     shared_mismatch_mm: summary.shared_seam?.mismatch_mm ?? null, iterations: summary.iterations, converged: summary.converged, sound: flat.sound,
-    outline_mm: round2(outline.length_m * 1000), ms: Math.round(performance.now() - t0),
+    outline_mm: round2(outline.length_m * 1000), under_budget: performance.now() - t0 < 400,
   });
 }
 const failed = results.filter((r) => r.error || !r.sound);
@@ -93,7 +93,8 @@ gate.record('the plan\'s §4.3 cup numbers are reproduced (±0.5 mm)',
 const mirrorPairs = templates.filter((t) => t.side === 'L').map((t) => [byId[t.id], byId[t.id.replace(/_L$/, '_R')]]);
 const symmetric = mirrorPairs.every(([l, r]) => l && r && l.pieces.every((p, i) => near(p.seam_error_mm, r.pieces[i].seam_error_mm, 0.05)));
 gate.record('left and right templates agree on this mirrored body (±0.05 mm)', symmetric, mirrorPairs.map(([l, r]) => `${l?.id}: ${l?.pieces.map((p) => p.seam_error_mm).join('/')} vs ${r?.pieces.map((p) => p.seam_error_mm).join('/')}`).join('; ').slice(0, 200));
-gate.record('a template flattens fast enough to follow a landmark drag (< 400 ms)', results.every((r) => r.ms < 400), `${Math.max(...results.map((r) => r.ms))} ms worst`);
+// timing is checked, not recorded: a millisecond figure would drift the committed evidence on every run
+gate.record('a template flattens fast enough to follow a landmark drag (< 400 ms)', results.every((r) => r.under_budget), `${results.length} templates under budget`);
 
 // ---- a drafted template exports: two panels of a long template name stay distinct blocks ----
 {

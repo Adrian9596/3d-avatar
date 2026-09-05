@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T10:46:21Z",
+  "generated_at": "2026-09-05T10:50:08Z",
   "purpose": "Template drafts resolve, flatten sound and stay proposals: needs … without the hand-placed roots, seam error reported per panel, the person chooses.",
   "contract": {
     "file": "contracts/pattern-templates.json",
@@ -33,7 +33,7 @@
       "converged": true,
       "sound": true,
       "outline_mm": 329.57,
-      "ms": 72
+      "under_budget": true
     },
     {
       "id": "CUP_2PANEL_VERTICAL_L",
@@ -57,7 +57,7 @@
       "converged": true,
       "sound": true,
       "outline_mm": 329.57,
-      "ms": 112
+      "under_budget": true
     },
     {
       "id": "CUP_2PANEL_HORIZONTAL_L",
@@ -81,7 +81,7 @@
       "converged": true,
       "sound": true,
       "outline_mm": 329.57,
-      "ms": 119
+      "under_budget": true
     },
     {
       "id": "CRADLE_FRONT_L",
@@ -99,7 +99,7 @@
       "converged": true,
       "sound": true,
       "outline_mm": 522.35,
-      "ms": 93
+      "under_budget": true
     },
     {
       "id": "CUP_1PIECE_R",
@@ -117,7 +117,7 @@
       "converged": true,
       "sound": true,
       "outline_mm": 329.57,
-      "ms": 58
+      "under_budget": true
     },
     {
       "id": "CUP_2PANEL_VERTICAL_R",
@@ -141,7 +141,7 @@
       "converged": true,
       "sound": true,
       "outline_mm": 329.57,
-      "ms": 98
+      "under_budget": true
     },
     {
       "id": "CUP_2PANEL_HORIZONTAL_R",
@@ -165,7 +165,7 @@
       "converged": true,
       "sound": true,
       "outline_mm": 329.57,
-      "ms": 115
+      "under_budget": true
     },
     {
       "id": "CRADLE_FRONT_R",
@@ -183,7 +183,7 @@
       "converged": true,
       "sound": true,
       "outline_mm": 522.34,
-      "ms": 86
+      "under_budget": true
     }
   ],
   "declared_limits": [
@@ -255,7 +255,7 @@
     {
       "name": "a template flattens fast enough to follow a landmark drag (< 400 ms)",
       "status": "PASS",
-      "detail": "119 ms worst"
+      "detail": "8 templates under budget"
     },
     {
       "name": "two panels of a 23-character template name export as distinct 20-character blocks",
