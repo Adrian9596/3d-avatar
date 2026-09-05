@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T10:02:06Z",
+  "generated_at": "2026-09-05T10:20:48Z",
   "purpose": "One keyboard map for both lanes: conflict-free, browser-safe, and the doc regenerated from it.",
   "module": {
     "file": "scripts/keymap.mjs",
-    "sha256": "fb8de54036817d9cc157cf8f379c56c5e319bd6e66e6b92c4a0f1882776e9b8b"
+    "sha256": "376fc0eeca7b58f4ff818d9da8f6fd1ca821b14779db79cb8f53f09276f39666"
   },
-  "keymap_sha256": "e0832fb221ccfd3db1619d07e211807afe366debb73b24e6ecd1bbcc19aeb849",
+  "keymap_sha256": "2cfd4474401b130e781697fa3ce849b37348c5fb0f79e59c1b2cc48e984b12eb",
   "bindings": {
     "total": 43,
-    "active": 35,
-    "planned": 8
+    "active": 41,
+    "planned": 2
   },
   "keystrokes": [
     {
@@ -146,9 +146,21 @@
       "ok": true
     },
     {
-      "name": "Space is nothing until Phase C",
+      "name": "Space places the next landmark",
+      "expect": "landmarks.place-next",
+      "got": "landmarks.place-next",
+      "ok": true
+    },
+    {
+      "name": "Space outside the landmarks tool is nothing",
       "expect": null,
       "got": null,
+      "ok": true
+    },
+    {
+      "name": "M in the landmarks tool accepts the mirror offer",
+      "expect": "landmarks.mirror",
+      "got": "landmarks.mirror",
       "ok": true
     }
   ],
@@ -171,7 +183,7 @@
     {
       "name": "planned rows name their phase",
       "status": "PASS",
-      "detail": "8 planned, 35 active"
+      "detail": "2 planned, 41 active"
     },
     {
       "name": "no keystroke can mean two things at once",
@@ -196,7 +208,7 @@
     {
       "name": "the dispatcher resolves the representative keystrokes",
       "status": "PASS",
-      "detail": "23 keystrokes"
+      "detail": "25 keystrokes"
     },
     {
       "name": "the sheet lists active rows of the active contexts for the lane",

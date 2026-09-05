@@ -112,6 +112,8 @@ button{font:inherit}
 .lm-row .badge{font-size:7.5px;text-transform:uppercase;letter-spacing:.04em;padding:1px 3px;border-radius:3px;background:#e7e3de;color:#7d766f}
 .lm-row .badge.manual{background:#f0a02a;color:#3a2a10}
 .lm-row .badge.needed{background:#f3ded9;color:#9c3b28}
+.lm-row .badge.mirrored{background:#d8e9e3;color:#1f5a48}
+.lm-row .lm-mirror{color:#1f8a70;font-size:12px}
 .lm-row button{border:0;background:transparent;color:#9c948d;cursor:pointer;font-size:11px;line-height:1;padding:0 2px}
 .lm-row button:hover{color:#43352b}
 .lm-hint{font-size:9px;color:#a8760f;margin:6px 0 0;line-height:1.5}
@@ -226,9 +228,13 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 // same file, so "the viewer agrees with the test" holds by construction.
 import { DEFAULT_SCAN, measureSection, scanSurface, findLandmarks, computePoms, inchFraction,
   applyLandmarkOverrides, pomProvenance, computeSurfacePoms, findArmholes,
-  findFoldLandmarks, sectionSegments, segmentPoints } from './scripts/measure_core.mjs';
+  findFoldLandmarks, sectionSegments, segmentPoints, isManualSource } from './scripts/measure_core.mjs';
 import { buildGrid, closestOnMesh } from './scripts/surface_path.mjs';
 import { createPenTool } from './scripts/pen_tool.mjs';
+// Hand placement logic (guided order, framing, the mirror offer, the record a
+// placed point carries) — authoring lane only; the production viewer never
+// imports this (AUTHORING_UX_PLAN.md §7).
+import { nextNeeded, framingFor, poseFor, mirrorOffer, landmarkRecord, placementRecord, placementNotes, isPlaced } from './scripts/landmark_placement.mjs';
 // One keyboard map and one view-geometry module for both lanes
 // (AUTHORING_UX_PLAN.md §14, §5): the keys, the grazing guard and the F key mean
 // the same thing in the production viewer.
@@ -346,7 +352,8 @@ const REGISTRY_URL='contracts/measurement-registry.json';
 let registry=null,registrySha=null,torsoTris=null,measureScan=[],tapeGroup=null;
 let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
 let sectionOpen=false,sectionGroup=null;
-let landmarksVisible=false,placingLandmark=null,landmarkGroup=null;
+let landmarksVisible=false,placingLandmark=null,landmarkGroup=null,torsoMeshes=[],levelPreviewGroup=null;
+let savedLandmarksJson='{}';   // what the last Save (or load) wrote, to mark unsaved changes
 // Landmark placement borrows the canvas, so the pen must stay suspended for
 // exactly as long as a landmark is selected. Assigning placingLandmark
 // directly is how that pairing gets forgotten -- go through here.
@@ -357,6 +364,7 @@ let foldMarks={},armholes={};
 // local illusion.
 let overrides={landmarks:{}};
 try{const stored=localStorage.getItem('landmarkOverrides');if(stored)overrides=JSON.parse(stored)}catch(error){/* private mode */}
+savedLandmarksJson=JSON.stringify(overrides.landmarks||{});
 let measureRowData=[],selectedTapeIndex=-1,tapesVisible=true;
 try{tapesVisible=localStorage.getItem('tapesVisible')!=='0'}catch(error){/* private mode */}
 
@@ -549,6 +557,8 @@ async function runMeasurements(root){
   const started=performance.now();
   ({registry,sha:registrySha}=await loadRegistry());
   torsoTris=collectSurfaceTriangles(root,registry.measurement_surface);
+  // landmarks are placed on the measurement surface only — a point on the arm is never right
+  torsoMeshes=[];root.traverse(o=>{if(!o.isMesh)return;const mats=Array.isArray(o.material)?o.material:[o.material];if(mats.some(m=>m&&registry.measurement_surface.includes(m.name)))torsoMeshes.push(o)});
   if(!torsoTris.length){renderMeasurements(null,null,0);return}
   measureScan=scanSurface(torsoTris,registry.scan);
   const foldRule=(registry.landmarks||[]).find(l=>l.id==='UNDERBUST_FOLD')||{};
@@ -711,12 +721,15 @@ function renderLandmarkList(){
       const element=document.createElement('div');
       element.className='lm-row';
       element.setAttribute('aria-selected',String(placingLandmark===row.id));
-      const badge=manual?'manual':row.manualOnly?'needed':'auto';
+      const source=manual?(overrides.landmarks[row.id].source||'manual'):null;
+      const badge=manual?(source==='manual_mirrored'?'mirrored':'manual'):row.manualOnly?'needed':'auto';
       const text=value
         ? (Number.isFinite(value.x)
             ? `${(value.y*100).toFixed(1)} · x ${(value.x*100).toFixed(1)}`
             : `${(value.y*100).toFixed(1)}`)
         : 'not placed';
+      const pw=manual?overrides.landmarks[row.id].placed_with:null;
+      element.title=pw?`Placed by ${pw.method}${pw.footprint_mm_px!==undefined?` at ${pw.footprint_mm_px} mm/px, ${pw.incidence_deg}° incidence, ${pw.distance_m} m`:''}${pw.from?` — mirror of ${pw.from}, residual ${pw.residual_mm} mm`:''}`:'';
       element.innerHTML=`<span>${row.label}</span>`
         +`<span class="badge ${badge==='auto'?'':badge}">${badge}</span><b>${text}</b>`;
       element.addEventListener('click',event=>{
@@ -724,12 +737,20 @@ function renderLandmarkList(){
         setPlacingLandmark(placingLandmark===row.id?null:row.id);
         renderLandmarkList();redrawLandmarks();
       });
+      // the mirror of the other side is OFFERED when that side was hand-placed
+      const offer=row.kind==='point'&&measureGrid?mirrorOffer(row.id,overrides,patternClosest):null;
+      if(offer){
+        const mirror=document.createElement('button');
+        mirror.textContent='⇄';mirror.className='lm-mirror';
+        mirror.title=`Use the mirror of ${offer.from} (residual ${offer.residual_mm} mm${offer.flagged?' — FLAGGED: the body is not symmetric here':''}); recorded as manual_mirrored`;
+        mirror.setAttribute('aria-label',`Accept the mirror of ${offer.from}`);
+        mirror.addEventListener('click',()=>acceptMirror(row.id));
+        element.appendChild(mirror);
+      }
       if(manual){
         const clear=document.createElement('button');
         clear.textContent='×';clear.setAttribute('aria-label','Return this landmark to automatic');
-        clear.addEventListener('click',()=>{
-          delete overrides.landmarks[row.id];persistOverrides();recomputeMeasurements();
-        });
+        clear.addEventListener('click',()=>clearLandmark(row.id));
         element.appendChild(clear);
       }
       list.appendChild(element);
@@ -738,30 +759,99 @@ function renderLandmarkList(){
   const hint=document.createElement('p');
   hint.className='lm-hint';hint.id='landmarkHint';
   const row=LANDMARK_ROWS.find(r=>r.id===placingLandmark);
+  const next=nextNeeded(overrides,placingLandmark);
   hint.textContent=row
     ? (row.kind==='point'
-        ? `Click the body to place ${row.label}.`
-        : `Click the body to set the height of ${row.label}; only the height is used.`)
-    : (anyManual
-        ? 'Save writes qa/avatar_master/landmarks.manual.json — the file the authority pass reads.'
-        : 'Values in cm. Click a row, then click the body to place or correct it.');
+        ? `Click or drag on the body to place ${row.label} (measurements follow the drag) · arrows nudge · F frames · M mirrors · Esc cancels.`
+        : `Drag on the body to set the height of ${row.label}; the ring follows, only the height is kept.`)
+    : (next
+        ? `Space places the next needed landmark (${next}). ${anyManual?'Save writes qa/avatar_master/landmarks.manual.json — the file the authority pass reads.':'Values in cm. Click a row, then click or drag the body.'}`
+        : (anyManual?'All manual-only landmarks are placed. Save writes qa/avatar_master/landmarks.manual.json — the file the authority pass reads.':'Values in cm. Click a row, then click or drag the body.'));
   list.appendChild(hint);
+  const saveBtn=document.getElementById('landmarkSave');
+  saveBtn.textContent=JSON.stringify(overrides.landmarks||{})!==savedLandmarksJson&&anyManual?'Save •':'Save';
 }
 
 function persistOverrides(){
   try{localStorage.setItem('landmarkOverrides',JSON.stringify(overrides))}catch(error){/* private mode */}
 }
 
-function placeLandmark(id,point){
-  const row=LANDMARK_ROWS.find(r=>r.id===id);
-  if(!row)return;
+/* A placement writes the override entry: the value, its source, and how it was
+   placed (camera distance, incidence, what a pixel was worth) — the last is
+   context for the record, never a correction to the value. */
+function applyPlacement(id,entry,{persist=true,deselect=true}={}){
   overrides.landmarks=overrides.landmarks||{};
-  overrides.landmarks[id]=row.kind==='point'
-    ? {xyz_m:[+point.x.toFixed(5),+point.y.toFixed(5),+point.z.toFixed(5)]}
-    : {y_m:+point.y.toFixed(5)};
-  persistOverrides();
-  setPlacingLandmark(null);
+  overrides.landmarks[id]=entry;
+  if(persist)persistOverrides();
+  if(deselect)setPlacingLandmark(null);
   recomputeMeasurements();
+}
+function placeLandmark(id,hit,method,options={}){
+  const row=LANDMARK_ROWS.find(r=>r.id===id);
+  if(!row||!hit)return;
+  const p=[hit.point.x,hit.point.y,hit.point.z];
+  const placed_with=placementRecord({point:p,normal:[hit.normal.x,hit.normal.y,hit.normal.z],
+    cameraPosition:camera.position.toArray(),fov_deg:camera.fov,pixel_height:canvas.clientHeight||1,method});
+  applyPlacement(id,landmarkRecord({kind:row.kind,point:p,y:hit.point.y,placed_with}),options);
+}
+function acceptMirror(id){
+  const row=LANDMARK_ROWS.find(r=>r.id===id);
+  const offer=row&&measureGrid?mirrorOffer(id,overrides,patternClosest):null;
+  if(!offer)return false;
+  const placed_with={method:'mirror',from:offer.from,residual_mm:offer.residual_mm,...(offer.flagged?{flagged:true}:{})};
+  applyPlacement(id,landmarkRecord({kind:row.kind,point:offer.xyz_m,y:offer.y_m,placed_with,source:'manual_mirrored'}));
+  return true;
+}
+function clearLandmark(id){
+  if(!overrides.landmarks||!overrides.landmarks[id])return false;
+  delete overrides.landmarks[id];persistOverrides();recomputeMeasurements();return true;
+}
+/** Arrow keys with a landmark row selected: move it one pixel along the skin. */
+function nudgeLandmark(id,dx,dy){
+  const position=landmarkPosition(id);
+  if(!position)return false;
+  const rect=canvas.getBoundingClientRect();
+  const v=position.clone().project(camera);
+  const hit=surfaceHitForLandmark(rect.left+(v.x*0.5+0.5)*rect.width+dx,rect.top+(-v.y*0.5+0.5)*rect.height+dy);
+  if(!hit)return false;
+  placeLandmark(id,hit,'nudge',{deselect:false});
+  return true;
+}
+/** Where the camera should stand to place `id`: the region it belongs to, framed. */
+function frameLandmark(id){
+  const map={};
+  for(const row of LANDMARK_ROWS){const v=landmarkValue(row.id);if(!v)continue;map[row.id]=Number.isFinite(v.x)?[v.x,v.y,v.z]:v.y}
+  const pose=poseFor(framingFor(id,map),{min_rad:controls.minPolarAngle,max_rad:controls.maxPolarAngle});
+  if(!pose)return false;
+  cameraGoal={position:new THREE.Vector3(...pose.position),target:new THREE.Vector3(...pose.target)};
+  document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.remove('active'));
+  return true;
+}
+/** Space: select the next manual-only landmark not yet placed, and frame it. */
+function placeNext(){
+  const id=nextNeeded(overrides,placingLandmark);
+  if(!landmarksVisible){landmarksVisible=true;landmarkToggle.setAttribute('aria-pressed','true')}
+  if(!id){setPlacingLandmark(null);renderLandmarkList();redrawLandmarks();return false}
+  setPlacingLandmark(id);renderLandmarkList();redrawLandmarks();frameLandmark(id);
+  return true;
+}
+function stepLandmarkRow(step){
+  const ids=LANDMARK_ROWS.map(r=>r.id);
+  const at=ids.indexOf(placingLandmark);
+  const next=at<0?(step>0?0:ids.length-1):(at+step+ids.length)%ids.length;
+  setPlacingLandmark(ids[next]);renderLandmarkList();redrawLandmarks();
+}
+// a level landmark is a height: while it is dragged the section ring follows
+function drawLevelPreview(y){
+  disposeGroup(levelPreviewGroup);levelPreviewGroup=null;
+  if(!Number.isFinite(y)||!torsoTris)return;
+  const section=measureSection(torsoTris,y);
+  if(!section)return;
+  const points=section.ring.map(([x,z])=>new THREE.Vector3(x,y,z));points.push(points[0].clone());
+  levelPreviewGroup=new THREE.Group();levelPreviewGroup.name='LevelPreview';
+  levelPreviewGroup.add(makeLine(points,{color:0xf0a02a,width:2.4}));
+  levelPreviewGroup.add(makeLine(points,{color:0xf0a02a,width:1.2,opacity:.3,depthTest:false,order:3}));
+  scene.add(levelPreviewGroup);
 }
 
 function saveLandmarks(){
@@ -772,7 +862,9 @@ function saveLandmarks(){
     recorded_at:new Date().toISOString().replace(/\.\d{3}Z$/,'Z'),
     author:'placed in the viewer',
     landmarks:overrides.landmarks,
+    placement_notes:placementNotes(overrides),
   };
+  savedLandmarksJson=JSON.stringify(overrides.landmarks||{});
   const text=JSON.stringify(payload,null,2)+'\n';
   const blob=new Blob([text],{type:'application/json'});
   const link=document.createElement('a');
@@ -824,13 +916,16 @@ const penRaycaster=new THREE.Raycaster();
 
 // landmark placement needs its own hit test, since the pen owns its internally
 function surfaceHitForLandmark(clientX,clientY){
-  if(!avatarRoot)return null;
+  if(!torsoMeshes.length)return null;
   const rect=canvas.getBoundingClientRect();
   penRaycaster.setFromCamera(new THREE.Vector2(
     ((clientX-rect.left)/rect.width)*2-1,
     -((clientY-rect.top)/rect.height)*2+1),camera);
-  const hits=penRaycaster.intersectObject(avatarRoot,true);
-  return hits.length?hits[0].point.clone():null;
+  const hits=penRaycaster.intersectObjects(torsoMeshes,false);
+  if(!hits.length)return null;
+  const hit=hits[0];
+  const normal=hit.face?hit.face.normal.clone().transformDirection(hit.object.matrixWorld):new THREE.Vector3(hit.point.x,0,hit.point.z).normalize();
+  return {point:hit.point.clone(),normal};
 }
 
 function renderDraftList(){
@@ -1031,18 +1126,46 @@ sectionToggle.addEventListener('click',()=>{
 });
 sectionSlider.addEventListener('input',()=>drawSection(Number(sectionSlider.value)/1000));
 // Landmark placement borrows the canvas from the pen rather than racing it.
-let placeDownAt=null;
+// With a row selected, a press on the body places: a click places at once, a
+// drag moves the marker with the dependent measurements following, and the
+// release commits. OrbitControls saw the press too and is parked until release
+// (as the pen does for a pin); the arrow keys still turn the camera.
+let placeDownAt=null,placePreview=null;
+function previewLandmark(id,hit){
+  placePreview={id,hit};
+  if(placePreview.frame)return;
+  placePreview.frame=requestAnimationFrame(()=>{
+    const at=placePreview;if(!at)return;at.frame=null;
+    const row=LANDMARK_ROWS.find(r=>r.id===id);
+    if(row?.kind==='level')drawLevelPreview(at.hit.point.y);
+    placeLandmark(id,at.hit,'drag',{persist:false,deselect:false});
+  });
+}
 canvas.addEventListener('pointerdown',event=>{
-  if(placingLandmark)placeDownAt={x:event.clientX,y:event.clientY};
+  if(!placingLandmark||event.button!==0)return;
+  const hit=surfaceHitForLandmark(event.clientX,event.clientY);
+  if(!hit)return;                                   // off the body: the camera's
+  placeDownAt={x:event.clientX,y:event.clientY,moved:false,hit};
+  controls.enabled=false;
+  canvas.setPointerCapture(event.pointerId);
+});
+canvas.addEventListener('pointermove',event=>{
+  if(!placingLandmark||!placeDownAt)return;
+  if(!placeDownAt.moved&&Math.hypot(event.clientX-placeDownAt.x,event.clientY-placeDownAt.y)<=5)return;
+  placeDownAt.moved=true;
+  const hit=surfaceHitForLandmark(event.clientX,event.clientY);
+  if(hit)previewLandmark(placingLandmark,hit);
 });
 canvas.addEventListener('pointerup',event=>{
   if(!placingLandmark||!placeDownAt)return;
-  const moved=Math.hypot(event.clientX-placeDownAt.x,event.clientY-placeDownAt.y);
-  const id=placingLandmark;
-  placeDownAt=null;
-  if(moved>5)return;                       // that was an orbit, not a click
-  const target=surfaceHitForLandmark(event.clientX,event.clientY);
-  if(target)placeLandmark(id,target);
+  const press=placeDownAt;placeDownAt=null;
+  controls.enabled=true;
+  if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);
+  if(placePreview?.frame)cancelAnimationFrame(placePreview.frame);
+  const last=placePreview;placePreview=null;
+  disposeGroup(levelPreviewGroup);levelPreviewGroup=null;
+  const hit=surfaceHitForLandmark(event.clientX,event.clientY)||(press.moved?last?.hit:press.hit);
+  if(hit)placeLandmark(placingLandmark,hit,press.moved?'drag':'click');
 });
 
 const landmarkToggle=document.getElementById('landmarkToggle');
@@ -1277,7 +1400,7 @@ const KEY_ACTIONS={
   'view.side':()=>setView('side'),'view.back':()=>setView('back'),'view.reset':()=>setView('reset'),
   'camera.yaw-left':b=>turnCamera(b.shift?-5:-15,0),'camera.yaw-right':b=>turnCamera(b.shift?5:15,0),
   'camera.pitch-up':b=>turnCamera(0,b.shift?5:15),'camera.pitch-down':b=>turnCamera(0,b.shift?-5:-15),
-  'camera.face':()=>facePoint(),
+  'camera.face':()=>{if(placingLandmark&&activeContexts().includes('landmarks'))frameLandmark(placingLandmark);else facePoint()},
   'help.toggle':()=>toggleKeySheet(),
   'escape':()=>escapeKey(),
   'pen.finish':()=>pen?.finishLine(),'pen.close':()=>pen?.closeLoop(),'pen.delete':()=>pen?.deleteSelected(),
@@ -1290,10 +1413,17 @@ const KEY_ACTIONS={
   'pen.nudge':b=>{const step=b.shift?10:1;const d={ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]}[b.key];if(d)pen?.nudgeSelected(...d)},
   'pen.mirror-line':()=>{const r=pen?.mirrorLine();if(r&&!r.error)tipEl.textContent=`Mirrored · max residual ${r.max_residual_mm} mm${r.asymmetry_flag?' — FLAGGED: the body is not symmetric here':''} · `+tipBase;else if(r?.error)tipEl.textContent=r.error},
   'landmarks.save':()=>clickIfEnabled('landmarkSave'),
+  'landmarks.place-next':()=>placeNext(),
+  'landmarks.previous':()=>stepLandmarkRow(-1),'landmarks.next':()=>stepLandmarkRow(1),
+  'landmarks.nudge':b=>{const step=b.shift?10:1;const d={ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]}[b.key];if(d&&placingLandmark)nudgeLandmark(placingLandmark,...d)},
+  'landmarks.mirror':()=>{if(placingLandmark&&!acceptMirror(placingLandmark))tipEl.textContent='Mirror: the other side is not hand-placed · '+tipBase},
+  'landmarks.reset-one':()=>{if(placingLandmark)clearLandmark(placingLandmark)},
   'pattern.flatten':()=>clickIfEnabled('patternFlatten'),'pattern.export':()=>clickIfEnabled('patternExport'),
 };
 window.addEventListener('keydown',event=>{
-  const binding=matchBinding(event,{contexts:activeContexts(),hasSelection:Boolean(pen?.hasSelection()),lane:'prototype',platform:PLATFORM});
+  const contexts=activeContexts();
+  const hasSelection=contexts.includes('landmarks')?Boolean(placingLandmark):Boolean(pen?.hasSelection());
+  const binding=matchBinding(event,{contexts,hasSelection,lane:'prototype',platform:PLATFORM});
   if(!binding||!KEY_ACTIONS[binding.id])return;
   event.preventDefault();
   KEY_ACTIONS[binding.id](binding);

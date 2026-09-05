@@ -66,7 +66,9 @@ const cases = [
   { name: 'L is unknown to the production lane', event: ev('l'), opts: { contexts: ['always'], lane: 'production' }, expect: null },
   { name: 'L opens landmarks in the prototype', event: ev('l'), opts: { contexts: ['always'], lane: 'prototype' }, expect: 'landmarks.toggle' },
   { name: 'Home resets the view', event: ev('Home'), opts: { contexts: ['always'] }, expect: 'view.reset' },
-  { name: 'Space is nothing until Phase C', event: ev(' '), opts: { contexts: ['always', 'landmarks'] }, expect: null },
+  { name: 'Space places the next landmark', event: ev(' '), opts: { contexts: ['always', 'landmarks'] }, expect: 'landmarks.place-next' },
+  { name: 'Space outside the landmarks tool is nothing', event: ev(' '), opts: { contexts: ['always', 'pen'] }, expect: null },
+  { name: 'M in the landmarks tool accepts the mirror offer', event: ev('m'), opts: { contexts: ['always', 'landmarks'] }, expect: 'landmarks.mirror' },
 ];
 const outcomes = cases.map((c) => {
   const got = matchBinding(c.event, c.opts)?.id ?? null;

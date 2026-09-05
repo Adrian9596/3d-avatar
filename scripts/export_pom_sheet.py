@@ -32,6 +32,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "contracts" / "measurement-registry.json"
 EVIDENCE_PATH = ROOT / "qa" / "avatar_master" / "measurements.json"
+PLACEMENT_NOTE_MM_PX = 3   # AUTHORING_UX_PLAN.md §7.2; the same figure scripts/landmark_placement.mjs uses
 CSV_PATH = ROOT / "qa" / "avatar_master" / "pom-sheet.csv"
 JSON_PATH = ROOT / "qa" / "avatar_master" / "pom-sheet.json"
 
@@ -140,6 +141,21 @@ def main() -> int:
     ]
     if evidence.get("landmark_overrides", {}).get("applied"):
         header.append(("Hand-placed landmarks", str(evidence["landmark_overrides"].get("file"))))
+        mirrored = sorted(k for k, v in (evidence.get("landmarks") or {}).items()
+                          if isinstance(v, dict) and v.get("source") == "manual_mirrored")
+        if mirrored:
+            header.append(("Mirrored landmarks", ", ".join(mirrored) + " — accepted as the mirror of the other side"))
+        # a point placed where a pixel was worth more than 3mm is a different kind of
+        # number from one placed facing at close range; the sheet says which, as a fact
+        coarse = sorted((k, v["placed_with"]) for k, v in (evidence.get("landmarks") or {}).items()
+                        if isinstance(v, dict) and isinstance(v.get("placed_with"), dict)
+                        and isinstance(v["placed_with"].get("footprint_mm_px"), (int, float))
+                        and v["placed_with"]["footprint_mm_px"] > PLACEMENT_NOTE_MM_PX)
+        if coarse:
+            header.append(("Placement quality", "; ".join(
+                f"{k} placed at {pw['footprint_mm_px']} mm/px"
+                + (f", {pw['incidence_deg']}° incidence" if pw.get("incidence_deg") is not None else "")
+                for k, pw in coarse)))
     for index, limit in enumerate(evidence.get("declared_limits", []), start=1):
         header.append((f"Limit {index}", limit))
 

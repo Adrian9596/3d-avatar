@@ -45,7 +45,7 @@ export const KEYMAP = Object.freeze([
   b('camera.yaw-right', ['ArrowRight'], 'always', 'Turntable 15° right (Shift: 5°) — nothing selected', { needsSelection: false, shiftOptional: true }),
   b('camera.pitch-up', ['ArrowUp'], 'always', 'Elevation +15° (Shift: 5°) — nothing selected', { needsSelection: false, shiftOptional: true }),
   b('camera.pitch-down', ['ArrowDown'], 'always', 'Elevation −15° (Shift: 5°) — nothing selected', { needsSelection: false, shiftOptional: true }),
-  b('camera.face', ['F'], 'always', 'Face the selected point along its surface normal; nothing selected, the point under the cursor'),
+  b('camera.face', ['F'], 'always', 'Face the selected point along its surface normal; a selected landmark row → frame its region; nothing selected, the point under the cursor'),
   b('loupe.toggle', ['Z'], 'always', 'Loupe on / off'),
   b('snap.toggle', ['N'], 'always', 'Snapping on / off'),
   b('help.toggle', ['?'], 'always', 'Shortcut sheet'),
@@ -68,12 +68,12 @@ export const KEYMAP = Object.freeze([
   b('pen.export', ['E'], 'pen', 'Export draft-lines.json', { mods: { shift: true }, producesFile: true }),
 
   // ---- landmarks (prototype) ------------------------------------------------
-  planned('C', 'landmarks.place-next', ['Space'], 'landmarks', 'Place next: select the next needed landmark in the guided order and frame it'),
-  planned('C', 'landmarks.previous', ['['], 'landmarks', 'Previous landmark row'),
-  planned('C', 'landmarks.next', [']'], 'landmarks', 'Next landmark row'),
-  planned('C', 'landmarks.nudge', ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'], 'landmarks', 'Nudge the selected landmark 1 px along the skin (Shift: 10 px)', { needsSelection: true, shiftOptional: true }),
-  planned('C', 'landmarks.mirror', ['M'], 'landmarks', 'Accept the mirror of the opposite side for the selected row (an offer, recorded manual_mirrored)'),
-  planned('C', 'landmarks.reset-one', ['Backspace'], 'landmarks', 'Return the selected landmark to automatic'),
+  b('landmarks.place-next', ['Space'], 'landmarks', 'Place next: select the next needed landmark in the guided order and frame it'),
+  b('landmarks.previous', ['['], 'landmarks', 'Previous landmark row'),
+  b('landmarks.next', [']'], 'landmarks', 'Next landmark row'),
+  b('landmarks.nudge', ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'], 'landmarks', 'Nudge the selected landmark 1 px along the skin (Shift: 10 px)', { needsSelection: true, shiftOptional: true }),
+  b('landmarks.mirror', ['M'], 'landmarks', 'Accept the mirror of the opposite side for the selected row (an offer, recorded manual_mirrored)'),
+  b('landmarks.reset-one', ['Backspace'], 'landmarks', 'Return the selected landmark to automatic'),
   b('landmarks.save', ['S'], 'landmarks', 'Save landmarks.manual.json', { mods: { shift: true }, producesFile: true }),
 
   // ---- pattern block (prototype) --------------------------------------------

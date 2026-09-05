@@ -3,7 +3,7 @@
 Orbit while drafting · a pen that snaps · landmark placement that says how well it was placed ·
 template drafts from landmarks.
 
-Status: **Phases A and B built (2026-09-05); Phases C–D planned.** Written 2026-09-05 against `assets/export/avatar_master.glb`
+Status: **Phases A, B and C built (2026-09-05); Phase D planned.** Written 2026-09-05 against `assets/export/avatar_master.glb`
 (SHA-256 `0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4`). §4 records what a
 numerical spike found on that body; §5–§8 propose what to build from it, §10–§11 how it will be
 gated, §14 the keyboard and pointer map, and §15 the concrete work plan, phase by phase. Companion to `MEASUREMENT_PLAN.md` (landmarks, POMs) and `PATTERN_2D_DXF_PLAN.md`
@@ -459,7 +459,7 @@ Rules the map follows:
 | `→` | Turntable 15° right (Shift: 5°) — nothing selected |
 | `↑` | Elevation +15° (Shift: 5°) — nothing selected |
 | `↓` | Elevation −15° (Shift: 5°) — nothing selected |
-| `F` | Face the selected point along its surface normal; nothing selected, the point under the cursor |
+| `F` | Face the selected point along its surface normal; a selected landmark row → frame its region; nothing selected, the point under the cursor |
 | `Z` | Loupe on / off |
 | `N` | Snapping on / off |
 | `?` | Shortcut sheet |
@@ -488,12 +488,12 @@ Rules the map follows:
 
 | Key | Action |
 |---|---|
-| `Space` | Place next: select the next needed landmark in the guided order and frame it *(planned, Phase C)* |
-| `[` | Previous landmark row *(planned, Phase C)* |
-| `]` | Next landmark row *(planned, Phase C)* |
-| `← → ↑ ↓` | Nudge the selected landmark 1 px along the skin (Shift: 10 px) *(planned, Phase C)* |
-| `M` | Accept the mirror of the opposite side for the selected row (an offer, recorded manual_mirrored) *(planned, Phase C)* |
-| `Backspace` | Return the selected landmark to automatic *(planned, Phase C)* |
+| `Space` | Place next: select the next needed landmark in the guided order and frame it |
+| `[` | Previous landmark row |
+| `]` | Next landmark row |
+| `← → ↑ ↓` | Nudge the selected landmark 1 px along the skin (Shift: 10 px) |
+| `M` | Accept the mirror of the opposite side for the selected row (an offer, recorded manual_mirrored) |
+| `Backspace` | Return the selected landmark to automatic |
 | `Shift+S` | Save landmarks.manual.json |
 
 ### Pattern block *(prototype)*
@@ -661,7 +661,34 @@ recognising the shared run with `end_gaps_m` of exactly 0; a mirrored loop on th
 ten times and back returns the line length to within the continuity budget of
 `validate:surface-path` (0.2 mm); undo of every command restores `lineGeometry` byte for byte.
 
-### Phase C — landmark placement *(prototype only)*
+### Phase C — landmark placement *(prototype only)* — **done 2026-09-05**
+
+What landed: `scripts/landmark_placement.mjs` with `validate:landmark-placement` (in the chain;
+lane parity checks the production lane never imports it). In the prototype a selected row is
+placed by click or drag on the **measurement surface only**, the dependent POMs following the
+drag and the release committing; a level landmark is dragged as a section ring and only the
+height is kept; `Space` selects the next needed manual-only point and frames its region, `F`
+frames the selected one, `[` `]` step rows, arrows nudge one pixel along the skin, `Backspace`
+returns a row to automatic, `M` (or the row's ⇄ button) accepts the mirror of the other side
+when that side is hand-placed, `Esc` cancels; the Save button reads *Save •* while there are
+unsaved changes. Every entry in the override file carries `source` (`manual` /
+`manual_mirrored`) and `placed_with` (distance, incidence, mm/px, method); both engines carry
+both into the evidence's landmark block — the hand-placed roots now have rows of their own —
+`pomProvenance` counts a mirrored point as manual, `blocked_until_manual` POMs unblock on it, and
+`validate:measure-parity` asserts the provenance word and the `placed_with` record agree between
+the engines. The POM sheet header lists mirrored landmarks and any placed at over 3 mm/px.
+
+Verified: with a synthetic override file (two roots placed on the left, two accepted as mirrors on
+the right, residual 0.003 mm) the authority pass and the JavaScript engine agreed on
+`BREAST_ROOT_ARC_L/R` = 178.0 mm to 0.039 mm, nine provenance words and four `placed_with`
+records; the sheet wrote *Mirrored landmarks: ROOT_INNER_R, ROOT_OUTER_R*. In the browser
+(synthetic events, pane hidden): `Space` selected HPS L and set a camera goal; a click placed it
+(`click`, 39° incidence, 1.38 mm/px) and unblocked HPS→apex L (176.8 mm); `Space`, `M` mirrored
+HPS R (`manual_mirrored`, 0.003 mm) and unblocked the right side to the same value; a drag placed
+ROOT_INNER_L within 0.01 mm of the release point (`drag`); dragging the underbust fold set its
+height to the release height exactly and the underbust girth followed; a nudge moved a root
+1.11 mm; `F` set a goal; `Backspace` cleared; the Save button read *Save •*. Real-pointer drags
+with OrbitControls parked stay on the smoke list.
 
 **C1 `scripts/landmark_placement.mjs` (new, pure).**
 `GUIDED_ORDER` (HPS L, HPS R, ROOT_INNER/OUTER/TOP L, then R);

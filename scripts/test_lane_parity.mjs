@@ -162,6 +162,9 @@ for (const [label, source] of [['prototype', prototype], ['production', producti
 }
 record('the production host hardcodes no material name', !/Mara:/.test(production_main.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')),
   'the pen\'s surface roles come from the registry the measurement module loaded');
+record('the production lane places no landmarks',
+  !/landmark_placement\.mjs|landmarks\.manual\.json/.test(production) && !/landmark_placement\.mjs/.test(production_main),
+  'hand placement stays in the authoring lane: one place to correct, one record');
 record('the pen binds no keys of its own', !/addEventListener\(\s*["']keydown["']/.test(pen),
   'keys are the hosts\' through the keymap, so both lanes read the same map');
 record('the pen uses the one path model',

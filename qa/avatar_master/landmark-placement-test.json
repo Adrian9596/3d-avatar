@@ -1,0 +1,343 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T10:20:48Z",
+  "purpose": "The logic behind hand placement in the authoring lane: guided order, framing per landmark, the mirror offer, and the record a placed point carries.",
+  "module": {
+    "file": "scripts/landmark_placement.mjs",
+    "sha256": "4ec63531f56d9a9e3ccd644366468022a42693a22b753ecbb776962ea3519987"
+  },
+  "asset": {
+    "file": "assets/export/avatar_master.glb",
+    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+  },
+  "guided_order": [
+    "HPS_L",
+    "HPS_R",
+    "ROOT_INNER_L",
+    "ROOT_OUTER_L",
+    "ROOT_TOP_L",
+    "ROOT_INNER_R",
+    "ROOT_OUTER_R",
+    "ROOT_TOP_R"
+  ],
+  "framings": [
+    {
+      "id": "BUST_APEX_L",
+      "target_m": [
+        -0.0804,
+        1.33,
+        0.1399
+      ],
+      "distance_m": 0.5,
+      "target_to_skin_mm": 0
+    },
+    {
+      "id": "BUST_APEX_R",
+      "target_m": [
+        0.0804,
+        1.33,
+        0.1399
+      ],
+      "distance_m": 0.5,
+      "target_to_skin_mm": 0
+    },
+    {
+      "id": "BUST_LEVEL",
+      "target_m": [
+        0,
+        1.33,
+        0.1
+      ],
+      "distance_m": 0.9,
+      "target_to_skin_mm": 4.4
+    },
+    {
+      "id": "UNDERBUST_FOLD",
+      "target_m": [
+        0,
+        1.27,
+        0.1
+      ],
+      "distance_m": 0.9,
+      "target_to_skin_mm": 1.1
+    },
+    {
+      "id": "WAIST_LEVEL",
+      "target_m": [
+        0,
+        1.195,
+        0.1
+      ],
+      "distance_m": 0.9,
+      "target_to_skin_mm": 6.4
+    },
+    {
+      "id": "HPS_L",
+      "target_m": [
+        -0.0482,
+        1.51,
+        0.0399
+      ],
+      "distance_m": 0.5,
+      "target_to_skin_mm": 29
+    },
+    {
+      "id": "HPS_R",
+      "target_m": [
+        0.0482,
+        1.51,
+        0.0399
+      ],
+      "distance_m": 0.5,
+      "target_to_skin_mm": 29
+    },
+    {
+      "id": "ROOT_INNER_L",
+      "target_m": [
+        -0.0322,
+        1.33,
+        0.1199
+      ],
+      "distance_m": 0.45,
+      "target_to_skin_mm": 5.7
+    },
+    {
+      "id": "ROOT_OUTER_L",
+      "target_m": [
+        -0.1367,
+        1.32,
+        0.0899
+      ],
+      "distance_m": 0.45,
+      "target_to_skin_mm": 7.6
+    },
+    {
+      "id": "ROOT_BOTTOM_L",
+      "target_m": [
+        -0.0804,
+        1.28,
+        0.1199
+      ],
+      "distance_m": 0.45,
+      "target_to_skin_mm": 6.7
+    },
+    {
+      "id": "ROOT_INNER_R",
+      "target_m": [
+        0.0322,
+        1.33,
+        0.1199
+      ],
+      "distance_m": 0.45,
+      "target_to_skin_mm": 5.7
+    },
+    {
+      "id": "ROOT_OUTER_R",
+      "target_m": [
+        0.1367,
+        1.32,
+        0.0899
+      ],
+      "distance_m": 0.45,
+      "target_to_skin_mm": 7.6
+    },
+    {
+      "id": "ROOT_BOTTOM_R",
+      "target_m": [
+        0.0804,
+        1.28,
+        0.1199
+      ],
+      "distance_m": 0.45,
+      "target_to_skin_mm": 6.7
+    },
+    {
+      "id": "ROOT_TOP_L",
+      "target_m": [
+        -0.0804,
+        1.39,
+        0.1199
+      ],
+      "distance_m": 0.45,
+      "target_to_skin_mm": 8
+    },
+    {
+      "id": "ROOT_TOP_R",
+      "target_m": [
+        0.0804,
+        1.39,
+        0.1199
+      ],
+      "distance_m": 0.45,
+      "target_to_skin_mm": 8
+    },
+    {
+      "id": "CF_UNDERBUST",
+      "target_m": [
+        0,
+        1.27,
+        0.1011
+      ],
+      "distance_m": 0.6,
+      "target_to_skin_mm": 0
+    },
+    {
+      "id": "CB_UNDERBUST",
+      "target_m": [
+        0,
+        1.27,
+        -0.1083
+      ],
+      "distance_m": 0.6,
+      "target_to_skin_mm": 0
+    },
+    {
+      "id": "SIDE_UNDERBUST_L",
+      "target_m": [
+        -0.1447,
+        1.27,
+        -0.0026
+      ],
+      "distance_m": 0.6,
+      "target_to_skin_mm": 0
+    },
+    {
+      "id": "SIDE_UNDERBUST_R",
+      "target_m": [
+        0.1447,
+        1.27,
+        -0.0026
+      ],
+      "distance_m": 0.6,
+      "target_to_skin_mm": 0
+    },
+    {
+      "id": "UNDERARM_L",
+      "target_m": [
+        -0.1706,
+        1.3892,
+        -0.0647
+      ],
+      "distance_m": 0.6,
+      "target_to_skin_mm": 0
+    },
+    {
+      "id": "UNDERARM_R",
+      "target_m": [
+        0.1706,
+        1.3892,
+        -0.0647
+      ],
+      "distance_m": 0.6,
+      "target_to_skin_mm": 0
+    }
+  ],
+  "mirror_offer_example": {
+    "from": "ROOT_INNER_L",
+    "xyz_m": [
+      0.03386,
+      1.32552,
+      0.12661
+    ],
+    "residual_mm": 0,
+    "flagged": false
+  },
+  "declared_limits": [
+    "A framing frames the region a point belongs to; it does not place the point.",
+    "A mirror is an offer, recorded as manual_mirrored with its residual when accepted; past 5 mm it is flagged, never corrected.",
+    "placed_with is context about how a point was placed, not a correction to its value."
+  ],
+  "checks": [
+    {
+      "name": "the guided order covers exactly the manual-only landmarks",
+      "status": "PASS",
+      "detail": "HPS_L, HPS_R, ROOT_INNER_L, ROOT_INNER_R, ROOT_OUTER_L, ROOT_OUTER_R, ROOT_TOP_L, ROOT_TOP_R"
+    },
+    {
+      "name": "nextNeeded starts at the first unplaced point",
+      "status": "PASS",
+      "detail": "HPS_L"
+    },
+    {
+      "name": "nextNeeded skips placed points and continues after the current one",
+      "status": "PASS",
+      "detail": "wraps around, never returns a placed id"
+    },
+    {
+      "name": "nextNeeded is null once every point is placed",
+      "status": "PASS",
+      "detail": "nothing needed"
+    },
+    {
+      "name": "sides and opposites resolve",
+      "status": "PASS",
+      "detail": "HPS_L ↔ HPS_R; CF has no side"
+    },
+    {
+      "name": "every registry landmark has a framing",
+      "status": "PASS",
+      "detail": "21 landmarks"
+    },
+    {
+      "name": "framing directions are unit and distances positive",
+      "status": "PASS",
+      "detail": "direction |d| = 1, distance_m > 0"
+    },
+    {
+      "name": "every framing target lies within 25 cm of the measurement surface",
+      "status": "PASS",
+      "detail": "worst 29 mm (HPS_L)"
+    },
+    {
+      "name": "every framing pose respects the polar clamp",
+      "status": "PASS",
+      "detail": "21 poses"
+    },
+    {
+      "name": "left and right framings mirror each other",
+      "status": "PASS",
+      "detail": "HPS_L vs HPS_R"
+    },
+    {
+      "name": "no offer when the opposite side is not hand-placed",
+      "status": "PASS",
+      "detail": "nothing to mirror"
+    },
+    {
+      "name": "the offer mirrors the opposite hand-placed point onto the skin",
+      "status": "PASS",
+      "detail": "ROOT_INNER_R ← ROOT_INNER_L, residual 0 mm"
+    },
+    {
+      "name": "the offer residual is recorded and unflagged on this mirrored asset",
+      "status": "PASS",
+      "detail": "0 mm (flag past 5 mm)"
+    },
+    {
+      "name": "a level has no mirror offer",
+      "status": "PASS",
+      "detail": "levels have no side"
+    },
+    {
+      "name": "a point record carries xyz, source manual and placed_with",
+      "status": "PASS",
+      "detail": "{\"method\":\"drag\",\"distance_m\":0.45,\"incidence_deg\":28.4,\"footprint_mm_px\":0.28}"
+    },
+    {
+      "name": "a mirrored record says so",
+      "status": "PASS",
+      "detail": "source manual_mirrored, from ROOT_INNER_L"
+    },
+    {
+      "name": "a level record carries only the height",
+      "status": "PASS",
+      "detail": "y_m, no xyz"
+    },
+    {
+      "name": "placement notes fire above 3 mm/px and not below",
+      "status": "PASS",
+      "detail": "[{\"id\":\"A\",\"footprint_mm_px\":3.4,\"incidence_deg\":75,\"method\":null}]"
+    }
+  ],
+  "decision": "PLACEMENT_LOGIC_OK"
+}

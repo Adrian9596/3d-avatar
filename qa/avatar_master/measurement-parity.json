@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T08:15:07Z",
+  "generated_at": "2026-09-05T10:20:35Z",
   "purpose": "Asserts the Python authority pass and the JavaScript engine the viewer uses agree.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
@@ -263,6 +263,16 @@
       "name": "WAIST_LEVEL height parity",
       "status": "PASS",
       "detail": "Δ 0.000mm"
+    },
+    {
+      "name": "landmark provenance agrees between the engines",
+      "status": "PASS",
+      "detail": "5 sources compared"
+    },
+    {
+      "name": "placed_with is carried identically by both engines",
+      "status": "PASS",
+      "detail": "0 placement record(s)"
     },
     {
       "name": "recorded calibration inside its budget",

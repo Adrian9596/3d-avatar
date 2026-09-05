@@ -193,41 +193,56 @@ export function findLandmarks(scan, options = {}) {
  * Apex overrides re-derive BUST_LEVEL, since that level is defined as the mean
  * of the apex pair — unless the level itself is given explicitly.
  */
+/** A hand-placed landmark's source: `manual`, or `manual_mirrored` when the
+ *  override says the point was accepted as the mirror of the other side. Both
+ *  count as manual for every purpose except the provenance string. */
+export const manualSource = (spec) => (spec && spec.source === 'manual_mirrored' ? 'manual_mirrored' : 'manual');
+export const isManualSource = (source) => source === 'manual' || source === 'manual_mirrored';
+
 export function applyLandmarkOverrides(marks, overrides) {
   const source = {
     BUST_APEX_L: 'auto', BUST_APEX_R: 'auto', BUST_LEVEL: 'auto',
     UNDERBUST_FOLD: 'auto', WAIST_LEVEL: 'auto',
   };
+  // how each hand-placed point was placed (camera distance, incidence, footprint), by id
+  const placement = {};
   if (!marks) return marks;
-  const out = { ...marks, source };
+  const out = { ...marks, source, placement };
   const given = overrides && overrides.landmarks;
   if (!given) return out;
 
   if (given.BUST_APEX_L && Array.isArray(given.BUST_APEX_L.xyz_m)) {
     const [x, y, z] = given.BUST_APEX_L.xyz_m;
     out.apexL = { x, y, z };
-    source.BUST_APEX_L = 'manual';
+    source.BUST_APEX_L = manualSource(given.BUST_APEX_L);
   }
   if (given.BUST_APEX_R && Array.isArray(given.BUST_APEX_R.xyz_m)) {
     const [x, y, z] = given.BUST_APEX_R.xyz_m;
     out.apexR = { x, y, z };
-    source.BUST_APEX_R = 'manual';
+    source.BUST_APEX_R = manualSource(given.BUST_APEX_R);
   }
-  if (source.BUST_APEX_L === 'manual' || source.BUST_APEX_R === 'manual') {
+  if (isManualSource(source.BUST_APEX_L) || isManualSource(source.BUST_APEX_R)) {
     out.bustLevel = (out.apexL.y + out.apexR.y) / 2;
     source.BUST_LEVEL = 'derived_from_manual';
   }
   if (given.BUST_LEVEL && Number.isFinite(given.BUST_LEVEL.y_m)) {
     out.bustLevel = given.BUST_LEVEL.y_m;
-    source.BUST_LEVEL = 'manual';
+    source.BUST_LEVEL = manualSource(given.BUST_LEVEL);
   }
   if (given.UNDERBUST_FOLD && Number.isFinite(given.UNDERBUST_FOLD.y_m)) {
     out.fold = { y: given.UNDERBUST_FOLD.y_m };
-    source.UNDERBUST_FOLD = 'manual';
+    source.UNDERBUST_FOLD = manualSource(given.UNDERBUST_FOLD);
   }
   if (given.WAIST_LEVEL && Number.isFinite(given.WAIST_LEVEL.y_m)) {
     out.waist = { y: given.WAIST_LEVEL.y_m };
-    source.WAIST_LEVEL = 'manual';
+    source.WAIST_LEVEL = manualSource(given.WAIST_LEVEL);
+  }
+  // every other hand-placed point (HPS, roots) is manual by definition; the
+  // record keeps its source and how it was placed
+  for (const [id, spec] of Object.entries(given)) {
+    if (!spec || typeof spec !== 'object') continue;
+    if (!(id in source) && (Array.isArray(spec.xyz_m) || Number.isFinite(spec.y_m))) source[id] = manualSource(spec);
+    if (spec.placed_with) placement[id] = spec.placed_with;
   }
   return out;
 }
@@ -256,7 +271,7 @@ export const POM_LANDMARKS = {
 export function pomProvenance(pomId, source) {
   const inputs = POM_LANDMARKS[pomId] || [];
   if (!inputs.length) return 'auto';
-  if (inputs.some((id) => source[id] === 'manual')) return 'manual';
+  if (inputs.some((id) => isManualSource(source[id]))) return 'manual';
   if (inputs.some((id) => source[id] === 'derived_from_manual')) return 'derived_from_manual';
   return 'auto';
 }

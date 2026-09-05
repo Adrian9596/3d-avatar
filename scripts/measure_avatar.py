@@ -312,6 +312,16 @@ POM_LANDMARKS = {
 }
 
 
+def manual_source(spec: dict | None) -> str:
+    """`manual`, or `manual_mirrored` when the point was accepted as the mirror of the other
+    side. Both count as manual for every purpose except the provenance string."""
+    return "manual_mirrored" if isinstance(spec, dict) and spec.get("source") == "manual_mirrored" else "manual"
+
+
+def is_manual(source: str | None) -> bool:
+    return source in ("manual", "manual_mirrored")
+
+
 def apply_overrides(marks: dict, overrides: dict | None) -> tuple[dict, dict]:
     """Hand-placed landmarks win over the automatic detection.
 
@@ -330,23 +340,23 @@ def apply_overrides(marks: dict, overrides: dict | None) -> tuple[dict, dict]:
         if spec and isinstance(spec.get("xyz_m"), list) and len(spec["xyz_m"]) == 3:
             x, y, z = spec["xyz_m"]
             marks[mark_key] = {"x": float(x), "y": float(y), "z": float(z)}
-            source[key] = "manual"
-    if "manual" in (source["BUST_APEX_L"], source["BUST_APEX_R"]):
+            source[key] = manual_source(spec)
+    if is_manual(source["BUST_APEX_L"]) or is_manual(source["BUST_APEX_R"]):
         marks["bust_level"] = (marks["apex_l"]["y"] + marks["apex_r"]["y"]) / 2
         source["BUST_LEVEL"] = "derived_from_manual"
 
     level = given.get("BUST_LEVEL")
     if level and isinstance(level.get("y_m"), (int, float)):
         marks["bust_level"] = float(level["y_m"])
-        source["BUST_LEVEL"] = "manual"
+        source["BUST_LEVEL"] = manual_source(level)
     fold = given.get("UNDERBUST_FOLD")
     if fold and isinstance(fold.get("y_m"), (int, float)):
         marks["fold"] = {"y": float(fold["y_m"])}
-        source["UNDERBUST_FOLD"] = "manual"
+        source["UNDERBUST_FOLD"] = manual_source(fold)
     waist = given.get("WAIST_LEVEL")
     if waist and isinstance(waist.get("y_m"), (int, float)):
         marks["waist"] = {"y": float(waist["y_m"])}
-        source["WAIST_LEVEL"] = "manual"
+        source["WAIST_LEVEL"] = manual_source(waist)
     return marks, source
 
 
@@ -358,8 +368,33 @@ def apply_hps_overrides(hps: dict, overrides: dict | None, source: dict) -> dict
         if spec and isinstance(spec.get("xyz_m"), list) and len(spec["xyz_m"]) == 3:
             x, y, z = spec["xyz_m"]
             hps[mark_key] = {"x": float(x), "y": float(y), "z": float(z)}
-            source[key] = "manual"
+            source[key] = manual_source(spec)
     return hps
+
+
+def placements(overrides: dict | None) -> dict:
+    """How each hand-placed point was placed (camera distance, incidence, footprint), by id."""
+    out = {}
+    for key, spec in ((overrides or {}).get("landmarks") or {}).items():
+        if isinstance(spec, dict) and isinstance(spec.get("placed_with"), dict):
+            out[key] = spec["placed_with"]
+    return out
+
+
+def with_placement(block: dict, source: dict, placement: dict, manual_points: dict, rules: dict) -> dict:
+    """Every landmark row says how it was placed when a person placed it, and every
+    hand-placed point that has no row of its own (the roots) gets one."""
+    for key, row in block.items():
+        if key in placement:
+            row["placed_with"] = placement[key]
+    for key, point in manual_points.items():
+        if key in block:
+            continue
+        block[key] = {"xyz_m": _xyz(point), "source": source.get(key, "manual"),
+                      "rule": rules.get(key, {}).get("rule", "manual_only")}
+        if key in placement:
+            block[key]["placed_with"] = placement[key]
+    return block
 
 
 def _xyz(point):
@@ -370,7 +405,7 @@ def pom_provenance(pom_id: str, source: dict) -> str:
     inputs = POM_LANDMARKS.get(pom_id, [])
     if not inputs:
         return "auto"
-    if any(source.get(i) == "manual" for i in inputs):
+    if any(is_manual(source.get(i)) for i in inputs):
         return "manual"
     if any(source.get(i) == "derived_from_manual" for i in inputs):
         return "derived_from_manual"
@@ -868,7 +903,8 @@ def main() -> int:
         if isinstance(spec, dict) and isinstance(spec.get("xyz_m"), list) and len(spec["xyz_m"]) == 3:
             x, y, z = spec["xyz_m"]
             manual_points[key] = {"x": float(x), "y": float(y), "z": float(z)}
-            landmark_source.setdefault(key, "manual")
+            landmark_source.setdefault(key, manual_source(spec))
+    landmark_placement = placements(overrides)
     fold_marks = find_fold_landmarks(tri, marks["fold"]["y"]) if (marks and marks.get("fold")) else {}
     armholes = find_armholes(tri) if tri else {}
     if armholes.get("loops") not in (None, 4):
@@ -900,7 +936,7 @@ def main() -> int:
             continue
         if status == "blocked_until_manual":
             needed = spec.get("unblocked_by", [])
-            placed = bool(needed) and all(landmark_source.get(i) == "manual" for i in needed)
+            placed = bool(needed) and all(is_manual(landmark_source.get(i)) for i in needed)
             row["unblocked_by"] = needed
             if not placed:
                 row["value_mm"] = None
@@ -975,7 +1011,7 @@ def main() -> int:
         "reporting": {"precision_mm": precision, "inch_denominator": denominator},
         "calibration": calibration,
         "landmark_overrides": override_meta,
-        "landmarks": (
+        "landmarks": with_placement(
             {
                 "BUST_APEX_L": {
                     "xyz_m": [round(apex_l["x"], 4), round(apex_l["y"], 4), round(apex_l["z"], 4)],
@@ -1028,7 +1064,8 @@ def main() -> int:
                 },
             }
             if marks
-            else {}
+            else {},
+            landmark_source, landmark_placement, manual_points, landmark_rules,
         ),
         "poms": poms,
         "asymmetry": build_asymmetry(computed, marks),

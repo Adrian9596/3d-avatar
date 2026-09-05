@@ -231,6 +231,21 @@ for (const [id, recorded, mine] of levels) {
   record(`${id} height parity`, delta <= tolerance, `Δ ${delta.toFixed(3)}mm`);
 }
 
+// --- provenance: both engines name the same source for every landmark ------
+// `manual` and `manual_mirrored` are different words for the same authority; the
+// gate checks the WORD agrees, so a mirrored point is never reported as plain
+// manual on one side and mirrored on the other.
+const sourceMismatch = Object.entries(evidence.landmarks || {})
+  .filter(([id, m]) => m && m.source && marks.source && marks.source[id] && m.source !== marks.source[id])
+  .map(([id, m]) => `${id}: python ${m.source}, js ${marks.source[id]}`);
+record('landmark provenance agrees between the engines', sourceMismatch.length === 0,
+  sourceMismatch.join('; ') || `${Object.keys(marks.source || {}).length} sources compared`);
+const placementMismatch = Object.entries(marks.placement || {})
+  .filter(([id, pw]) => JSON.stringify(evidence.landmarks?.[id]?.placed_with || null) !== JSON.stringify(pw))
+  .map(([id]) => id);
+record('placed_with is carried identically by both engines', placementMismatch.length === 0,
+  placementMismatch.join(', ') || `${Object.keys(marks.placement || {}).length} placement record(s)`);
+
 // --- calibration recorded by the authority pass -----------------------------
 const calibrationError = Math.abs(evidence.calibration?.error_mm ?? Infinity);
 record(
