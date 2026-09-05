@@ -25,6 +25,7 @@ const VIEWER_REGISTRY = join(ROOT, 'viewer', 'public', 'measurement-registry.jso
 const PROTOTYPE = join(ROOT, 'digital_bra_fit_model_360.html');
 const PRODUCTION = join(ROOT, 'viewer', 'src', 'measurements.js');
 const ENGINE = join(ROOT, 'scripts', 'measure_core.mjs');
+const PEN = join(ROOT, 'scripts', 'pen_tool.mjs');
 const PATHS = join(ROOT, 'scripts', 'surface_path.mjs');
 const REPORT_PATH = join(ROOT, 'qa', 'avatar_master', 'lane-parity.json');
 
@@ -32,7 +33,7 @@ const checks = [];
 const record = (name, ok, detail) => { checks.push({ name, status: ok ? 'PASS' : 'FAIL', detail }); return ok; };
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
-for (const required of [REGISTRY, PROTOTYPE, PRODUCTION, ENGINE, PATHS]) {
+for (const required of [REGISTRY, PROTOTYPE, PRODUCTION, ENGINE, PATHS, PEN]) {
   if (!existsSync(required)) {
     console.error(`BLOCKED: missing ${relative(ROOT, required)}`);
     process.exit(2);
@@ -101,6 +102,27 @@ record('the prototype names the material only inside its documented fallback',
   !strayMaterial,
   strayMaterial ? `${strayMaterial.length} stray reference(s) outside loadRegistry()`
                 : 'only in loadRegistry()');
+
+// --- the pen is one tool, not one per lane ----------------------------------
+const production_main = existsSync(join(ROOT, 'viewer', 'src', 'main.js'))
+  ? readFileSync(join(ROOT, 'viewer', 'src', 'main.js'), 'utf8') : '';
+for (const [label, source] of [['prototype', prototype], ['production', production_main]]) {
+  record(`the ${label} lane imports the shared pen tool`,
+    /from\s+['"][^'"]*pen_tool\.mjs['"]/.test(source),
+    'imports scripts/pen_tool.mjs');
+}
+// Reimplementing the pen's geometry in a lane is how the two would start
+// measuring a drafted line differently.
+const PEN_FUNCTIONS = ['computeSegment', 'rebuildLine', 'initHandles', 'splitThree', 'runBetween'];
+for (const [label, source] of [['prototype', prototype], ['production', production_main]]) {
+  const redefined = PEN_FUNCTIONS.filter((name) => new RegExp(`function\\s+${name}\\s*\\(`).test(source));
+  record(`the ${label} lane does not reimplement the pen`, redefined.length === 0,
+    redefined.length ? `redefines ${redefined.join(', ')}` : 'no pen function is redefined');
+}
+const pen = readFileSync(PEN, 'utf8');
+record('the pen uses the one path model',
+  /from\s+['"]\.\/surface_path\.mjs['"]/.test(pen) && !/Bezier|bezier/.test(pen.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')),
+  'imports surface_path.mjs and reintroduces no second path model');
 
 const failures = checks.filter((c) => c.status === 'FAIL');
 const report = {
