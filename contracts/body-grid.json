@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "registry": "contracts/measurement-registry.json",
+  "status_note": "The vertical half of the reference frame. contracts/measurement-levels.json declares the heights the house looks at; this file declares the curves that run up and down the body, so a point on the skin can be named by both — a level and a curve — the way the source sheets' dotted grid does. Every curve here is READ OFF THIS MESH by a rule with no chosen number in it, in the same discipline as the registry's landmark rules: centre is the symmetry plane, a side is the widest point of a section, an apex line is the vertical through a detected apex, and a boundary is where the torso surface actually ends. Nothing here is a seam, a style line or a princess line — those are design decisions, and a rule that invented one would be exactly the kind of rule this project deletes.",
+  "declared_limit": "The grid is where this body's own geometry falls, not where a bra's seams should go.",
+  "rules": {
+    "section_nearest_x": "At each height, the point of the horizontal section nearest a target x, on the named side. Which side a point is on is decided by that section's OWN midline — halfway between its front-most and back-most point — not by the sign of z and not by any number chosen here. With x = 0 this is the symmetry plane; with x taken from a landmark it is the vertical through that landmark. Landing is limited by where the mesh has vertices at that height, so a curve sits within the mesh's own resolution of its plane rather than exactly on it; the gate measures that and records it.",
+    "section_extreme_x": "At each height, the point of the horizontal section furthest out in x on the named side. The same rule the registry already accepts for SIDE_UNDERBUST_L/R (fold_section_extreme_x) — an extreme, not a threshold.",
+    "boundary_loop": "A loop of edges used by exactly one triangle: where the torso surface ends. The mesh is cut at the neck, both armholes and the waist, so it has exactly four, and they are told apart by height and by which side of x = 0 they sit on — the same reasoning UNDERARM_L/R already uses. No threshold appears anywhere in it."
+  },
+  "sampling": {
+    "step_m": 0.005,
+    "comment": "The registry's own scan step. A curve is the sampled points joined in height order; it is drawn, never measured, so no length is reported for it and it cannot disagree with a POM."
+  },
+  "curves": [
+    {
+      "id": "CENTRE_FRONT", "label_en": "Centre front", "group": "centre",
+      "rule": "section_nearest_x", "side": "front", "x_m": 0, "requires": [],
+      "comment": "The gore line. Through the sternum at the top, the navel at the bottom."
+    },
+    {
+      "id": "CENTRE_BACK", "label_en": "Centre back", "group": "centre",
+      "rule": "section_nearest_x", "side": "back", "x_m": 0, "requires": [],
+      "comment": "Where the band closes."
+    },
+    {
+      "id": "SIDE_L", "label_en": "Side L", "group": "side",
+      "rule": "section_extreme_x", "sign": -1, "requires": [], "max_y_m": 1.39,
+      "comment": "The widest point of each section. Stops at the armhole ceiling: above it the widest point of a section is the cut edge of the armhole, not the side of the body."
+    },
+    {
+      "id": "SIDE_R", "label_en": "Side R", "group": "side",
+      "rule": "section_extreme_x", "sign": 1, "requires": [], "max_y_m": 1.39,
+      "comment": "The widest point of each section. Stops at the armhole ceiling: above it the widest point of a section is the cut edge of the armhole, not the side of the body."
+    },
+    {
+      "id": "APEX_VERTICAL_L", "label_en": "Apex vertical L", "group": "apex",
+      "rule": "section_nearest_x", "side": "front", "x_from_landmark": "BUST_APEX_L", "requires": ["BUST_APEX_L"],
+      "comment": "The vertical through the apex, for placing a cup's centre. It is NOT the sheets' dotted line, which follows the reference avatar's own topology; it is what that line means on this body, stated as a rule."
+    },
+    {
+      "id": "APEX_VERTICAL_R", "label_en": "Apex vertical R", "group": "apex",
+      "rule": "section_nearest_x", "side": "front", "x_from_landmark": "BUST_APEX_R", "requires": ["BUST_APEX_R"],
+      "comment": "The vertical through the apex, for placing a cup's centre. It is NOT the sheets' dotted line, which follows the reference avatar's own topology; it is what that line means on this body, stated as a rule."
+    }
+  ],
+  "boundaries": [
+    { "id": "NECK_OPENING", "label_en": "Neck opening", "group": "boundary", "rule": "boundary_loop", "pick": "highest" },
+    { "id": "ARMHOLE_L", "label_en": "Armhole L", "group": "boundary", "rule": "boundary_loop", "pick": "middle", "sign": -1 },
+    { "id": "ARMHOLE_R", "label_en": "Armhole R", "group": "boundary", "rule": "boundary_loop", "pick": "middle", "sign": 1 },
+    { "id": "WAIST_CUT", "label_en": "Waist cut", "group": "boundary", "rule": "boundary_loop", "pick": "lowest" }
+  ],
+  "boundaries_note": "These are the four places the torso mesh ends, drawn because they are the hard limits on where anything can sit: a strap crosses the armhole, and nothing at all can be measured past the neck or waist cut. They are the asset's cut lines, not anatomy — the neck opening is where the head was removed, not a neckline.",
+  "groups": {
+    "centre": { "label_en": "Centre", "colour": "#5f5851" },
+    "side": { "label_en": "Side", "colour": "#5f5851" },
+    "apex": { "label_en": "Apex vertical", "colour": "#a8760f" },
+    "boundary": { "label_en": "Where the mesh ends", "colour": "#9c948d" }
+  },
+  "declared_limits": [
+    "The grid is where this body's own geometry falls, not where a bra's seams should go.",
+    "No curve here is a seam, a style line or a princess line: this project does not derive a design decision from geometry.",
+    "The boundary loops are the asset's cut lines. The neck opening is where the head was removed and the waist cut where the body was; neither is a garment edge.",
+    "A curve is drawn, never measured. No length is reported for one, so it can carry no tolerance and cannot disagree with a POM.",
+    "A curve whose landmark is not available is not drawn and reports what it needs, rather than falling back to a nearby rule."
+  ]
+}

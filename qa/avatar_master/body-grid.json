@@ -1,0 +1,238 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T14:59:56Z",
+  "purpose": "The vertical half of the reference frame: centre, side and apex curves read off this mesh, and the four lines it is cut on.",
+  "asset": {
+    "path": "assets/export/avatar_master.glb",
+    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+  },
+  "contract": {
+    "path": "contracts/body-grid.json",
+    "sha256": "b07b0be89aec28c19f492af354077d600f61dce1eaa7039785a473ded7cadacc"
+  },
+  "scan": {
+    "from_m": 1.05,
+    "to_m": 1.56,
+    "step_m": 0.005,
+    "comment": "Covers waist to the base of the neck. Sections above y=1.39m are unreliable because the torso surface is open at the armhole (plan section 4.3), so no POM is declared above it."
+  },
+  "cross_checks": {
+    "side_vs_registry_mm": [
+      {
+        "landmark": "SIDE_UNDERBUST_L",
+        "delta_mm": 0.049
+      },
+      {
+        "landmark": "SIDE_UNDERBUST_R",
+        "delta_mm": 0.049
+      }
+    ],
+    "armhole_vs_registry_mm": [
+      {
+        "landmark": "UNDERARM_L",
+        "delta_mm": 0.0313
+      },
+      {
+        "landmark": "UNDERARM_R",
+        "delta_mm": 0.031
+      }
+    ],
+    "centre_off_plane_mm": 0.421
+  },
+  "curves": [
+    {
+      "id": "CENTRE_FRONT",
+      "rule": "section_nearest_x",
+      "needs": null,
+      "samples": 103,
+      "from_y_m": 1.05,
+      "to_y_m": 1.56
+    },
+    {
+      "id": "CENTRE_BACK",
+      "rule": "section_nearest_x",
+      "needs": null,
+      "samples": 103,
+      "from_y_m": 1.05,
+      "to_y_m": 1.56
+    },
+    {
+      "id": "SIDE_L",
+      "rule": "section_extreme_x",
+      "needs": null,
+      "samples": 69,
+      "from_y_m": 1.05,
+      "to_y_m": 1.39
+    },
+    {
+      "id": "SIDE_R",
+      "rule": "section_extreme_x",
+      "needs": null,
+      "samples": 69,
+      "from_y_m": 1.05,
+      "to_y_m": 1.39
+    },
+    {
+      "id": "APEX_VERTICAL_L",
+      "rule": "section_nearest_x",
+      "needs": null,
+      "samples": 103,
+      "from_y_m": 1.05,
+      "to_y_m": 1.56
+    },
+    {
+      "id": "APEX_VERTICAL_R",
+      "rule": "section_nearest_x",
+      "needs": null,
+      "samples": 103,
+      "from_y_m": 1.05,
+      "to_y_m": 1.56
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "NECK_OPENING",
+      "rule": "boundary_loop",
+      "pick": "highest",
+      "blocked": null,
+      "samples": 126
+    },
+    {
+      "id": "ARMHOLE_L",
+      "rule": "boundary_loop",
+      "pick": "middle",
+      "blocked": null,
+      "samples": 42
+    },
+    {
+      "id": "ARMHOLE_R",
+      "rule": "boundary_loop",
+      "pick": "middle",
+      "blocked": null,
+      "samples": 42
+    },
+    {
+      "id": "WAIST_CUT",
+      "rule": "boundary_loop",
+      "pick": "lowest",
+      "blocked": null,
+      "samples": 156
+    }
+  ],
+  "limit": "The grid is where this body's own geometry falls, not where a bra's seams should go.",
+  "declared_limits": [
+    "The grid is where this body's own geometry falls, not where a bra's seams should go.",
+    "No curve here is a seam, a style line or a princess line: this project does not derive a design decision from geometry.",
+    "The boundary loops are the asset's cut lines. The neck opening is where the head was removed and the waist cut where the body was; neither is a garment edge.",
+    "A curve is drawn, never measured. No length is reported for one, so it can carry no tolerance and cannot disagree with a POM.",
+    "A curve whose landmark is not available is not drawn and reports what it needs, rather than falling back to a nearby rule."
+  ],
+  "checks": [
+    {
+      "name": "the contract validates against the registry",
+      "status": "PASS",
+      "detail": "6 curves, 4 boundaries, every landmark declared"
+    },
+    {
+      "name": "the contract states the grid limit",
+      "status": "PASS",
+      "detail": "The grid is where this body's own geometry falls, not where a bra's seams should go."
+    },
+    {
+      "name": "an unimplemented rule, an unlisted landmark, a boundary as a curve and a sideless middle loop are all refused",
+      "status": "PASS",
+      "detail": "A: unknown rule princess_line | B: BUST_APEX_L is used but not in requires | C: unknown group nope; a boundary loop is declared under boundaries, not curves | D: a middle loop must say which side it is on"
+    },
+    {
+      "name": "the contract carries no tolerance, no length and no threshold",
+      "status": "PASS",
+      "detail": "a curve has a rule and a side, and nothing to compare a body against"
+    },
+    {
+      "name": "no curve is a seam, a style line or a princess line",
+      "status": "PASS",
+      "detail": "the grid declares geometry; where a seam goes stays a person's decision"
+    },
+    {
+      "name": "every curve with its landmarks present samples along the body",
+      "status": "PASS",
+      "detail": "CENTRE_FRONT 103 pts, CENTRE_BACK 103 pts, SIDE_L 69 pts, SIDE_R 69 pts, APEX_VERTICAL_L 103 pts, APEX_VERTICAL_R 103 pts"
+    },
+    {
+      "name": "centre front and centre back sit on the symmetry plane, to the mesh's own resolution",
+      "status": "PASS",
+      "detail": "worst |x| 0.421mm; the mesh straddles x = 0 with points 10.6982mm apart there, so half of that is all a section point can do"
+    },
+    {
+      "name": "centre front is in front of centre back at every height",
+      "status": "PASS",
+      "detail": "103 heights, front z > back z at each"
+    },
+    {
+      "name": "a side curve is the widest point of its section",
+      "status": "PASS",
+      "detail": "no other curve reaches further out at any shared height"
+    },
+    {
+      "name": "the side curves agree with the registry's own side points at the fold",
+      "status": "PASS",
+      "detail": "SIDE_UNDERBUST_L 0.049mm, SIDE_UNDERBUST_R 0.049mm — same rule, different code path"
+    },
+    {
+      "name": "an apex vertical passes through its apex",
+      "status": "PASS",
+      "detail": "APEX_VERTICAL_L Δx 0.0458mm Δz 0.0301mm, APEX_VERTICAL_R Δx 0.0457mm Δz 0.0301mm"
+    },
+    {
+      "name": "without the apex landmark an apex vertical reads needs …, never a fallback near centre",
+      "status": "PASS",
+      "detail": "APEX_VERTICAL_L needs BUST_APEX_L, APEX_VERTICAL_R needs BUST_APEX_R"
+    },
+    {
+      "name": "a curve that needs nothing still draws without any landmark",
+      "status": "PASS",
+      "detail": "centre and side depend on the mesh alone"
+    },
+    {
+      "name": "SIDE_L stops at the armhole ceiling",
+      "status": "PASS",
+      "detail": "top sample y = 1.3900m, ceiling 1.39m — above it the widest point is the armhole cut"
+    },
+    {
+      "name": "SIDE_R stops at the armhole ceiling",
+      "status": "PASS",
+      "detail": "top sample y = 1.3900m, ceiling 1.39m — above it the widest point is the armhole cut"
+    },
+    {
+      "name": "every sampled point is a point of its own section",
+      "status": "PASS",
+      "detail": "80 points sampled across the curves, 0 off the surface"
+    },
+    {
+      "name": "the four cut lines of this asset are found",
+      "status": "PASS",
+      "detail": "NECK_OPENING 126 pts, ARMHOLE_L 42 pts, ARMHOLE_R 42 pts, WAIST_CUT 156 pts"
+    },
+    {
+      "name": "each boundary loop closes",
+      "status": "PASS",
+      "detail": "first and last vertex of each walk are neighbours on the same loop"
+    },
+    {
+      "name": "the armhole loops are the ones the registry's underarm points came from",
+      "status": "PASS",
+      "detail": "UNDERARM_L 0.0313mm from the loop's lowest point, UNDERARM_R 0.031mm from the loop's lowest point"
+    },
+    {
+      "name": "the neck opening is above every armhole and the waist cut below",
+      "status": "PASS",
+      "detail": "sorted by height, and the two left over are the armholes — no threshold anywhere"
+    },
+    {
+      "name": "the contract says the boundaries are cut lines, not garment edges",
+      "status": "PASS",
+      "detail": "the neck opening is where the head was removed"
+    }
+  ],
+  "decision": "GRID_IS_READ_OFF_THIS_MESH"
+}

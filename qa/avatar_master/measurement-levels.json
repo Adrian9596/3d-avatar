@@ -1,0 +1,259 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T14:59:56Z",
+  "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
+  "asset": {
+    "path": "assets/export/avatar_master.glb",
+    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+  },
+  "contract": {
+    "path": "contracts/measurement-levels.json",
+    "sha256": "836bc7f5647a12deac6650b281b12756243bedd62155ef928d80aa0d57328c7f"
+  },
+  "trace": {
+    "path": "qa/avatar_master/measurement-levels-trace.json",
+    "generated_at": "2026-09-05T11:47:09Z"
+  },
+  "sheets": [
+    {
+      "path": "assets/reference/how-to-measure/Front_Measurements.png",
+      "view": "front",
+      "sha256": "8e2bf87a35c27c59724d5e43a3df89ee90596dbc76ccb7864856b9f541c844aa",
+      "px_per_inch": 34.347,
+      "worst_residual_in": 0.2068
+    },
+    {
+      "path": "assets/reference/how-to-measure/Back_Measurements.png",
+      "view": "back",
+      "sha256": "a511b7abfa3b6510b7e973bb0cd45441c511b2fadc62c250f771131271fd5461",
+      "px_per_inch": 33.607,
+      "worst_residual_in": 0.2652
+    },
+    {
+      "path": "assets/reference/how-to-measure/34_Measurements.png",
+      "view": "three-quarter",
+      "sha256": "c1c1ed229776e300577d62d9a5c5304cfc65bc061ff526d49dd46a88643539de",
+      "px_per_inch": 35.327,
+      "worst_residual_in": 0.2693
+    }
+  ],
+  "datum": {
+    "landmark": "UNDERBUST_FOLD",
+    "y_m": 1.27,
+    "source": "auto"
+  },
+  "levels": [
+    {
+      "id": "LVL_P4_1_4",
+      "offset_in": 4.25,
+      "label": "+4 1/4\"",
+      "y_m": 1.37795,
+      "girth_mm": 1014.9,
+      "blocked": null
+    },
+    {
+      "id": "LVL_P3_3_4",
+      "offset_in": 3.75,
+      "label": "+3 3/4\"",
+      "y_m": 1.36525,
+      "girth_mm": 1022,
+      "blocked": null
+    },
+    {
+      "id": "LVL_P3_1_2",
+      "offset_in": 3.5,
+      "label": "+3 1/2\"",
+      "y_m": 1.3589,
+      "girth_mm": 1023.8,
+      "blocked": null
+    },
+    {
+      "id": "LVL_P1_1_4",
+      "offset_in": 1.25,
+      "label": "+1 1/4\"",
+      "y_m": 1.30175,
+      "girth_mm": 961.8,
+      "blocked": null
+    },
+    {
+      "id": "LVL_P0_3_4",
+      "offset_in": 0.75,
+      "label": "+3/4\"",
+      "y_m": 1.28905,
+      "girth_mm": 918.9,
+      "blocked": null
+    },
+    {
+      "id": "LVL_P0_1_2",
+      "offset_in": 0.5,
+      "label": "+1/2\"",
+      "y_m": 1.2827,
+      "girth_mm": 890.7,
+      "blocked": null
+    },
+    {
+      "id": "LVL_ZERO",
+      "offset_in": 0,
+      "label": null,
+      "y_m": 1.27,
+      "girth_mm": 830.9,
+      "blocked": null
+    },
+    {
+      "id": "LVL_M1",
+      "offset_in": -1,
+      "label": "-1\"",
+      "y_m": 1.2446,
+      "girth_mm": 792.6,
+      "blocked": null
+    },
+    {
+      "id": "LVL_M1_1_4",
+      "offset_in": -1.25,
+      "label": "-1 1/4\"",
+      "y_m": 1.23825,
+      "girth_mm": 787.5,
+      "blocked": null
+    },
+    {
+      "id": "LVL_M1_1_2",
+      "offset_in": -1.5,
+      "label": "-1 1/2\"",
+      "y_m": 1.2319,
+      "girth_mm": 783.1,
+      "blocked": null
+    },
+    {
+      "id": "LVL_M1_3_4",
+      "offset_in": -1.75,
+      "label": "-1 3/4\"",
+      "y_m": 1.22555,
+      "girth_mm": 778.9,
+      "blocked": null
+    },
+    {
+      "id": "LVL_M2",
+      "offset_in": -2,
+      "label": "-2\"",
+      "y_m": 1.2192,
+      "girth_mm": 775.3,
+      "blocked": null
+    },
+    {
+      "id": "LVL_M2_1_4",
+      "offset_in": -2.25,
+      "label": "-2 1/4\"",
+      "y_m": 1.21285,
+      "girth_mm": 772.2,
+      "blocked": null
+    },
+    {
+      "id": "LVL_M2_1_2",
+      "offset_in": -2.5,
+      "label": "-2 1/2\"",
+      "y_m": 1.2065,
+      "girth_mm": 769.9,
+      "blocked": null
+    }
+  ],
+  "declared_limits": [
+    "Reference levels are heights from the underbust line, not a fit recommendation and not a size.",
+    "The figure on the source sheets is not this avatar; only the protocol transfers, never a dimension.",
+    "That the black 0 line is the underbust line is an interpretation of an unlabelled mark, evidenced by the trace and recorded here so it can be corrected in one field.",
+    "A level's girth is a body dimension with no compression allowance, like every other girth in this project.",
+    "Levels are not POMs: no house code, no tolerance, no POM sheet row, no evidence in measurements.json."
+  ],
+  "checks": [
+    {
+      "name": "every source sheet is the one the contract pins",
+      "status": "PASS",
+      "detail": "3 sheets, sha256 matched"
+    },
+    {
+      "name": "the trace evidence is of these sheets and this contract",
+      "status": "PASS",
+      "detail": "3 sheets traced by scripts/trace_measurement_levels.py"
+    },
+    {
+      "name": "every sheet traced one leader per printed value",
+      "status": "PASS",
+      "detail": "front 13, back 13, three-quarter 13 of 13"
+    },
+    {
+      "name": "the printed values hold a linear inch scale within 0.28in",
+      "status": "PASS",
+      "detail": "worst 0.2693in (front 34.347px/in, back 33.607px/in, three-quarter 35.327px/in)"
+    },
+    {
+      "name": "on every sheet the fitted zero lands in the one unlabelled gap",
+      "status": "PASS",
+      "detail": "front: 0.7069in below +1/2\", 0.8798in above -1\"; back: 0.7653in below +1/2\", 0.8712in above -1\"; three-quarter: 0.7694in below +1/2\", 0.9149in above -1\""
+    },
+    {
+      "name": "the contract does not claim the black line was detected",
+      "status": "PASS",
+      "detail": "the datum reading is declared as a person's, in one correctable field"
+    },
+    {
+      "name": "the contract validates against the registry",
+      "status": "PASS",
+      "detail": "14 levels, datum UNDERBUST_FOLD is a registry landmark, offsets on the quarter inch and ordered"
+    },
+    {
+      "name": "the contract states the levels limit",
+      "status": "PASS",
+      "detail": "Reference levels are heights from the underbust line, not a fit recommendation and not a size."
+    },
+    {
+      "name": "levels are declared as reference heights, not POMs",
+      "status": "PASS",
+      "detail": "no tolerance, no house code, no status ladder — a level is a place to look"
+    },
+    {
+      "name": "a duplicate id, an off-grid offset or an unknown group is refused",
+      "status": "PASS",
+      "detail": "X: 0.3in is not a quarter of an inch; unknown group nope; X: missing or duplicate id; expected exactly one level at 0in, found 0"
+    },
+    {
+      "name": "every level resolves from the detected datum",
+      "status": "PASS",
+      "detail": "UNDERBUST_FOLD at y = 1.2700m, 14 heights"
+    },
+    {
+      "name": "a level height is the datum plus its offset in inches, exactly",
+      "status": "PASS",
+      "detail": "0.0254m per inch, no rounding on the way in"
+    },
+    {
+      "name": "a level girth is the shared engine's section girth, not a second model",
+      "status": "PASS",
+      "detail": "identical for every measured level (worst difference 0)"
+    },
+    {
+      "name": "every level either yields a closed ring or says why it does not",
+      "status": "PASS",
+      "detail": "14 measured, 0 withheld"
+    },
+    {
+      "name": "no level reports a girth where a section is not trustworthy",
+      "status": "PASS",
+      "detail": "nothing above y = 1.39m or outside the scan yields a number"
+    },
+    {
+      "name": "the whole stack lands on the reliable part of this torso",
+      "status": "PASS",
+      "detail": "+4.25in at y = 1.3780m (12mm below the armhole ceiling), -2.5in at y = 1.2065m"
+    },
+    {
+      "name": "without the datum landmark the stack reads needs …, never a number",
+      "status": "PASS",
+      "detail": "needs UNDERBUST_FOLD"
+    },
+    {
+      "name": "the record of a stack that cannot resolve carries the need and the limit",
+      "status": "PASS",
+      "detail": "needs UNDERBUST_FOLD"
+    }
+  ],
+  "decision": "LEVELS_RESOLVE_ON_THIS_BODY"
+}

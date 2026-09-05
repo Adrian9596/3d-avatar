@@ -57,6 +57,8 @@ const required = [
   ['assets/export/avatar_master.glb', "the prototype's GLB (a runtime string the bundler cannot see)"],
   ['contracts/measurement-registry.json', "the prototype's registry (also fetched at runtime)"],
   ['contracts/pattern-templates.json', "the prototype's template drafts (fetched at runtime)"],
+  ['contracts/measurement-levels.json', "the prototype's reference levels (fetched at runtime)"],
+  ['contracts/body-grid.json', "the prototype's body grid (fetched at runtime)"],
   ['viewer/index.html', 'the production viewer at /viewer/'],
 ];
 for (const [path, why] of required) {

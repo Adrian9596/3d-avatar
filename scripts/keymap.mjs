@@ -36,6 +36,8 @@ export const KEYMAP = Object.freeze([
   b('landmarks.toggle', ['L'], 'always', 'Landmarks panel on / off', { lane: 'prototype' }),
   b('tapes.toggle', ['T'], 'always', 'Tape lines on / off'),
   b('section.toggle', ['X'], 'always', 'Section tool on / off', { lane: 'prototype' }),
+  b('levels.toggle', ['G'], 'always', 'Reference levels on / off (the how-to-measure stack)', { lane: 'prototype' }),
+  b('grid.toggle', ['B'], 'always', 'Body grid on / off (centre, side, apex verticals and the cut lines)', { lane: 'prototype' }),
   b('view.front', ['1'], 'always', 'Front view'),
   b('view.three-quarter', ['2'], 'always', 'Three-quarter view'),
   b('view.side', ['3'], 'always', 'Side view'),
