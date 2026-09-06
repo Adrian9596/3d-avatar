@@ -7,7 +7,7 @@
  * reproducing AUTHORING_UX_PLAN.md §4.1 at the viewer's framing; incidence is
  * orientation-free and bounded; the pose facing a normal looks along −normal at
  * the asked distance and respects the polar clamp; 24 turntable steps of 15°
- * compose to the identity; the framing distance matches what the lanes' view
+ * compose to the identity; the framing distance matches what the app's view
  * presets computed before it was shared.
  *
  * Exit codes: 0 pass, 1 a check failed.

@@ -38,7 +38,7 @@
 
 ## Consumer obligations
 
-- Viewers must not claim morph or rig capability this asset doesn't have — show a blocked state instead (see `viewer/src/contracts.js` for the pattern).
+- Viewers must not claim morph or rig capability this asset doesn't have — show a blocked state instead (see `scripts/avatar_contracts.mjs` for the pattern).
 - Treat `assets/source/avatar_master.blend` as the editable source; the GLB is a derived export.
 - Render with a neutral tone mapper (both viewers use `THREE.NeutralToneMapping` plus a `RoomEnvironment` IBL). ACES Filmic desaturates this skin tone to a flat off-white.
-- After any re-export: rerun `npm run validate:gltf -- assets/export/avatar_master.glb qa/avatar_master/gltf-validator-report.json` (required: zero errors) and update the SHA-256 in both `digital_bra_fit_model_360.html` and `viewer/src/main.js`.
+- After any re-export: rerun `npm run validate:gltf -- assets/export/avatar_master.glb qa/avatar_master/gltf-validator-report.json` (required: zero errors) and update the SHA-256 in `digital_bra_fit_model_360.html`.

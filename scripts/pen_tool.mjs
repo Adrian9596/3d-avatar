@@ -15,7 +15,7 @@ import { resolveSnap, nearestOnPolyline, levelCandidate, mirrorCandidate, mirror
  * claims the pointer only when it lands on a pin, so the body is turned without
  * leaving the tool (AUTHORING_UX_PLAN.md §5.1); a touch long-press is the
  * right-click. Keys are the host's: it dispatches scripts/keymap.mjs bindings to
- * the actions exposed below, so both lanes read the same map.
+ * the actions exposed below, so the map is the one source of what a key means.
  *
  * Snapping (scripts/pen_snap.mjs) moves an anchor onto what it should meet —
  * the first anchor, another line's anchor or run, a landmark the host supplies,
@@ -31,12 +31,12 @@ import { resolveSnap, nearestOnPolyline, levelCandidate, mirrorCandidate, mirror
  * different kind of number from one pinned facing at 0.35 m, and the evidence
  * should be able to tell them apart.
  *
- * This module is SHARED BY BOTH VIEWER LANES on purpose. Copying it into the
- * second lane would give the project two implementations of the same
- * measurement, which is exactly what scripts/test_lane_parity.mjs exists to
- * prevent. The geometry, the three.js objects and the pointer handling live
- * here; each lane supplies only its own DOM chrome (buttons, the line list, the
- * on-body labels) through `onChange` and `getLabels()`.
+ * The tool lives HERE, not in the host. Pasting its geometry into the page
+ * would give the project two implementations of the same measurement, which is
+ * exactly what scripts/test_single_engine.mjs exists to prevent. The geometry,
+ * the three.js objects and the pointer handling live here; the host supplies
+ * only its DOM chrome (buttons, the line list, the on-body labels) through
+ * `onChange` and `getLabels()`.
  *
  * Every run between two points is the shortest path along the surface
  * (scripts/surface_path.mjs) and nothing else — the one path model, chosen

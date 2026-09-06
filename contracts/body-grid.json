@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "registry": "contracts/measurement-registry.json",
-  "status_note": "The vertical half of the reference frame. contracts/measurement-levels.json declares the heights the house looks at; this file declares the curves that run up and down the body, so a point on the skin can be named by both — a level and a curve — the way the source sheets' dotted grid does. Every curve here is READ OFF THIS MESH by a rule with no chosen number in it, in the same discipline as the registry's landmark rules: centre is the symmetry plane, a side is the widest point of a section, an apex line is the vertical through a detected apex, and a boundary is where the torso surface actually ends. Nothing here is a seam, a style line or a princess line — those are design decisions, and a rule that invented one would be exactly the kind of rule this project deletes.",
+  "status_note": "The vertical half of the reference frame. contracts/measurement-levels.json declares the heights the house looks at; this file declares the curves that run up and down the body, so a point on the skin can be named by both — a level and a curve — the way the source sheets' dotted grid does. Every curve here is READ OFF THIS MESH by a rule with no chosen number in it, in the same discipline as the registry's landmark rules: centre is the symmetry plane, a side is the section's outermost point at its own mid-depth, an apex line is the vertical through a detected apex, and a boundary is where the torso surface actually ends. Nothing here is a seam, a style line or a princess line — those are design decisions, and a rule that invented one would be exactly the kind of rule this project deletes.",
   "declared_limit": "The grid is where this body's own geometry falls, not where a bra's seams should go.",
   "rules": {
-    "section_nearest_x": "At each height, the point of the horizontal section nearest a target x, on the named side. Which side a point is on is decided by that section's OWN midline — halfway between its front-most and back-most point — not by the sign of z and not by any number chosen here. With x = 0 this is the symmetry plane; with x taken from a landmark it is the vertical through that landmark. Landing is limited by where the mesh has vertices at that height, so a curve sits within the mesh's own resolution of its plane rather than exactly on it; the gate measures that and records it.",
-    "section_extreme_x": "At each height, the point of the horizontal section furthest out in x on the named side. The same rule the registry already accepts for SIDE_UNDERBUST_L/R (fold_section_extreme_x) — an extreme, not a threshold.",
+    "section_crossing_x": "At each height, the point where the horizontal section crosses the plane x = target, on the named side, interpolated along the section segment it crosses. Which side a point is on is decided by that section's OWN midline — halfway between its front-most and back-most point — not by the sign of z and not by any number chosen here; where a side crosses more than once the outermost crossing is taken, so the curve stays on the outer skin. With x = 0 this is the symmetry plane; with x taken from a landmark it is the vertical through that landmark. The crossing is exact — an earlier rule took the nearest section VERTEX instead, and the curve stepped sideways by the mesh's own resolution (up to 5mm) at every height.",
+    "section_mid_depth_x": "At each height, the outermost point of the horizontal section on the named side, taken at that section's OWN mid-depth — halfway between its front-most and back-most point, the same construct section_crossing_x uses to tell front from back, and no number chosen here. It replaced section_extreme_x, the widest point of the section: the widest point is well determined in x but NOT IN DEPTH, because the side of a body is a flat wall — at every height this section is equally wide over 10 to 57mm of depth, and which vertex in that run comes out widest is decided by under a millimetre of mesh variation. Sampled height by height it jumped up to 41.7mm in depth between neighbouring heights, drawing the mesh's noise as if it were a line on the body; at mid-depth the answer moves at most 3.55mm and sits 0.68mm inboard of the widest point, so it is a point of the same wall. The registry's SIDE_UNDERBUST_L/R are still the widest point and should be — they feed a width, where depth does not enter.",
     "boundary_loop": "A loop of edges used by exactly one triangle: where the torso surface ends. The mesh is cut at the neck, both armholes and the waist, so it has exactly four, and they are told apart by height and by which side of x = 0 they sit on — the same reasoning UNDERARM_L/R already uses. No threshold appears anywhere in it."
   },
   "sampling": {
@@ -15,32 +15,32 @@
   "curves": [
     {
       "id": "CENTRE_FRONT", "label_en": "Centre front", "group": "centre",
-      "rule": "section_nearest_x", "side": "front", "x_m": 0, "requires": [],
+      "rule": "section_crossing_x", "side": "front", "x_m": 0, "requires": [],
       "comment": "The gore line. Through the sternum at the top, the navel at the bottom."
     },
     {
       "id": "CENTRE_BACK", "label_en": "Centre back", "group": "centre",
-      "rule": "section_nearest_x", "side": "back", "x_m": 0, "requires": [],
+      "rule": "section_crossing_x", "side": "back", "x_m": 0, "requires": [],
       "comment": "Where the band closes."
     },
     {
       "id": "SIDE_L", "label_en": "Side L", "group": "side",
-      "rule": "section_extreme_x", "sign": -1, "requires": [], "max_y_m": 1.39,
-      "comment": "The widest point of each section. Stops at the armhole ceiling: above it the widest point of a section is the cut edge of the armhole, not the side of the body."
+      "rule": "section_mid_depth_x", "sign": -1, "requires": [], "max_y_m": 1.39,
+      "comment": "The side wall of each section, at the section's own mid-depth. Stops at the armhole ceiling: above it the section is open at the armhole, so its outermost point is the cut edge and not the side of the body."
     },
     {
       "id": "SIDE_R", "label_en": "Side R", "group": "side",
-      "rule": "section_extreme_x", "sign": 1, "requires": [], "max_y_m": 1.39,
-      "comment": "The widest point of each section. Stops at the armhole ceiling: above it the widest point of a section is the cut edge of the armhole, not the side of the body."
+      "rule": "section_mid_depth_x", "sign": 1, "requires": [], "max_y_m": 1.39,
+      "comment": "The side wall of each section, at the section's own mid-depth. Stops at the armhole ceiling: above it the section is open at the armhole, so its outermost point is the cut edge and not the side of the body."
     },
     {
       "id": "APEX_VERTICAL_L", "label_en": "Apex vertical L", "group": "apex",
-      "rule": "section_nearest_x", "side": "front", "x_from_landmark": "BUST_APEX_L", "requires": ["BUST_APEX_L"],
+      "rule": "section_crossing_x", "side": "front", "x_from_landmark": "BUST_APEX_L", "requires": ["BUST_APEX_L"],
       "comment": "The vertical through the apex, for placing a cup's centre. It is NOT the sheets' dotted line, which follows the reference avatar's own topology; it is what that line means on this body, stated as a rule."
     },
     {
       "id": "APEX_VERTICAL_R", "label_en": "Apex vertical R", "group": "apex",
-      "rule": "section_nearest_x", "side": "front", "x_from_landmark": "BUST_APEX_R", "requires": ["BUST_APEX_R"],
+      "rule": "section_crossing_x", "side": "front", "x_from_landmark": "BUST_APEX_R", "requires": ["BUST_APEX_R"],
       "comment": "The vertical through the apex, for placing a cup's centre. It is NOT the sheets' dotted line, which follows the reference avatar's own topology; it is what that line means on this body, stated as a rule."
     }
   ],
@@ -62,6 +62,7 @@
     "No curve here is a seam, a style line or a princess line: this project does not derive a design decision from geometry.",
     "The boundary loops are the asset's cut lines. The neck opening is where the head was removed and the waist cut where the body was; neither is a garment edge.",
     "A curve is drawn, never measured. No length is reported for one, so it can carry no tolerance and cannot disagree with a POM.",
-    "A curve whose landmark is not available is not drawn and reports what it needs, rather than falling back to a nearby rule."
+    "A curve whose landmark is not available is not drawn and reports what it needs, rather than falling back to a nearby rule.",
+    "A side curve says where on the side wall a line runs, at the section's own mid-depth. It is not the widest point: the side of a body is flat, so the widest point is undetermined in depth by tens of millimetres, and the registry's SIDE_UNDERBUST_L/R keep that rule because a width does not need a depth."
   ]
 }

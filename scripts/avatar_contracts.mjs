@@ -1,3 +1,18 @@
+/**
+ * The morph and animation contracts the avatar is checked against.
+ *
+ * This asset has neither: avatar_master.glb carries no semantic morph targets
+ * and no animation clips, so both checks come back BLOCKED. The panels that
+ * displayed those notices were removed — they were permanently blocked and told
+ * a reader nothing — but THE CHECK ITSELF STILL RUNS, into
+ * `window.__avatarPlatform`, and scripts/test_viewer_contracts.mjs asserts it
+ * reports BLOCKED rather than inventing substitute controls.
+ *
+ * It lived in the production viewer lane until that lane was merged away; it is
+ * shared code now, so do not delete the check along with its UI, and do not add
+ * shape or motion controls back without morphs and clips to drive them.
+ */
+
 export const REQUIRED_MORPHS = Object.freeze([
   "Underbust",
   "Projection",

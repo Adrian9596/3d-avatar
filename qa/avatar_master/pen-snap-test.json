@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T16:29:05Z",
+  "generated_at": "2026-09-05T17:24:15Z",
   "purpose": "Where a pen anchor goes when a click lands near something it should meet: nearest within the radius, priority on ties, held constraints first; level and mirror on the skin with residuals recorded.",
   "module": {
     "file": "scripts/pen_snap.mjs",
-    "sha256": "22c74ceefc7ce2674d1bb688d6532859583c2fcc6b228486e470e034af7b6397"
+    "sha256": "e496e5f35c9b05040bebefdedc5ba1a56de16535bc5e4ed1b3d2f27563519964"
   },
   "asset": {
     "file": "assets/export/avatar_master.glb",

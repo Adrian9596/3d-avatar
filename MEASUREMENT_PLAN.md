@@ -387,33 +387,45 @@ overhang exactly and does not depend on projection at all.
 
 ### 3f. Phase 7: the second lane, without a second source of truth
 
-The production viewer (`viewer/`) now shows the same measurement table and the same red tape
+> **Superseded, 2026-09-06.** The second lane was merged away. It never disagreed with the
+> prototype about a number — that part worked — but it carried none of the authoring tools, so
+> the pen, the levels, the grid, the landmarks and the pattern block were split across two pages
+> and the second page was the one you could open and find a tool missing. There is one app now,
+> `digital_bra_fit_model_360.html`. What the phase built that still stands is the discipline
+> below: one engine, one registry, one place to correct a landmark. `validate:lane-parity`
+> became `validate:single-engine` — the checks comparing two lanes are gone, the ones that keep
+> the app from growing its own copy of the maths are kept. The rest of this section is the
+> record of what was built at the time.
+
+The production viewer (`viewer/`) showed the same measurement table and the same red tape
 lines as the prototype. The point of the phase was not to add a panel — it was to add it
 **without creating a way for the two lanes to disagree**.
 
-**One engine.** `viewer/src/measurements.js` imports the same `scripts/measure_core.mjs` and
+**One engine.** `viewer/src/measurements.js` imported the same `scripts/measure_core.mjs` and
 `surface_path.mjs` the prototype and the Node parity test use. Only the DOM and the three.js
-drawing are local, because the two shells differ. No maths is copied.
+drawing were local, because the two shells differed. No maths was copied.
 
-**One registry, copied not forked.** `npm run sync:registry` copies
-`contracts/measurement-registry.json` into `viewer/public/`, and it runs automatically before
-`dev:viewer` and `build:viewer`. The viewer fetches it at runtime rather than bundling an
-import, so what it shows comes from a file that can be compared against the source.
+**One registry, copied not forked.** `npm run sync:registry` copied
+`contracts/measurement-registry.json` into `viewer/public/` before every build, and the viewer
+fetched it at runtime rather than bundling an import, so what it showed came from a file that
+could be compared against the source. With one app that whole class of bug is gone rather than
+gated: it fetches `contracts/` directly, and the build copies those files verbatim.
 
-**The lanes differ in role, deliberately.** The prototype is the authoring lane — pen,
-hand-placed landmarks, live section. The production lane is read-only presentation, and says
+**The lanes differed in role, deliberately.** The prototype was the authoring lane — pen,
+hand-placed landmarks, live section. The production lane was read-only presentation, and said
 so in the panel: *corrections are made in the prototype lane; the record comes from
 `npm run validate:measurements`*. Correcting a landmark in two places is how two records start
-to differ, so there is only one place to do it.
+to differ, so there was only one place to do it — and now there is only one place at all.
 
-**No silent default.** Without the registry the production lane reports nothing and explains
+**No silent default.** Without the registry the production lane reported nothing and explained
 why. The prototype keeps a documented fallback so it still shows something when served without
 one — and the drift guard checks that the fallback is the *only* place it names a material.
 
 #### The claim is structural, so it is checked structurally
 
-`npm run validate:lane-parity` is a static check — no browser, runs in CI — and it fails the
-build on the cheap ways to make the lanes disagree:
+`npm run validate:single-engine` (`validate:lane-parity` until the second lane was merged
+away) is a static check — no browser, runs in CI — and it fails the build on the cheap ways to
+make the app disagree with the engine the gates check:
 
 | Check | Why it exists |
 |---|---|
@@ -799,16 +811,24 @@ dotted construction grid on the source sheets is for.
 
 | Id | Rule | What it is |
 |---|---|---|
-| `CENTRE_FRONT`, `CENTRE_BACK` | `section_nearest_x` at x = 0 | the gore line and where the band closes |
-| `SIDE_L`, `SIDE_R` | `section_extreme_x` | the widest point of each section, up to the §4.3 ceiling |
-| `APEX_VERTICAL_L/R` | `section_nearest_x` at the apex's x | the vertical through the apex, for a cup's centre |
+| `CENTRE_FRONT`, `CENTRE_BACK` | `section_crossing_x` at x = 0 | the gore line and where the band closes |
+| `SIDE_L`, `SIDE_R` | `section_mid_depth_x` | the side wall at the section's own mid-depth, up to the §4.3 ceiling |
+| `APEX_VERTICAL_L/R` | `section_crossing_x` at the apex's x | the vertical through the apex, for a cup's centre |
 | `NECK_OPENING`, `ARMHOLE_L/R`, `WAIST_CUT` | `boundary_loop` | the four places this mesh is cut |
 
 **Every rule is an extreme or an exact feature.** That is the same test §4.4's
 landmark rules pass and the test `HPS` failed: none of these has a number in it
 that someone chose, so none of them can quietly return that number instead of the
-body. `SIDE_L/R` are the rule the registry already uses for `SIDE_UNDERBUST_L/R`,
-and the gate checks the two agree at the fold (0.049mm) through different code.
+body. `SIDE_L/R` sit 0.05mm inboard of the registry's `SIDE_UNDERBUST_L/R` in x, on
+the same wall — but they are not that rule, and the difference is the whole
+point: **a width needs no depth and a drawn curve does.** The widest point of a
+section is well determined in x and undetermined in depth, because the side of a
+body is flat — at every height this body is equally wide over 10 to 57mm of
+depth, and under a millimetre of mesh variation decides which vertex wins. Height
+by height that jumped up to 41.7mm and drew a zig-zag. At the section's own
+mid-depth the answer moves at most 3.5mm. The gate computes the superseded
+rule's jump on the same sections, so the reason stays checkable rather than
+remembered.
 
 **What is deliberately absent: a princess line, a side seam, a strap line.**
 Where a seam goes is a design decision. A rule that derived one from geometry
@@ -818,7 +838,7 @@ fails if one appears.
 
 **A curve is drawn, never measured.** No length is reported for one, so it
 carries no tolerance and cannot disagree with a POM;
-`npm run validate:lane-parity` checks the module reports no length at all.
+`npm run validate:single-engine` checks the module reports no length at all.
 
 Two traps worth recording, both found by the gate rather than by inspection:
 

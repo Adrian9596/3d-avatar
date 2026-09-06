@@ -33,7 +33,7 @@
  */
 
 // The engine is split by responsibility; this module is the one import the
-// viewer lanes and the gates use, so `validate:lane-parity` can grep for it.
+// app and the gates use, so `validate:single-engine` can grep for it.
 export * from './flatten_mesh.mjs';
 export * from './flatten_patch.mjs';
 export * from './flatten_solver.mjs';

@@ -3,8 +3,9 @@
  * contracts/pattern-templates.json, resolved against the landmarks a session
  * knows into the anchor lists of ordinary pen lines (AUTHORING_UX_PLAN.md §8).
  *
- * PROTOTYPE LANE ONLY (scripts/test_lane_parity.mjs checks the production
- * viewer imports neither this module nor the contract).
+ * Reached only through the app's pattern block; scripts/test_single_engine.mjs
+ * checks the app drafts templates through this module and reimplements none of
+ * it.
  *
  * What a template is not: a decision. It puts a seam where bra construction
  * conventionally puts it and reports what that costs on this body; the person

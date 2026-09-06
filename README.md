@@ -22,10 +22,9 @@ The authoring lane's Save buttons trigger a browser file download (`landmarks.ma
 
 - **Canonical editable source:** [`assets/source/avatar_master.blend`](assets/source/avatar_master.blend) — a checkpoint saved from a CLO3D "Avatarclo1" export. The untouched original sits at [`Avatarclo1_half_beautified_3quarter.blend`](Avatarclo1_half_beautified_3quarter.blend) in the project root.
 - **Canonical export:** [`assets/export/avatar_master.glb`](assets/export/avatar_master.glb) — baked PBR skin embedded, ~10 MB.
-- **Two viewer lanes that cannot disagree** (enforced by a parity test, see below):
-  - [`digital_bra_fit_model_360.html`](digital_bra_fit_model_360.html) — the **authoring** lane: pen tool, hand-placed landmarks, live cross-section. Single self-contained HTML file (Three.js via an import map over `node_modules`).
-  - [`viewer/`](viewer) — the **production** lane: read-only presentation. A Vite app (`viewer/src/main.js`, `measurements.js`, `contracts.js`, `animation-controller.js`).
-  - Both import the same measurement engine ([`scripts/measure_core.mjs`](scripts/measure_core.mjs)) and read the same registry ([`contracts/measurement-registry.json`](contracts/measurement-registry.json)), so there is one place to correct a measurement rule, not two.
+- **One app, holding every tool:** [`digital_bra_fit_model_360.html`](digital_bra_fit_model_360.html) — pen, live cross-section, reference levels, body grid, hand-placed landmarks and the 2D pattern draft. A single self-contained HTML file (Three.js via an import map over `node_modules`).
+  - There were two viewer lanes until 2026-09-06, and a parity gate to stop them disagreeing. The second one carried none of the authoring tools, so opening it meant finding a tool missing; they were merged. What is left of the split is a gate that keeps the app from growing a second copy of the maths ([`validate:single-engine`](scripts/test_single_engine.mjs)).
+  - It reads every number through the shared engine ([`scripts/measure_core.mjs`](scripts/measure_core.mjs)) and the registry ([`contracts/measurement-registry.json`](contracts/measurement-registry.json)), so there is one place to correct a measurement rule.
 - **Independent Python re-implementation** ([`scripts/measure_avatar.py`](scripts/measure_avatar.py)) that a parity gate checks against the JS engine — a second opinion, not a duplicate to clean up.
 
 ## Status & known gaps
@@ -63,28 +62,22 @@ npm install
 
 If `git lfs install` wasn't run before cloning, `assets/**/*.blend` and `assets/**/*.glb` will be tiny pointer-text files instead of real binaries — run `git lfs pull` afterwards to fix that.
 
-## Running the viewers
-
-**Production lane (Vite):**
+## Running the app
 
 ```sh
-npm run dev:viewer       # sync:registry runs automatically first (predev:viewer hook)
-```
-
-`vite.config.mjs` honours `PORT`, and `.claude/launch.json` sets `autoPort`, so a free port is taken automatically if `4173` is busy.
-
-```sh
-npm run build:viewer     # production build
-npm run preview:viewer   # serve the build
-```
-
-**Prototype/authoring lane:**
-
-```sh
-npm run serve:prototype
+npm run serve:app
 ```
 
 Then open `http://127.0.0.1:8765/digital_bra_fit_model_360.html`. **Never open it via `file://`** — ES modules and GLB loading require `localhost`.
+
+Every tool lives in the "Mesh measurements" panel (the ⌁ button, top right): pen, section, levels, grid, landmarks and the pattern draft. `P` turns the pen on and opens that panel if it is closed; `?` lists the keys.
+
+To build and preview what GitHub Pages serves:
+
+```sh
+npm run build:pages
+npm run preview:pages
+```
 
 ## Validation / testing
 
@@ -99,8 +92,8 @@ npm run validate:viewer-contracts
 npm run validate:measurements
 ```
 
-`validate:measurements` chains, in order: `sync:registry`, `measure:avatar` (Python authority pass, writes SHA-pinned evidence to `qa/avatar_master/measurements.json`), then the gates —
-`validate:measure-parity` (JS vs Python agree within 0.5mm), `validate:surface-path` (pen's shortest-path routine vs. an analytic cylinder geodesic, plus a continuity check), `validate:cup-volume` (closed-surface volume vs. analytic spherical caps), `validate:lane-parity` (the two viewer lanes can't disagree — shared registry, shared engine, no hardcoded material/scan-range in production), and the 2D pattern-draft gates `validate:flatten-accuracy` (flattening vs. surfaces that unroll exactly), `validate:flatten-parity` (JS vs Python flattening agree to 1µm), `validate:seam-closure` (two panels flattened together agree on their shared seam to 1/8in) `validate:dxf-roundtrip` (the ASTM D6673-10 / Gerber DXF reads back with an independent parser), the template gate `validate:pattern-templates` (conventional cuts declared as landmarks flatten sound on a declared synthetic fixture, read `needs …` without the hand-placed roots, and export with the template and its provenance on layer 15), and the interaction gates `validate:landmark-placement` (guided order, framing per landmark, the mirror offer and the record a hand-placed point carries), `validate:pen-snap` (where a pen anchor snaps: nearest within the radius, priority on ties, held constraints first, mirror residual recorded), `validate:view-geometry` (footprint, incidence, facing pose and turntable against analytic answers) and `validate:keymap` (one conflict-free keyboard map for both lanes, with the plan's tables regenerated from the code), plus `validate:measurement-levels` (the house how-to-measure stack: the source sheets pinned by hash, their printed inch values shown to hold a linear scale whose zero lands in the sheets' one unlabelled gap, and the stack resolved on this body through the same section engine the POMs use) and `validate:body-grid` (the vertical half of that frame — centre, side and apex curves plus the mesh's four cut lines, each read off the mesh by an extreme or an exact feature with no chosen number in it, cross-checked against the registry's own side and underarm landmarks). See `PATTERN_2D_DXF_PLAN.md` and `AUTHORING_UX_PLAN.md`.
+`validate:measurements` chains, in order: `measure:avatar` (Python authority pass, writes SHA-pinned evidence to `qa/avatar_master/measurements.json`), then the gates —
+`validate:measure-parity` (JS vs Python agree within 0.5mm), `validate:surface-path` (pen's shortest-path routine vs. an analytic cylinder geodesic, plus a continuity check), `validate:cup-volume` (closed-surface volume vs. analytic spherical caps), `validate:single-engine` (the app can't grow a second copy of the maths — shared registry, shared engine, no hardcoded material or scan range), and the 2D pattern-draft gates `validate:flatten-accuracy` (flattening vs. surfaces that unroll exactly), `validate:flatten-parity` (JS vs Python flattening agree to 1µm), `validate:seam-closure` (two panels flattened together agree on their shared seam to 1/8in) `validate:dxf-roundtrip` (the ASTM D6673-10 / Gerber DXF reads back with an independent parser), the template gate `validate:pattern-templates` (conventional cuts declared as landmarks flatten sound on a declared synthetic fixture, read `needs …` without the hand-placed roots, and export with the template and its provenance on layer 15), and the interaction gates `validate:landmark-placement` (guided order, framing per landmark, the mirror offer and the record a hand-placed point carries), `validate:pen-snap` (where a pen anchor snaps: nearest within the radius, priority on ties, held constraints first, mirror residual recorded), `validate:view-geometry` (footprint, incidence, facing pose and turntable against analytic answers) and `validate:keymap` (one conflict-free keyboard map, with the plan's tables regenerated from the code), plus `validate:measurement-levels` (the house how-to-measure stack: the source sheets pinned by hash, their printed inch values shown to hold a linear scale whose zero lands in the sheets' one unlabelled gap, and the stack resolved on this body through the same section engine the POMs use) and `validate:body-grid` (the vertical half of that frame — centre, side and apex curves plus the mesh's four cut lines, each read off the mesh by an extreme or an exact feature with no chosen number in it, cross-checked against the registry's own side and underarm landmarks). See `PATTERN_2D_DXF_PLAN.md` and `AUTHORING_UX_PLAN.md`.
 
 Every gate is pinned to the current asset/registry SHA and refuses to run against stale evidence — if you see a SHA-mismatch failure, rerun the pass rather than trying to relax the check.
 

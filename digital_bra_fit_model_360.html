@@ -106,7 +106,6 @@ button{font:inherit}
 .level-row .blocked{color:#a63a2b;font-variant-numeric:normal}
 .level-labels{position:absolute;inset:0;z-index:21;pointer-events:none}
 #levelLeaders{position:absolute;inset:0;width:100%;height:100%}
-.glabel{position:absolute;transform:translate(-50%,-50%);background:rgba(250,248,245,.9);color:#5f5851;border:1px solid rgba(53,47,42,.16);border-radius:5px;padding:1px 5px;font-size:8.5px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
 .lmlabel{position:absolute;transform:translate(-50%,-50%);background:rgba(240,160,42,.94);color:#fff;border-radius:5px;padding:1px 5px;font-size:8.5px;white-space:nowrap;box-shadow:0 3px 9px rgba(60,40,10,.25)}
 .llabel{position:absolute;transform:translate(0,-50%);border-radius:999px;padding:2px 7px;font-size:9px;font-variant-numeric:tabular-nums;white-space:nowrap;color:#fff;box-shadow:0 4px 12px rgba(30,45,62,.22)}
 .stroke-row[data-active="true"]{cursor:default;color:#8d867f}
@@ -167,7 +166,6 @@ button{font:inherit}
   <div class="tip" id="tip">Drag to orbit · wheel/pinch to zoom · use view presets · ? for keys</div>
   <div class="keys" id="keySheet" hidden role="dialog" aria-label="Keyboard shortcuts"></div>
   <div class="loupe" id="loupeFrame" hidden aria-hidden="true"><span>3× loupe · Z</span></div>
-  <div class="level-labels" id="gridLabels" aria-hidden="true"></div>
   <div class="level-labels" id="landmarkLabels" aria-hidden="true"></div>
   <div class="level-labels" id="levelLabels" aria-hidden="true"><svg id="levelLeaders" preserveAspectRatio="none"></svg></div>
   <div class="pen-labels" id="penLabels" aria-hidden="true"></div>
@@ -262,7 +260,7 @@ import { createPenTool } from './scripts/pen_tool.mjs';
 // placed point carries) — authoring lane only; the production viewer never
 // imports this (AUTHORING_UX_PLAN.md §7).
 import { nextNeeded, framingFor, poseFor, mirrorOffer, landmarkRecord, placementRecord, placementNotes, isPlaced } from './scripts/landmark_placement.mjs';
-// One keyboard map and one view-geometry module for both lanes
+// One keyboard map and one view-geometry module
 // (AUTHORING_UX_PLAN.md §14, §5): the keys, the grazing guard and the F key mean
 // the same thing in the production viewer.
 import { matchBinding, cheatSheet, detectPlatform } from './scripts/keymap.mjs';
@@ -275,9 +273,7 @@ import { draftMesh, draftPieces, flattenDraft, draftSummary, draftExport, SEAM_T
    contracts/measurement-levels.json as inch offsets from a registry landmark.
    The module resolves and measures them through the SAME section engine the
    POMs use, so a level and a POM can never disagree about the same slice; this
-   file only draws what it returns. Authoring lane only, like the landmarks and
-   the pattern block — scripts/test_lane_parity.mjs checks the production lane
-   imports neither the module nor the contract. */
+   file only draws what it returns. */
 import { loadLevels, resolveLevels, measureLevels, levelLabel } from './scripts/measurement_levels.mjs';
 /* The vertical half of the same frame: centre, side and apex curves plus the
    four lines this mesh is cut on, declared in contracts/body-grid.json. Every
@@ -285,6 +281,13 @@ import { loadLevels, resolveLevels, measureLevels, levelLabel } from './scripts/
    is drawn but never measured — so the grid can carry no tolerance and cannot
    disagree with a POM. Authoring lane only. */
 import { loadGrid, sampleCurves, sampleBoundaries } from './scripts/body_grid.mjs';
+/* The morph and animation contracts. This asset has neither, so both report
+   BLOCKED — the check runs anyway, into window.__avatarPlatform, and
+   scripts/test_viewer_contracts.mjs asserts it says BLOCKED rather than
+   inventing substitute controls. It moved here when the production viewer lane
+   was merged into this one; do not delete the check along with its UI. */
+import { validateMorphContract, validateAnimationContract } from './scripts/avatar_contracts.mjs';
+import { AnimationController } from './scripts/animation_controller.mjs';
 // Template drafts: conventional cuts declared as landmarks in
 // contracts/pattern-templates.json, drafted as ordinary pen lines and flattened
 // by the same engine — proposals, shown with their cost, never a decision
@@ -303,8 +306,14 @@ const fallbackImage=document.getElementById('fallbackImage');
 const assetTag=document.getElementById('assetTag');
 
 const loadStartedAt=performance.now();
-const prototypeState={status:'LOADING',assetUrl:ASSET_URL,version:ASSET_VERSION,sha256:ASSET_SHA,roleCounts:{BODY:0,BIKINI_TOP:0,BIKINI_BRIEF:0},roleVisibility:{BODY:true,BIKINI_TOP:true,BIKINI_BRIEF:true},wireframe:false,meshCount:0,morphNames:[],armaturePresent:false,loadMs:null,camera:null,error:null};
+const prototypeState={status:'LOADING',assetUrl:ASSET_URL,version:ASSET_VERSION,sha256:ASSET_SHA,roleCounts:{BODY:0,BIKINI_TOP:0,BIKINI_BRIEF:0},roleVisibility:{BODY:true,BIKINI_TOP:true,BIKINI_BRIEF:true},wireframe:false,meshCount:0,morphNames:[],armaturePresent:false,clipNames:[],contracts:null,loadMs:null,camera:null,error:null};
+// One app, so one diagnostics object under both of the names it has been read
+// by: __avatarPrototype since this file was the prototype lane, __avatarPlatform
+// since the production lane was merged into it.
 window.__avatarPrototype=prototypeState;
+window.__avatarPlatform=prototypeState;
+let animationController=null;
+const animationClock=new THREE.Clock();
 const diagnosticOutput=document.getElementById('prototypeDiagnostics');
 function syncDiagnostics(){diagnosticOutput.textContent=JSON.stringify(prototypeState);document.documentElement.dataset.prototypeStatus=prototypeState.status}
 syncDiagnostics();
@@ -399,7 +408,7 @@ let registry=null,registrySha=null,torsoTris=null,measureScan=[],tapeGroup=null,
 let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
 let sectionOpen=false,sectionGroup=null;
 let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,levelLabelEls=[];
-let gridContract=null,gridVisible=false,gridGroup=null,gridCurves=null,gridBounds=null,gridLabelEls=[],lmLabelEls=[];
+let gridContract=null,gridVisible=false,gridGroup=null,gridCurves=null,gridBounds=null,lmLabelEls=[];
 try{gridVisible=localStorage.getItem('gridVisible')==='1'}catch(error){/* private mode */}
 try{levelsVisible=localStorage.getItem('levelsVisible')==='1'}catch(error){/* private mode */}
 let landmarksVisible=false,placingLandmark=null,landmarkGroup=null,torsoMeshes=[],levelPreviewGroup=null;
@@ -437,7 +446,7 @@ function collectSurfaceTriangles(root,materialNames){
 }
 
 // Provenance for a running session: the digest is taken over the exact bytes
-// fetched, the same way scripts/test_lane_parity.mjs hashes contracts/ on disk,
+// fetched, the same way scripts/test_single_engine.mjs hashes contracts/ on disk,
 // so a session can prove which registry drove it rather than asserting one.
 async function sha256Hex(bytes){
   const subtle=globalThis.crypto&&globalThis.crypto.subtle;
@@ -1223,23 +1232,12 @@ function placeLabels(els,rows,lift){
   els.forEach((el,i)=>{if(i<rows.length&&!shown.has(i))el.hidden=true});
 }
 
-// One label per curve, parked at the top of the curve so it names the line
-// without sitting on the body where a measurement might be read.
-function positionGridLabels(){
-  const host=document.getElementById('gridLabels');
-  const curves=(gridVisible&&gridCurves)?gridCurves.filter(c=>!c.needs&&c.points.length>1):[];
-  const rows=[...curves.map(r=>({label:r.curve.label_en,at:r.points})),
-    ...((gridVisible&&gridBounds)?gridBounds.filter(b=>!b.blocked&&b.points.length):[]).map(b=>({
-      label:b.boundary.label_en,at:b.points,
-    }))];
-  while(gridLabelEls.length<rows.length){
-    const el=document.createElement('div');el.className='glabel';
-    host.appendChild(el);gridLabelEls.push(el);
-  }
-  placeLabels(gridLabelEls,rows,11);
-}
+// The grid carries no labels: its curves are quiet reference lines, and a name
+// parked on each one crowded the body with text that told a reader nothing the
+// Grid button's own title does not.
 
-// The landmark dots are only useful if you can tell which is which.
+// The landmark dots, unlike the curves, are only useful if you can tell which
+// is which — so those keep their names.
 function positionLandmarkLabels(){
   const host=document.getElementById('landmarkLabels');
   const rows=landmarksVisible&&marks
@@ -1256,10 +1254,9 @@ function positionLandmarkLabels(){
 }
 
 /* --- pen ------------------------------------------------------------------
-   The tool lives in scripts/pen_tool.mjs and is SHARED with the production
-   lane; only this lane's DOM chrome is local. Copying the tool into the second
-   lane would give the project two implementations of the same measurement,
-   which scripts/test_lane_parity.mjs exists to prevent. -------------------- */
+   The tool lives in scripts/pen_tool.mjs; only its DOM chrome is local. Pasting
+   the tool's geometry in here would give the project two implementations of the
+   same measurement, which scripts/test_single_engine.mjs exists to prevent. -- */
 let pen=null;
 const penEnabled=()=>Boolean(pen&&pen.enabled);
 const penRaycaster=new THREE.Raycaster();
@@ -1372,6 +1369,10 @@ function positionDraftLabels(){
 function setPenMode(on){
   if(!pen)return;
   pen.setEnabled(on);
+  // P works with the panel closed, and the pen's own buttons live in it, so
+  // turning the pen on brings its controls back into view rather than leaving
+  // a mode running with nothing on screen to show for it.
+  if(on&&measurePanel?.hidden)setMeasurePanel(true);
   document.getElementById('penToggle').setAttribute('aria-pressed',String(on));
   setTip(on
     ?'Pen: click to pin · drag empty skin to orbit · Shift = level snap · Alt = mirror snap · N snap on/off · Z loupe · ⌘Z undo · ? keys'
@@ -1399,6 +1400,18 @@ function loadAvatar(){
   // ASSET_SHA, forcing the browser past its heuristic GLB cache.
   loader.load(ASSET_URL+'?sha='+ASSET_SHA,gltf=>{
     avatarRoot=gltf.scene;avatarRoot.name='avatar_master';scene.add(avatarRoot);prepareModel(avatarRoot);
+    // The contracts, run on what actually arrived. Both come back BLOCKED on
+    // this asset — it has no semantic morphs and no clips — and that is the
+    // point: the app says so instead of offering controls with nothing behind
+    // them. The controller is constructed even with no clips, because it is the
+    // only thing that would play one and it reports the clip contract.
+    animationController=new AnimationController(avatarRoot,gltf.animations||[]);
+    prototypeState.clipNames=(gltf.animations||[]).map(clip=>clip.name);
+    prototypeState.contracts={
+      morphs:validateMorphContract(prototypeState.morphNames),
+      animations:animationController.contract,
+      armature_present:prototypeState.armaturePresent,
+    };
     pen=createPenTool({scene,canvas,camera,controls,root:avatarRoot,onChange:renderDraftList,onHover:showFootprint,
       // snap targets: every landmark that is a point and has a value; surfaces by
       // material name, judged against the registry's measurement surface by the
@@ -1422,9 +1435,9 @@ function animate(){
     if(camera.position.distanceTo(cameraGoal.position)<.003){camera.position.copy(cameraGoal.position);controls.target.copy(cameraGoal.target);cameraGoal=null}
   }
   controls?.update();
+  animationController?.update(animationClock.getDelta());
   positionDraftLabels();
   positionLevelLabels();
-  positionGridLabels();
   positionLandmarkLabels();
   if(camera&&controls)prototypeState.camera={position:camera.position.toArray().map(value=>+value.toFixed(5)),target:controls.target.toArray().map(value=>+value.toFixed(5)),distance:+camera.position.distanceTo(controls.target).toFixed(5),orbit_enabled:controls.enabled};
   syncDiagnostics();
@@ -1447,14 +1460,21 @@ document.querySelectorAll('.toggle').forEach(button=>button.addEventListener('cl
 const measureBtn=document.getElementById('measureBtn'),measurePanel=document.getElementById('measurePanel'),closeMeasure=document.getElementById('closeMeasure');
 const viewBtn=document.getElementById('viewBtn'),viewPop=document.getElementById('viewPop');
 
-// The measurement panel starts open and remembers the choice per browser.
+/* The measurement panel is the only way in to the pen, the section, the levels,
+   the grid, the landmarks and the pattern block. It used to remember being
+   closed in localStorage, which meant one click could hide every tool in the
+   app permanently, on every later visit, behind a single unlabelled ⌁ icon —
+   the app looked like it had no pen. The choice is kept for the tab session
+   instead, so closing it still sticks while you work and a fresh visit always
+   shows the tools. */
 function setMeasurePanel(open){
   measurePanel.hidden=!open;
   measureBtn.setAttribute('aria-expanded',String(open));
-  try{localStorage.setItem('measurePanelOpen',open?'1':'0')}catch(error){/* private mode */}
+  try{sessionStorage.setItem('measurePanelOpen',open?'1':'0')}catch(error){/* private mode */}
 }
 let measureOpen=true;
-try{measureOpen=localStorage.getItem('measurePanelOpen')!=='0'}catch(error){/* private mode */}
+try{measureOpen=sessionStorage.getItem('measurePanelOpen')!=='0'}catch(error){/* private mode */}
+try{localStorage.removeItem('measurePanelOpen')}catch(error){/* private mode */}
 setMeasurePanel(measureOpen);
 measureBtn.addEventListener('click',()=>setMeasurePanel(measurePanel.hidden));
 closeMeasure.addEventListener('click',()=>setMeasurePanel(false));
@@ -1804,9 +1824,8 @@ document.getElementById('penExport').addEventListener('click',()=>{
 });
 
 /* ---- keyboard, grazing guard, Face, turntable ------------------------------
-   Keys come from scripts/keymap.mjs — the same table the production lane
-   dispatches and the ? sheet is built from; this block only maps binding ids
-   to this lane's actions. The tip shows what a pixel is worth on the skin under
+   Keys come from scripts/keymap.mjs — the one table the gates check and the ?
+   sheet is built from; this block only maps binding ids to actions. The tip shows what a pixel is worth on the skin under
    the cursor (scripts/view_geometry.mjs): amber past 60°, red past 75°. Those
    colours change no value — the number is recorded on every anchor as
    placed_with, and the person decides. --------------------------------------- */
@@ -1851,7 +1870,7 @@ function activeContexts(){
 function toggleKeySheet(force){
   const open=force===undefined?keySheet.hidden:force;
   if(!open){keySheet.hidden=true;return}
-  const sections=cheatSheet({contexts:activeContexts(),lane:'prototype',platform:PLATFORM});
+  const sections=cheatSheet({contexts:activeContexts(),platform:PLATFORM});
   keySheet.innerHTML='<div class="khead">Keyboard <span>? or Esc closes · keys act on the selection; none selected, on the camera</span></div>'
     +sections.map(s=>`<h4>${s.title}</h4>`+s.rows.map(r=>`<div class="krow"><kbd>${r.keys}</kbd><span>${r.label}</span></div>`).join('')).join('');
   keySheet.hidden=false;
@@ -1915,7 +1934,7 @@ const KEY_ACTIONS={
 window.addEventListener('keydown',event=>{
   const contexts=activeContexts();
   const hasSelection=contexts.includes('landmarks')?Boolean(placingLandmark):Boolean(pen?.hasSelection());
-  const binding=matchBinding(event,{contexts,hasSelection,lane:'prototype',platform:PLATFORM});
+  const binding=matchBinding(event,{contexts,hasSelection,platform:PLATFORM});
   if(!binding||!KEY_ACTIONS[binding.id])return;
   event.preventDefault();
   KEY_ACTIONS[binding.id](binding);
@@ -1923,7 +1942,7 @@ window.addEventListener('keydown',event=>{
 });
 document.querySelector('.bottom-nav button[data-action="face"]').addEventListener('click',()=>facePoint());
 // instrumentation for automated checks: the live camera, the controls and the goal the keys set
-window.__keys={contexts:activeContexts,sheet:()=>cheatSheet({contexts:activeContexts(),lane:'prototype',platform:PLATFORM})};
+window.__keys={contexts:activeContexts,sheet:()=>cheatSheet({contexts:activeContexts(),platform:PLATFORM})};
 window.__view={camera:()=>camera,controls:()=>controls,goal:()=>cameraGoal};
 
 viewBtn.addEventListener('click',()=>{const open=!viewPop.classList.contains('open');viewPop.classList.toggle('open',open);viewBtn.setAttribute('aria-expanded',String(open))});

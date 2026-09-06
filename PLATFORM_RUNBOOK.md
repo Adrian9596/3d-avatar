@@ -23,11 +23,11 @@ Required platform result is zero `FAIL`. `PASS_WITH_ASSET_BLOCKERS` is acceptabl
 ## Build and preview
 
 ```sh
-npm run build:viewer
-npm run preview:viewer
+npm run build:pages
+npm run preview:pages
 ```
 
-Test `http://127.0.0.1:4173/` on desktop and mobile. Confirm the loaded SHA/version, three semantic roles, camera/display controls, disabled missing-feature controls and zero console errors. The tested artifact is `dist/`; do not deploy a fresh unvalidated rebuild.
+Test the served build on desktop and mobile. Confirm the loaded SHA/version, three semantic roles, camera/display controls, disabled missing-feature controls and zero console errors. The tested artifact is `dist/`; do not deploy a fresh unvalidated rebuild.
 
 ## Production approval
 

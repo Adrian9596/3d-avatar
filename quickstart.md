@@ -14,14 +14,14 @@ npm run validate:platform
 
 `validate:requirements` verifies all PFQ001–PFQ036 definitions and their cross-document traceability. It evaluates requirements quality only; it does not approve the current avatar or replace the implementation DoD.
 
-Build and preview the modular production viewer:
+Build and preview the site as GitHub Pages serves it:
 
 ```sh
-npm run build:viewer
-npm run preview:viewer
+npm run build:pages
+npm run preview:pages
 ```
 
-Open `http://127.0.0.1:4173/`. The modular viewer exposes the required morph and animation contracts but keeps those controls disabled while the draft GLB has no final rig, clips or approved semantic morphs. The original `digital_bra_fit_model_360.html` remains the controlled single-file prototype fixture.
+The app runs the required morph and animation contracts at load and reports them BLOCKED while the GLB has no final rig, clips or approved semantic morphs — it offers no control it cannot back. There was a second, modular viewer lane until 2026-09-06; it was merged into `digital_bra_fit_model_360.html`, which is now the only app.
 
 ## Prototype viewer — draft asset only
 
@@ -32,7 +32,7 @@ npm install
 npm run export:prototype
 npm run validate:prototype
 npm run validate:prototype:gltf
-npm run serve:prototype
+npm run serve:app
 ```
 
 Then open `http://127.0.0.1:8765/digital_bra_fit_model_360.html`. Do not open the HTML with `file://`; ES modules and GLB loading require localhost.

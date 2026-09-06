@@ -2,21 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "3d-avatar-viewer",
+      "name": "3d-avatar-app",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
-        "dev:viewer"
-      ],
-      "port": 4173,
-      "autoPort": true
-    },
-    {
-      "name": "3d-avatar-prototype",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "serve:prototype"
+        "serve:app"
       ],
       "port": 8765
     }

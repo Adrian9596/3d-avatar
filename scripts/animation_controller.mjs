@@ -1,5 +1,13 @@
+/**
+ * Plays a named animation clip on the avatar, and reports the clip contract.
+ *
+ * The asset has no clips, so this controller is constructed with an empty list
+ * and has nothing to play. It is kept wired rather than deleted: it is the only
+ * thing that would drive a clip if one existed, and its `contract` is how the
+ * app reports what the asset does not have.
+ */
 import * as THREE from "three";
-import { validateAnimationContract } from "./contracts.js";
+import { validateAnimationContract } from "./avatar_contracts.mjs";
 
 export class AnimationController {
   constructor(root, clips) {
