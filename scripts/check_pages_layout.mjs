@@ -51,18 +51,24 @@ if (mjs.length) {
   );
 }
 
-// The prototype is the landing page and the production viewer sits under it.
+// One app, served at the root. There was a second lane under /viewer/ until it
+// was merged into this one; nothing should publish there any more.
 const required = [
-  ['index.html', 'the prototype is the landing page'],
-  ['assets/export/avatar_master.glb', "the prototype's GLB (a runtime string the bundler cannot see)"],
-  ['contracts/measurement-registry.json', "the prototype's registry (also fetched at runtime)"],
-  ['contracts/pattern-templates.json', "the prototype's template drafts (fetched at runtime)"],
-  ['contracts/measurement-levels.json', "the prototype's reference levels (fetched at runtime)"],
-  ['contracts/body-grid.json', "the prototype's body grid (fetched at runtime)"],
-  ['viewer/index.html', 'the production viewer at /viewer/'],
+  ['index.html', 'the app is the landing page'],
+  ['assets/export/avatar_master.glb', 'the GLB (a runtime string the bundler cannot see)'],
+  ['contracts/measurement-registry.json', 'the registry (also fetched at runtime)'],
+  ['contracts/pattern-templates.json', 'the template drafts (fetched at runtime)'],
+  ['contracts/measurement-levels.json', 'the reference levels (fetched at runtime)'],
+  ['contracts/body-grid.json', 'the body grid (fetched at runtime)'],
 ];
 for (const [path, why] of required) {
   if (!existsSync(join(DIST, path))) problems.push(`missing ${path} — ${why}`);
+}
+
+// A leftover /viewer/ would be a second, stale copy of the app on the live
+// site -- exactly the split the merge removed.
+if (existsSync(join(DIST, 'viewer'))) {
+  problems.push('dist/viewer/ exists — the second lane was merged away; delete dist/ and rebuild');
 }
 
 console.log(`checked ${files.length} file(s) in ${DIST}/`);

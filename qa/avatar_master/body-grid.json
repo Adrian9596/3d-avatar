@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T16:29:06Z",
+  "generated_at": "2026-09-05T17:24:16Z",
   "purpose": "The vertical half of the reference frame: centre, side and apex curves read off this mesh, and the four lines it is cut on.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,7 +8,7 @@
   },
   "contract": {
     "path": "contracts/body-grid.json",
-    "sha256": "b07b0be89aec28c19f492af354077d600f61dce1eaa7039785a473ded7cadacc"
+    "sha256": "7b7a869fcc1f44b03e8ab0ab05c7131bc9b384a435f5adcbb6f0b2cdf525648c"
   },
   "scan": {
     "from_m": 1.05,
@@ -20,13 +20,18 @@
     "side_vs_registry_mm": [
       {
         "landmark": "SIDE_UNDERBUST_L",
-        "delta_mm": 0.049
+        "inboard_in_x_mm": 0.0515
       },
       {
         "landmark": "SIDE_UNDERBUST_R",
-        "delta_mm": 0.049
+        "inboard_in_x_mm": 0.0516
       }
     ],
+    "superseded_widest_point": {
+      "rule": "section_extreme_x",
+      "depth_jump_between_neighbouring_heights_mm": 41.6627,
+      "note": "The widest point of a section is well determined in x and undetermined in depth: the side of a body is a flat wall. Kept here so the reason the rule was replaced stays checkable."
+    },
     "armhole_vs_registry_mm": [
       {
         "landmark": "UNDERARM_L",
@@ -37,12 +42,12 @@
         "delta_mm": 0.031
       }
     ],
-    "centre_off_plane_mm": 0.421
+    "centre_off_plane_mm": 0
   },
   "curves": [
     {
       "id": "CENTRE_FRONT",
-      "rule": "section_nearest_x",
+      "rule": "section_crossing_x",
       "needs": null,
       "samples": 103,
       "from_y_m": 1.05,
@@ -50,7 +55,7 @@
     },
     {
       "id": "CENTRE_BACK",
-      "rule": "section_nearest_x",
+      "rule": "section_crossing_x",
       "needs": null,
       "samples": 103,
       "from_y_m": 1.05,
@@ -58,7 +63,7 @@
     },
     {
       "id": "SIDE_L",
-      "rule": "section_extreme_x",
+      "rule": "section_mid_depth_x",
       "needs": null,
       "samples": 69,
       "from_y_m": 1.05,
@@ -66,7 +71,7 @@
     },
     {
       "id": "SIDE_R",
-      "rule": "section_extreme_x",
+      "rule": "section_mid_depth_x",
       "needs": null,
       "samples": 69,
       "from_y_m": 1.05,
@@ -74,19 +79,19 @@
     },
     {
       "id": "APEX_VERTICAL_L",
-      "rule": "section_nearest_x",
+      "rule": "section_crossing_x",
       "needs": null,
-      "samples": 103,
+      "samples": 98,
       "from_y_m": 1.05,
-      "to_y_m": 1.56
+      "to_y_m": 1.535
     },
     {
       "id": "APEX_VERTICAL_R",
-      "rule": "section_nearest_x",
+      "rule": "section_crossing_x",
       "needs": null,
-      "samples": 103,
+      "samples": 98,
       "from_y_m": 1.05,
-      "to_y_m": 1.56
+      "to_y_m": 1.535
     }
   ],
   "boundaries": [
@@ -125,7 +130,8 @@
     "No curve here is a seam, a style line or a princess line: this project does not derive a design decision from geometry.",
     "The boundary loops are the asset's cut lines. The neck opening is where the head was removed and the waist cut where the body was; neither is a garment edge.",
     "A curve is drawn, never measured. No length is reported for one, so it can carry no tolerance and cannot disagree with a POM.",
-    "A curve whose landmark is not available is not drawn and reports what it needs, rather than falling back to a nearby rule."
+    "A curve whose landmark is not available is not drawn and reports what it needs, rather than falling back to a nearby rule.",
+    "A side curve says where on the side wall a line runs, at the section's own mid-depth. It is not the widest point: the side of a body is flat, so the widest point is undetermined in depth by tens of millimetres, and the registry's SIDE_UNDERBUST_L/R keep that rule because a width does not need a depth."
   ],
   "checks": [
     {
@@ -156,12 +162,12 @@
     {
       "name": "every curve with its landmarks present samples along the body",
       "status": "PASS",
-      "detail": "CENTRE_FRONT 103 pts, CENTRE_BACK 103 pts, SIDE_L 69 pts, SIDE_R 69 pts, APEX_VERTICAL_L 103 pts, APEX_VERTICAL_R 103 pts"
+      "detail": "CENTRE_FRONT 103 pts, CENTRE_BACK 103 pts, SIDE_L 69 pts, SIDE_R 69 pts, APEX_VERTICAL_L 98 pts, APEX_VERTICAL_R 98 pts"
     },
     {
-      "name": "centre front and centre back sit on the symmetry plane, to the mesh's own resolution",
+      "name": "centre front and centre back sit on the symmetry plane",
       "status": "PASS",
-      "detail": "worst |x| 0.421mm; the mesh straddles x = 0 with points 10.6982mm apart there, so half of that is all a section point can do"
+      "detail": "worst |x| 0mm — the crossing is interpolated along the section's own segment, so the mesh's resolution does not enter"
     },
     {
       "name": "centre front is in front of centre back at every height",
@@ -169,19 +175,24 @@
       "detail": "103 heights, front z > back z at each"
     },
     {
-      "name": "a side curve is the widest point of its section",
+      "name": "a side curve is the outermost point of its section",
       "status": "PASS",
       "detail": "no other curve reaches further out at any shared height"
     },
     {
-      "name": "the side curves agree with the registry's own side points at the fold",
+      "name": "the widest point of a section names no depth, and the mid-depth rule does",
       "status": "PASS",
-      "detail": "SIDE_UNDERBUST_L 0.049mm, SIDE_UNDERBUST_R 0.049mm — same rule, different code path"
+      "detail": "the widest point jumps 41.6627mm in depth between heights 5mm apart — the side of a body is a flat wall, so under a millimetre of mesh variation decides it; the mid-depth answer moves at most 3.5457mm"
+    },
+    {
+      "name": "the side curves sit on the same wall as the registry's own side points",
+      "status": "PASS",
+      "detail": "SIDE_UNDERBUST_L 0.0515mm inboard in x, SIDE_UNDERBUST_R 0.0516mm inboard in x — against the 41.6627mm of depth the widest point cannot pin down. The registry keeps the widest point: a width needs no depth."
     },
     {
       "name": "an apex vertical passes through its apex",
       "status": "PASS",
-      "detail": "APEX_VERTICAL_L Δx 0.0458mm Δz 0.0301mm, APEX_VERTICAL_R Δx 0.0457mm Δz 0.0301mm"
+      "detail": "APEX_VERTICAL_L Δx 0mm Δz 0.0296mm, APEX_VERTICAL_R Δx 0mm Δz 0.0296mm"
     },
     {
       "name": "without the apex landmark an apex vertical reads needs …, never a fallback near centre",
@@ -196,17 +207,22 @@
     {
       "name": "SIDE_L stops at the armhole ceiling",
       "status": "PASS",
-      "detail": "top sample y = 1.3900m, ceiling 1.39m — above it the widest point is the armhole cut"
+      "detail": "top sample y = 1.3900m, ceiling 1.39m — above it the section is open at the armhole, so its outermost point is the cut edge"
     },
     {
       "name": "SIDE_R stops at the armhole ceiling",
       "status": "PASS",
-      "detail": "top sample y = 1.3900m, ceiling 1.39m — above it the widest point is the armhole cut"
+      "detail": "top sample y = 1.3900m, ceiling 1.39m — above it the section is open at the armhole, so its outermost point is the cut edge"
     },
     {
-      "name": "every sampled point is a point of its own section",
+      "name": "every sampled point lies on a segment of its own section",
       "status": "PASS",
-      "detail": "80 points sampled across the curves, 0 off the surface"
+      "detail": "78 points sampled across the curves, 0 off the surface, worst 0mm"
+    },
+    {
+      "name": "a crossing curve does not step sideways between heights",
+      "status": "PASS",
+      "detail": "CENTRE_FRONT 0mm, CENTRE_BACK 0mm, APEX_VERTICAL_L 0mm, APEX_VERTICAL_R 0mm — x is the plane's, at every height"
     },
     {
       "name": "the four cut lines of this asset are found",

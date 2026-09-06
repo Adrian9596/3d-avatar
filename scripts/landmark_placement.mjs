@@ -4,9 +4,9 @@
  * camera should stand to place each one, the mirror offer for a symmetric pair,
  * and the record a hand-placed point carries (AUTHORING_UX_PLAN.md §7, §15 C1).
  *
- * PROTOTYPE LANE ONLY. Landmarks are corrected in one place and one record
- * (qa/avatar_master/landmarks.manual.json); scripts/test_lane_parity.mjs checks
- * the production viewer never imports this.
+ * Landmarks are corrected in ONE place, with ONE record
+ * (qa/avatar_master/landmarks.manual.json); scripts/test_single_engine.mjs
+ * checks the app places them through this module.
  *
  * Nothing here places a point. A mirror is an OFFER the person accepts, recorded
  * as `manual_mirrored` with its residual; a framing is a camera pose, the point

@@ -344,7 +344,7 @@ cuts, not a fit recommendation."*
 | `contracts/pattern-templates.json` | new | — | the templates (§8.2) |
 | `scripts/landmark_placement.mjs` | new, pure | **prototype only** | guided order, per-landmark framing hint from the registry, `placed_with` construction, mirror offer with residual |
 | `digital_bra_fit_model_360.html` | changed | prototype | drag-to-place, ring for level landmarks, Place-next, Face-point, loupe canvas, template controls in the pattern block |
-| `viewer/src/main.js` | changed | production | pass `surfaces`; Face-point button; nothing else |
+| `viewer/src/main.js` | changed | production | pass `surfaces`; Face-point button; nothing else — *lane merged away 2026-09-06; this row is history* |
 | `scripts/measure_avatar.py` | changed | — | accept `manual_mirrored` and `placed_with`, carry both to provenance |
 | `scripts/pattern_draft.mjs` | changed | prototype | `template` in `draftExport`; pre-Flatten surface refusal (§6.2) |
 
@@ -373,7 +373,7 @@ New or extended records, all pinned to the asset SHA and deterministic (no times
 | `validate:view-geometry` (new, Node) | footprint against the analytic `2d·tan(fov/2)/H / cos θ` for a table of cases; incidence symmetric and in [0°, 90°]; the pose facing a normal has view direction = −normal to 1e-9 and keeps distance; turntable steps compose to the identity after 24 × 15° | exact maths, 1e-9 |
 | `validate:pen-snap` (new, Node) | for a fixture of targets and cursor positions: the nearest-in-radius wins, priority breaks ties, nothing outside the radius snaps, `Ctrl` disables, level and mirror candidates land on the surface (closest-point residual 0 on the cylinder fixture; recorded on the avatar) | screen 15 px; residual recorded, not budgeted |
 | `validate:pattern-templates` (new, Node) | every template in the contract, resolved against a **declared fixture** landmark set (the spike's synthesised roots, labelled as such), yields sound pieces (0 fold-overs, converged) with shared-seam mismatch ≤ 3.175 mm; the anchor lists are byte-identical run to run (SHA recorded); a template with a missing requirement reports `needs …`, never a number | seam tolerance as `validate:seam-closure` |
-| `validate:lane-parity` (extended) | production lane imports neither `pattern_templates.mjs` nor `landmark_placement.mjs`; both lanes reach `pen_snap` and `view_geometry` only through the shared pen / their own import and reimplement neither (function-name scan as today) | static |
+| `validate:single-engine` (was `validate:lane-parity`) | the app reaches `pen_snap` and `view_geometry` only through the shared pen / its own import and reimplements neither (function-name scan as today) | static |
 | `validate:measure-parity` (unchanged) | `manual_mirrored` landmarks produce the same POM values in both engines as `manual` ones with the same coordinates | 0.5 mm as today |
 | Browser smoke (manual, recorded in the plan) | with the pen on: drag orbits, click pins, `F` faces the point, Shift-level and Alt-mirror snap and show their ring; a landmark drag updates POMs live; a template flattens live under a moving root | checklist, not a number |
 
@@ -404,7 +404,7 @@ record (§7.2) is what would make such a comparison possible later.
   `validate:view-geometry`. Acceptance: draw a closed loop around the whole torso without leaving
   the pen; every anchor in the export carries incidence and footprint.
 - **Phase B — smart pen.** `pen_snap.mjs`, snap targets 1–6, surface roles, nudge, undo/redo,
-  mirror line, loupe, `validate:pen-snap`, lane-parity extension. Acceptance: a seam drawn from
+  mirror line, loupe, `validate:pen-snap`, single-engine extension. Acceptance: a seam drawn from
   outline anchor to outline anchor flattens with the joint solve recognising the shared run
   without the end-snap; mirrored line residual 0.000 mm on this asset, recorded.
 - **Phase C — landmark placement.** Drag-to-place, ring for levels, guided sequence, mirror offer,
@@ -447,11 +447,11 @@ Rules the map follows:
 | Key | Action |
 |---|---|
 | `P` | Pen on / off |
-| `L` | Landmarks panel on / off *(prototype)* |
+| `L` | Landmarks panel on / off |
 | `T` | Tape lines on / off |
-| `X` | Section tool on / off *(prototype)* |
-| `G` | Reference levels on / off (the how-to-measure stack) *(prototype)* |
-| `B` | Body grid on / off (centre, side, apex verticals and the cut lines) *(prototype)* |
+| `X` | Section tool on / off |
+| `G` | Reference levels on / off (the how-to-measure stack) |
+| `B` | Body grid on / off (centre, side, apex verticals and the cut lines) |
 | `1` | Front view |
 | `2` | Three-quarter view |
 | `3` | Side view |
@@ -574,7 +574,8 @@ pose for the selected or hovered point (via `poseFacing`), `select(index)`, `sel
 Key handling moves out of the pen into the host dispatcher (A4); the pen exposes the actions
 (`finishLine`, `closeLoop`, `deleteSelected`, `undoPoint`) and nothing else about keys.
 
-**A4 Hosts.** `digital_bra_fit_model_360.html` and `viewer/src/main.js`: one `keydown` dispatcher
+**A4 Hosts.** `digital_bra_fit_model_360.html` (and, until the lane was merged away on
+2026-09-06, `viewer/src/main.js`): one `keydown` dispatcher
 on `window` → `matchBinding` → action table; `?` overlay from `cheatSheet`; tip shows footprint
 and turns amber past 60° and red past 75° (display only); *Face* button next to the presets;
 arrows drive `cameraGoal` through `turntable`; `Esc` layering per §14. Touch: verify tap pins and

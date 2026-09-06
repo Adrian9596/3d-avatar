@@ -1,6 +1,6 @@
 /**
  * What a click is worth on the skin, and where a camera must stand to look at a
- * point squarely. Pure functions on plain arrays; both viewer lanes and the pen
+ * point squarely. Pure functions on plain arrays; the app and the pen
  * import them, and `scripts/test_view_geometry.mjs` checks them against the
  * analytic answers (AUTHORING_UX_PLAN.md §4.1, §5, §15 A1).
  *
@@ -24,7 +24,7 @@ const length = (a) => Math.hypot(a[0], a[1], a[2]);
 const normalize = (a) => { const l = length(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
 export const UP = Object.freeze([0, 1, 0]);
-/** OrbitControls' polar clamp in both lanes: the camera never looks straight down the body axis. */
+/** OrbitControls' polar clamp: the camera never looks straight down the body axis. */
 export const DEFAULT_POLAR_LIMITS = Object.freeze({ min_rad: 0.35, max_rad: Math.PI - 0.35 });
 /** Display thresholds for the grazing guard — they colour the tip, they change no value. */
 export const GRAZING_WARN_DEG = 60;
@@ -106,7 +106,7 @@ export function turntable({ position, target }, { yaw_rad = 0, pitch_rad = 0, po
 }
 
 /** Distance at which a box of `size_m` fits the view with `margin` to spare — what
- *  both lanes' view presets use. */
+ *  the view presets use. */
 export function framingDistance({ size_m, fov_deg, aspect, margin = 1.3 }) {
   const t = Math.tan((fov_deg * Math.PI) / 360);
   const fitHeight = size_m[1] / (2 * t);

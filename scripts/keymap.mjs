@@ -1,5 +1,5 @@
 /**
- * The keyboard map of both viewer lanes, as data. One source: the hosts dispatch
+ * The keyboard map of the app, as data. One source: the host dispatches
  * through `matchBinding`, the `?` overlay is built from `cheatSheet`, and
  * AUTHORING_UX_PLAN.md §14 is regenerated from `docTables` — the doc is checked
  * against this file by `scripts/test_keymap.mjs`, not trusted.
@@ -33,11 +33,11 @@ const planned = (phase, id, keys, context, label, extra = {}) => b(id, keys, con
 export const KEYMAP = Object.freeze([
   // ---- always ---------------------------------------------------------------
   b('pen.toggle', ['P'], 'always', 'Pen on / off'),
-  b('landmarks.toggle', ['L'], 'always', 'Landmarks panel on / off', { lane: 'prototype' }),
+  b('landmarks.toggle', ['L'], 'always', 'Landmarks panel on / off'),
   b('tapes.toggle', ['T'], 'always', 'Tape lines on / off'),
-  b('section.toggle', ['X'], 'always', 'Section tool on / off', { lane: 'prototype' }),
-  b('levels.toggle', ['G'], 'always', 'Reference levels on / off (the how-to-measure stack)', { lane: 'prototype' }),
-  b('grid.toggle', ['B'], 'always', 'Body grid on / off (centre, side, apex verticals and the cut lines)', { lane: 'prototype' }),
+  b('section.toggle', ['X'], 'always', 'Section tool on / off'),
+  b('levels.toggle', ['G'], 'always', 'Reference levels on / off (the how-to-measure stack)'),
+  b('grid.toggle', ['B'], 'always', 'Body grid on / off (centre, side, apex verticals and the cut lines)'),
   b('view.front', ['1'], 'always', 'Front view'),
   b('view.three-quarter', ['2'], 'always', 'Three-quarter view'),
   b('view.side', ['3'], 'always', 'Side view'),
@@ -128,16 +128,18 @@ function keyMatches(binding, n) {
  * The binding a keydown means, or null.
  * @param contexts   the active contexts, e.g. ['always', 'pen']
  * @param hasSelection whether a point is selected (arrows act on it)
- * @param lane       'prototype' | 'production' — prototype-only rows are unknown to production
+ *
+ * Rows used to carry a `lane` so the four authoring toggles could be unknown to
+ * the second viewer lane. That lane was merged away on 2026-09-06 and the field
+ * went with it: there is one app, and every binding belongs to it.
  */
-export function matchBinding(event, { contexts, hasSelection = false, lane = 'prototype', platform = 'other', includePlanned = false } = {}) {
+export function matchBinding(event, { contexts, hasSelection = false, platform = 'other', includePlanned = false } = {}) {
   if (isTextEntry(event.target)) return null;
   const n = normalizeEvent(event, platform);
   if (n.foreign) return null;
   const hits = KEYMAP.filter((binding) => !binding.hold
     && (includePlanned || binding.status === 'active')
     && contexts.includes(binding.context)
-    && (!binding.lane || binding.lane === lane)
     && keyMatches(binding, n)
     && (binding.needsSelection === undefined || binding.needsSelection === hasSelection));
   if (!hits.length) return null;
@@ -160,12 +162,12 @@ export function keyLabel(binding, platform = 'other') {
   return binding.hold ? `hold ${body}` : body;
 }
 
-/** Rows for the `?` overlay: active bindings of the active contexts in this lane. */
-export function cheatSheet({ contexts, lane = 'prototype', platform = 'other' }) {
+/** Rows for the `?` overlay: the active bindings of the active contexts. */
+export function cheatSheet({ contexts, platform = 'other' }) {
   return CONTEXTS.filter((c) => contexts.includes(c)).map((context) => ({
     context,
     title: CONTEXT_TITLES[context].replace(/\s*\*\(prototype\)\*/, ''),
-    rows: KEYMAP.filter((k) => k.context === context && k.status === 'active' && (!k.lane || k.lane === lane))
+    rows: KEYMAP.filter((k) => k.context === context && k.status === 'active')
       .map((k) => ({ id: k.id, keys: keyLabel(k, platform), label: k.label })),
   })).filter((section) => section.rows.length);
 }
@@ -179,7 +181,6 @@ export function docTables() {
       const key = keyLabel(k, 'mac').replace('⌘', '⌘/Ctrl+');
       const keyCell = k.hold ? `hold \`${key.replace(/^hold /, '')}\` while pinning` : `\`${key}\``;
       const notes = [];
-      if (k.lane === 'prototype' && context === 'always') notes.push('*(prototype)*');
       if (k.status === 'planned') notes.push(`*(planned, Phase ${k.phase})*`);
       out.push(`| ${keyCell} | ${k.label}${notes.length ? ` ${notes.join(' ')}` : ''} |`);
     }
@@ -197,7 +198,6 @@ export function conflicts() {
       const a = live[i], c = live[j];
       const sameContext = a.context === c.context || a.context === 'always' || c.context === 'always';
       if (!sameContext) continue;
-      if (a.lane && c.lane && a.lane !== c.lane) continue;
       if (a.needsSelection !== undefined && c.needsSelection !== undefined && a.needsSelection !== c.needsSelection) continue;
       const sameMods = Boolean(a.mods?.mod) === Boolean(c.mods?.mod) && Boolean(a.mods?.alt) === Boolean(c.mods?.alt)
         && (a.shiftOptional || c.shiftOptional || Boolean(a.mods?.shift) === Boolean(c.mods?.shift));

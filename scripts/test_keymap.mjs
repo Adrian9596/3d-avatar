@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Gate for scripts/keymap.mjs — the one keyboard map both lanes dispatch through.
+ * Gate for scripts/keymap.mjs — the one keyboard map the app dispatches through.
  *
  * What it proves: no two bindings can mean the same keystroke at once (within a
  * tool, or between a tool and the always layer, unless disjoint by selection);
@@ -63,8 +63,8 @@ const cases = [
   { name: 'Ctrl+Z elsewhere is undo', event: ev('z', { ctrlKey: true }), opts: { contexts: ['always', 'pen'], platform: 'other' }, expect: 'pen.undo' },
   { name: 'M in the pen mirrors the selected line', event: ev('m'), opts: { contexts: ['always', 'pen'] }, expect: 'pen.mirror-line' },
   { name: 'a keystroke in a text field is the field\'s', event: ev('Enter', { target: { nodeType: 1, tagName: 'INPUT' } }), opts: { contexts: ['always', 'pen'] }, expect: null },
-  { name: 'L is unknown to the production lane', event: ev('l'), opts: { contexts: ['always'], lane: 'production' }, expect: null },
-  { name: 'L opens landmarks in the prototype', event: ev('l'), opts: { contexts: ['always'], lane: 'prototype' }, expect: 'landmarks.toggle' },
+  { name: 'L opens the landmarks panel', event: ev('l'), opts: { contexts: ['always'] }, expect: 'landmarks.toggle' },
+  { name: 'B draws the body grid', event: ev('b'), opts: { contexts: ['always'] }, expect: 'grid.toggle' },
   { name: 'Home resets the view', event: ev('Home'), opts: { contexts: ['always'] }, expect: 'view.reset' },
   { name: 'Space places the next landmark', event: ev(' '), opts: { contexts: ['always', 'landmarks'] }, expect: 'landmarks.place-next' },
   { name: 'Space outside the landmarks tool is nothing', event: ev(' '), opts: { contexts: ['always', 'pen'] }, expect: null },
@@ -76,12 +76,14 @@ const outcomes = cases.map((c) => {
 });
 gate.record('the dispatcher resolves the representative keystrokes', outcomes.every((o) => o.ok), outcomes.filter((o) => !o.ok).map((o) => `${o.name}: got ${o.got}`).join('; ') || `${outcomes.length} keystrokes`);
 
-// ---- the overlay shows active rows only, per lane --------------------------
-const sheet = cheatSheet({ contexts: ['always', 'pen'], lane: 'production', platform: 'mac' });
+// ---- the overlay shows the active rows of the active contexts only ---------
+const sheet = cheatSheet({ contexts: ['always', 'pen'], platform: 'mac' });
 const shown = sheet.flatMap((s) => s.rows.map((r) => r.id));
-gate.record('the sheet lists active rows of the active contexts for the lane',
-  shown.includes('pen.finish') && shown.includes('pen.undo') && !shown.includes('landmarks.toggle') && !shown.includes('pattern.flatten') && !shown.includes('pattern.template'),
-  `${shown.length} rows for production always+pen`);
+gate.record('the sheet lists active rows of the active contexts and nothing else',
+  shown.includes('pen.finish') && shown.includes('pen.undo') && shown.includes('landmarks.toggle')
+    && !shown.includes('pattern.flatten') && !shown.includes('pattern.template'),
+  `${shown.length} rows for always+pen; the landmarks and pattern tools' own rows stay out until their context is active`);
+
 
 // ---- the doc is what the code generates ------------------------------------
 const doc = readFileSync(DOC, 'utf8');
@@ -103,7 +105,7 @@ gate.record('AUTHORING_UX_PLAN.md §14 tables are generated from KEYMAP', docOk,
 gate.finish({
   reportPath: REPORT, relativeTo: ROOT, okDecision: 'KEYMAP_CONSISTENT',
   body: {
-    purpose: 'One keyboard map for both lanes: conflict-free, browser-safe, and the doc regenerated from it.',
+    purpose: 'One keyboard map: conflict-free, browser-safe, and the doc regenerated from it.',
     module: { file: 'scripts/keymap.mjs', sha256: sha256File(join(ROOT, 'scripts', 'keymap.mjs')) },
     keymap_sha256: sha256Bytes(JSON.stringify(KEYMAP)),
     bindings: { total: KEYMAP.length, active: KEYMAP.filter((k) => k.status === 'active').length, planned: KEYMAP.filter((k) => k.status === 'planned').length },

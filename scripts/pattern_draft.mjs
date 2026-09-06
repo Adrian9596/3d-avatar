@@ -1,6 +1,6 @@
 /**
  * From pen lines to pattern pieces — the logic behind the "2D pattern draft"
- * block of the authoring lane, kept out of the HTML so it can be read, tested
+ * block, kept out of the HTML so it can be read, tested
  * and upgraded on its own. No DOM in here: plain arrays in, plain objects out.
  *
  * The pipeline is the one the gates run (the pen hands over each line's 3D

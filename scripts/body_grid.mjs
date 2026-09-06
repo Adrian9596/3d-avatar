@@ -8,8 +8,9 @@
  * the source sheets is for.
  *
  * EVERY RULE IS AN EXTREME OR AN EXACT FEATURE, never a threshold. Centre is the
- * symmetry plane, a side is the widest point of a section, an apex line is the
- * vertical through a detected apex, a boundary is where the surface ends. That
+ * symmetry plane, a side is the section's outermost point at its own mid-depth,
+ * an apex line is the vertical through a detected apex, a boundary is where the
+ * surface ends. That
  * is the same test the registry's landmark rules pass, and the reason there is
  * no princess line, no side seam and no strap line in here: those are design
  * decisions, and a rule that produced one would be reporting a choice as a
@@ -18,16 +19,19 @@
  * A curve is DRAWN, NEVER MEASURED. Nothing in this file returns a length, so
  * the grid carries no tolerance and cannot disagree with a POM about anything.
  * Sampling reuses the shared engine's section routine and the shared boundary
- * walk; no intersection or edge maths is written here.
+ * walk. The only maths added is the linear interpolation along a section
+ * segment where it crosses the plane x = target — an exact crossing, so the
+ * curve is smooth rather than stepping from mesh vertex to mesh vertex.
  *
- * PROTOTYPE LANE ONLY, like the levels, the landmarks and the pattern block.
+ * Reached only through the app's Grid toggle, alongside the levels, the
+ * landmarks and the pattern block.
  */
 
-import { sectionSegments, segmentPoints } from './measure_core.mjs';
+import { sectionSegments } from './measure_core.mjs';
 import { weld, boundaryLoops } from './flatten_mesh.mjs';
 
 export const GRID_LIMIT = 'The grid is where this body\'s own geometry falls, not where a bra\'s seams should go.';
-const RULES = new Set(['section_nearest_x', 'section_extreme_x', 'boundary_loop']);
+const RULES = new Set(['section_crossing_x', 'section_mid_depth_x', 'boundary_loop']);
 
 /** Validate the contract against the registry; returns { curves, boundaries, groups, errors }. */
 export function loadGrid(contract, registry) {
@@ -44,13 +48,13 @@ export function loadGrid(contract, registry) {
     ids.add(curve.id);
     if (!RULES.has(curve.rule)) problems.push(`unknown rule ${curve.rule}`);
     if (!groups[curve.group]) problems.push(`unknown group ${curve.group}`);
-    if (curve.rule === 'section_nearest_x') {
+    if (curve.rule === 'section_crossing_x') {
       const fromLandmark = curve.x_from_landmark;
       if (fromLandmark === undefined && !Number.isFinite(curve.x_m)) problems.push('needs x_m or x_from_landmark');
       if (fromLandmark !== undefined && known.size && !known.has(fromLandmark)) problems.push(`unknown landmark ${fromLandmark}`);
       if (!['front', 'back'].includes(curve.side)) problems.push('side must be front or back');
     }
-    if (curve.rule === 'section_extreme_x' && ![1, -1].includes(curve.sign)) problems.push('sign must be 1 or -1');
+    if (curve.rule === 'section_mid_depth_x' && ![1, -1].includes(curve.sign)) problems.push('sign must be 1 or -1');
     if (curve.rule === 'boundary_loop') problems.push('a boundary loop is declared under boundaries, not curves');
     for (const id of curve.requires || []) if (known.size && !known.has(id)) problems.push(`unknown landmark ${id}`);
     // A curve that reads a landmark must say so, or a missing landmark would
@@ -85,38 +89,78 @@ export function loadGrid(contract, registry) {
 }
 
 /**
- * The point of the section at `y` nearest `targetX` on one side of the body.
+ * The point where the section at `y` crosses the plane x = `targetX` on one side
+ * of the body, interpolated along the section segment it crosses — not the
+ * nearest section vertex. A vertex can only be as close to the plane as the
+ * mesh has geometry there (5mm either side of it on this body), and picking one
+ * at every height gave a curve that zig-zagged by the mesh's own resolution.
+ * The crossing is exact, so the curve follows the skin smoothly.
  *
  * Which side is decided by the SECTION'S OWN MIDLINE — halfway between its
  * front-most and back-most point — not by the sign of z and not by a number
- * chosen here. Without that split the nearest point in x is as often the spine
- * as the sternum: at the apex's x the back of the body is nearer in x than any
- * front vertex, and an apex vertical came out 266mm behind its own apex.
+ * chosen here. Without that split the answer is as often the spine as the
+ * sternum: at the apex's x the back of the body also crosses the plane, and an
+ * apex vertical came out 266mm behind its own apex.
+ *
+ * Where a side crosses the plane more than once (a fold of skin, the shoulder
+ * above the scan's reliable ceiling), the outermost crossing is taken — the
+ * front-most for the front, the back-most for the back — so the curve stays on
+ * the outer skin.
  */
-function nearestOnSide(points, targetX, side) {
+function crossingOnSide(segments, targetX, side) {
   let minZ = Infinity, maxZ = -Infinity;
-  for (const [, z] of points) { if (z < minZ) minZ = z; if (z > maxZ) maxZ = z; }
+  for (const [a, b] of segments) {
+    for (const [, z] of [a, b]) { if (z < minZ) minZ = z; if (z > maxZ) maxZ = z; }
+  }
   const midline = (minZ + maxZ) / 2;
-  let best = null, bestDx = Infinity, bestDepth = -Infinity;
-  for (const [x, z] of points) {
+  let best = null, bestDepth = -Infinity;
+  for (const [a, b] of segments) {
+    const da = a[0] - targetX, db = b[0] - targetX;
+    if (da * db > 0) continue;                                // both on one side of the plane
+    const s = da === db ? 0 : da / (da - db);                 // where along a→b the plane is
+    const z = a[1] + (b[1] - a[1]) * s;
     if (side === 'front' ? z < midline : z > midline) continue;
     const depth = side === 'front' ? z : -z;
-    const dx = Math.abs(x - targetX);
-    // nearest in x wins; ties (a vertex either side of the plane) go to the
-    // front-most (or back-most) point, so the curve stays on the outer skin
-    if (dx < bestDx - 1e-9 || (Math.abs(dx - bestDx) <= 1e-9 && depth > bestDepth)) {
-      bestDx = dx; bestDepth = depth; best = [x, z];
-    }
+    if (depth > bestDepth) { bestDepth = depth; best = [targetX, z]; }
   }
   return best;
 }
 
-/** The section point furthest out in x on one side. */
-function extremeX(points, sign) {
-  let best = null, bestX = -Infinity;
-  for (const [x, z] of points) {
-    const out = x * sign;
-    if (out > bestX) { bestX = out; best = [x, z]; }
+/**
+ * The outermost point of the section on one side, taken AT THE SECTION'S OWN
+ * MID-DEPTH — halfway between its front-most and back-most point, the same
+ * construct the side split above uses, and no number chosen here.
+ *
+ * This replaced the widest point of the section (`section_extreme_x`). The
+ * widest point is well determined in x and NOT DETERMINED IN DEPTH: the side of
+ * this body is a flat wall, so at every height the section is equally wide over
+ * a run of 10 to 57mm of depth, and the widest vertex is picked out of that run
+ * by variation of under a millimetre. Sampled height by height the answer jumped
+ * up to 41.7mm in depth between neighbouring heights and drew a zig-zag — the
+ * rule was reporting the mesh's own noise as a place on the body. At mid-depth
+ * the answer is determined: it moves at most 3.55mm per height, and it sits
+ * 0.68mm inboard of the widest point on average, so it is a point of the same
+ * wall.
+ *
+ * The registry's SIDE_UNDERBUST_L/R landmarks are still the widest point, and
+ * they should be: they feed a width, where depth does not enter. This is a
+ * different question — where on that wall a line runs — and it needs the depth
+ * the widest point cannot give.
+ */
+function midDepthOnSide(segments, sign) {
+  let minZ = Infinity, maxZ = -Infinity;
+  for (const [a, b] of segments) {
+    for (const [, z] of [a, b]) { if (z < minZ) minZ = z; if (z > maxZ) maxZ = z; }
+  }
+  const mid = (minZ + maxZ) / 2;
+  let best = null, bestOut = -Infinity;
+  for (const [a, b] of segments) {
+    const da = a[1] - mid, db = b[1] - mid;
+    if (da * db > 0) continue;                                // both on one side of mid-depth
+    const s = da === db ? 0 : da / (da - db);
+    const x = a[0] + (b[0] - a[0]) * s;
+    if (x * sign < 0) continue;
+    if (x * sign > bestOut) { bestOut = x * sign; best = [x, mid]; }
   }
   return best;
 }
@@ -132,8 +176,8 @@ export function sampleCurves(loaded, tri, landmarks, { scan, step = null } = {})
   for (let y = scan.from_m; y <= scan.to_m + 1e-9; y += stepM) heights.push(Number(y.toFixed(6)));
   // One section pass serves every curve, so they cannot be sampled differently.
   const sections = new Map();
-  const pointsAt = (y) => {
-    if (!sections.has(y)) sections.set(y, segmentPoints(sectionSegments(tri, y)));
+  const segmentsAt = (y) => {
+    if (!sections.has(y)) sections.set(y, sectionSegments(tri, y));
     return sections.get(y);
   };
 
@@ -145,11 +189,11 @@ export function sampleCurves(loaded, tri, landmarks, { scan, step = null } = {})
     const points = [];
     for (const y of heights) {
       if (y > ceiling) break;
-      const section = pointsAt(y);
-      if (!section.length) continue;
-      const hit = curve.rule === 'section_extreme_x'
-        ? extremeX(section, curve.sign)
-        : nearestOnSide(section, targetX, curve.side);
+      const segments = segmentsAt(y);
+      if (!segments.length) continue;
+      const hit = curve.rule === 'section_mid_depth_x'
+        ? midDepthOnSide(segments, curve.sign)
+        : crossingOnSide(segments, targetX, curve.side);
       if (hit) points.push([hit[0], y, hit[1]]);
     }
     return { curve, needs: null, points };

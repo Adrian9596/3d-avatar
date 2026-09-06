@@ -1,7 +1,7 @@
 /**
  * Where a pen anchor goes when the click lands near something it should meet.
  * Pure functions on plain arrays; the pen (scripts/pen_tool.mjs) is the only
- * caller in either lane, and scripts/test_pen_snap.mjs checks them on a cylinder
+ * caller, and scripts/test_pen_snap.mjs checks them on a cylinder
  * and on the avatar (AUTHORING_UX_PLAN.md §6, §15 B1).
  *
  * The rule that keeps this honest: a snap moves the ANCHOR. It never changes the

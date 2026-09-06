@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T16:29:06Z",
-  "purpose": "One keyboard map for both lanes: conflict-free, browser-safe, and the doc regenerated from it.",
+  "generated_at": "2026-09-05T17:24:15Z",
+  "purpose": "One keyboard map: conflict-free, browser-safe, and the doc regenerated from it.",
   "module": {
     "file": "scripts/keymap.mjs",
-    "sha256": "e7e8322e5476cd13fe2d2337fc1eee502fda8641a1905589657b1dbd4b383139"
+    "sha256": "0108ab3c3c5a174f2b43e8a3d5a502fd6db67118e2a249fa852223236f1c8c46"
   },
-  "keymap_sha256": "4379b38f852dddc2401e727b51bf92a619fccd1813715e0dcb954cbc2806f5c4",
+  "keymap_sha256": "ca4699c59e0b17da17ad3c837d244b5b701af1dd371c90976120d795a76b4428",
   "bindings": {
     "total": 45,
     "active": 45,
@@ -128,15 +128,15 @@
       "ok": true
     },
     {
-      "name": "L is unknown to the production lane",
-      "expect": null,
-      "got": null,
+      "name": "L opens the landmarks panel",
+      "expect": "landmarks.toggle",
+      "got": "landmarks.toggle",
       "ok": true
     },
     {
-      "name": "L opens landmarks in the prototype",
-      "expect": "landmarks.toggle",
-      "got": "landmarks.toggle",
+      "name": "B draws the body grid",
+      "expect": "grid.toggle",
+      "got": "grid.toggle",
       "ok": true
     },
     {
@@ -211,9 +211,9 @@
       "detail": "25 keystrokes"
     },
     {
-      "name": "the sheet lists active rows of the active contexts for the lane",
+      "name": "the sheet lists active rows of the active contexts and nothing else",
       "status": "PASS",
-      "detail": "30 rows for production always+pen"
+      "detail": "34 rows for always+pen; the landmarks and pattern tools' own rows stay out until their context is active"
     },
     {
       "name": "AUTHORING_UX_PLAN.md §14 tables are generated from KEYMAP",

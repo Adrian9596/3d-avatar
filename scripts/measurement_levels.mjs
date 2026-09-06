@@ -8,7 +8,7 @@
  * reports is the ordinary section girth this project measures everywhere else —
  * `measureSection` from the shared engine, convex hull, not a second model.
  * Nothing here re-derives a section; if it did, the levels and the POMs could
- * disagree about the same slice of the same body, which is the failure the lane
+ * disagree about the same slice of the same body, which is the failure the
  * parity gate exists to make impossible.
  *
  * What does NOT transfer from the sheets: the reference figure's dimensions. The
@@ -21,9 +21,9 @@
  * outside the registry's scan) is resolved and drawn but reports no girth, with
  * the reason attached — visible absence beats a plausible number.
  *
- * PROTOTYPE LANE ONLY, like landmark placement and the pattern block:
- * scripts/test_lane_parity.mjs checks the production viewer imports neither this
- * module nor the contract.
+ * scripts/test_single_engine.mjs checks the app draws levels through this
+ * module and cannot redefine the section maths, so a level and a POM can never
+ * disagree about the same slice of the same body.
  */
 
 import { measureSection, inchFraction } from './measure_core.mjs';

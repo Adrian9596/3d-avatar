@@ -17,8 +17,7 @@ Phase 4 update (2026-09-05): the pen tool drafts pieces. In `digital_bra_fit_mod
 a "2D pattern draft" block appears once a closed loop exists: pick the outline, optionally an
 open line whose ends sit on it as the seam, Flatten, read the pieces' seam errors and the
 shared-seam mismatch next to a preview, Export DXF. It imports the very engine and writer
-the gates run (`validate:lane-parity` checks that, and that the production lane carries
-neither). Verified in the browser with a 12-anchor pen loop and a 3-anchor seam through the
+the gates run (`validate:single-engine` checks that). Verified in the browser with a 12-anchor pen loop and a 3-anchor seam through the
 apex: two panels, 0 fold-overs, 2 349 sweeps in ~1 s, shared-seam mismatch 0.45 mm; the
 exported DXF passes all 24 structural checks of `validate:dxf-roundtrip` in check-only mode.
 
@@ -238,14 +237,13 @@ scripts/gate_report.mjs        — shared plumbing of the flatten-family gates
 Every module carries a header saying what it owns; a change to one side of the
 JS/Python pair belongs in the twin file, and the parity gate is what catches a miss.
 
-`validate:lane-parity` lists the engine's functions (`hingeUnfold`, `relaxPieces`,
-`flattenPieces`, `extractPatch`, `loopChords`) among those neither viewer lane may redefine,
-and checks that the authoring lane reaches the engine only through `pattern_draft.mjs` while
-the production lane reaches none of it.
+`validate:single-engine` lists the engine's functions (`hingeUnfold`, `relaxPieces`,
+`flattenPieces`, `extractPatch`, `loopChords`) among those the app may not redefine, and checks
+that it reaches the engine only through `pattern_draft.mjs`.
 
-Do not reimplement the geodesic/curvature/flattening maths a second time inside either
-viewer lane — the existing `validate:lane-parity` gate's method (grep both lanes for
-redefinitions of shared engine functions) extends directly to these new function names.
+Do not reimplement the geodesic/curvature/flattening maths a second time inside the app — the
+gate's method (grep the host for redefinitions of shared engine functions) extends directly to
+these new function names.
 
 ### 8.1 Patch extraction from a pen loop
 

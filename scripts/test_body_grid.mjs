@@ -13,18 +13,24 @@
  *     is refused;
  *   * the contract carries no threshold, tolerance or length — a curve is drawn,
  *     never measured, so it cannot disagree with a POM;
- *   * CENTRE_FRONT and CENTRE_BACK land on the symmetry plane to within the
- *     mesh's own weld quantum, and on opposite sides of the body;
- *   * SIDE_L and SIDE_R are the widest points of their sections: no sampled
- *     point of any other curve is further out at the same height, and the pair
- *     agrees with the registry's own SIDE_UNDERBUST_L/R at the fold, which was
- *     detected by the same rule through a different code path;
+ *   * CENTRE_FRONT and CENTRE_BACK land ON the symmetry plane (the crossing is
+ *     interpolated, so the mesh's resolution does not limit it), and on
+ *     opposite sides of the body;
+ *   * SIDE_L and SIDE_R are the outermost point of their section at its own
+ *     mid-depth: no sampled point of any other curve is further out at the same
+ *     height, they sit on the same wall as the registry's SIDE_UNDERBUST_L/R,
+ *     and the rule they replaced — the widest point of the section — is shown
+ *     here to name no depth at all, jumping further between two neighbouring
+ *     heights than the curve moves over its whole run;
  *   * APEX_VERTICAL_L/R pass through their apex, and without the apex landmark
  *     they report `needs` and no points at all — never a fallback near x = 0;
- *   * SIDE_L/R stop at the armhole ceiling, because above it the widest point of
- *     a section is the cut edge and not the body;
+ *   * SIDE_L/R stop at the armhole ceiling, because above it the section is open
+ *     at the armhole and its outermost point is the cut edge, not the body;
  *   * every sampled point is on the measurement surface (its height has a
- *     section, and it is one of that section's own points);
+ *     section, and it lies on one of that section's own segments);
+ *   * no curve steps sideways by the mesh's resolution: between neighbouring
+ *     heights a centre or apex curve moves in x by nothing at all — the failure
+ *     the crossing rule replaced was a 5mm zig-zag at every height;
  *   * the four boundary loops are the four the asset is cut into, they close,
  *     and the armhole pair matches the registry's UNDERARM_L/R, which are
  *     defined as the lowest point of exactly those loops.
@@ -66,7 +72,7 @@ const bad = loadGrid({
   groups: contract.groups,
   curves: [
     { id: 'A', group: 'centre', rule: 'princess_line', side: 'front', x_m: 0 },
-    { id: 'B', group: 'centre', rule: 'section_nearest_x', side: 'front', x_from_landmark: 'BUST_APEX_L', requires: [] },
+    { id: 'B', group: 'centre', rule: 'section_crossing_x', side: 'front', x_from_landmark: 'BUST_APEX_L', requires: [] },
     { id: 'C', group: 'nope', rule: 'boundary_loop' },
   ],
   boundaries: [{ id: 'D', group: 'boundary', rule: 'boundary_loop', pick: 'middle' }],
@@ -106,23 +112,15 @@ gate.record('every curve with its landmarks present samples along the body',
   sampled.map((s) => `${s.curve.id} ${s.needs ? `needs ${s.needs.join(',')}` : `${s.points.length} pts`}`).join(', '));
 
 
-// A section point is where an edge crosses that height, so a curve can only
-// land as close to its plane as the mesh has geometry there. The budget is the
-// mesh's own resolution — the widest gap between neighbouring section points
-// around centre — not a number picked to make this pass.
+// The crossing is interpolated along the section segment, so centre lands on
+// the plane exactly — not within the mesh's resolution of it, as the nearest-
+// vertex rule it replaced did (0.42mm off, where the mesh straddled x = 0 with
+// points 10.7mm apart). The budget is the weld quantum, nothing chosen.
 const centreOff = ['CENTRE_FRONT', 'CENTRE_BACK'].flatMap((id) => byId[id].points.map((p) => Math.abs(p[0])));
-let centreResolution = 0;
-for (const p of byId.CENTRE_FRONT.points) {
-  const section = segmentPoints(sectionSegments(ctx.tri, p[1]));
-  const nearby = section.filter(([, z]) => Math.abs(z - p[2]) < 0.02).map(([x]) => x).sort((a, b) => a - b);
-  for (let i = 1; i < nearby.length; i++) {
-    if (nearby[i - 1] <= 0 && nearby[i] >= 0) centreResolution = Math.max(centreResolution, nearby[i] - nearby[i - 1]);
-  }
-}
 const worstCentre = Math.max(...centreOff);
-gate.record('centre front and centre back sit on the symmetry plane, to the mesh\'s own resolution',
-  worstCentre <= centreResolution / 2 + DEFAULT_WELD_QUANTUM,
-  `worst |x| ${mm(worstCentre)}mm; the mesh straddles x = 0 with points ${mm(centreResolution)}mm apart there, so half of that is all a section point can do`);
+gate.record('centre front and centre back sit on the symmetry plane',
+  worstCentre <= DEFAULT_WELD_QUANTUM,
+  `worst |x| ${mm(worstCentre)}mm — the crossing is interpolated along the section's own segment, so the mesh's resolution does not enter`);
 gate.record('centre front is in front of centre back at every height',
   byId.CENTRE_FRONT.points.every((p, i) => {
     const back = byId.CENTRE_BACK.points[i];
@@ -130,7 +128,10 @@ gate.record('centre front is in front of centre back at every height',
   }),
   `${byId.CENTRE_FRONT.points.length} heights, front z > back z at each`);
 
-// Side: the widest point, cross-checked against a landmark found another way.
+// Side: the outermost point at the section's own mid-depth. Two claims — that
+// it is the side, and that the rule it replaced could not say where in depth
+// the side is. The superseded answer is computed here, so the reason for the
+// change stays visible in the evidence rather than living in a comment.
 const wider = [];
 for (const id of ['SIDE_L', 'SIDE_R']) {
   const sign = byId[id].curve.sign;
@@ -142,19 +143,48 @@ for (const id of ['SIDE_L', 'SIDE_R']) {
     }
   }
 }
-gate.record('a side curve is the widest point of its section',
+gate.record('a side curve is the outermost point of its section',
   wider.length === 0, wider.length ? wider.slice(0, 3).join('; ') : 'no other curve reaches further out at any shared height');
+
+// The superseded rule, run on the same sections: the widest vertex, height by
+// height. Its depth jump is the ambiguity the mid-depth rule removes.
+const widestAt = (y, sign) => {
+  const points = segmentPoints(sectionSegments(ctx.tri, y)).filter((p) => p[0] * sign > 0);
+  return points.reduce((best, p) => (best === null || p[0] * sign > best[0] * sign ? p : best), null);
+};
+const superseded = { jump: 0, inboard: 0, gapX: 0 };
+for (const id of ['SIDE_L', 'SIDE_R']) {
+  const sign = byId[id].curve.sign;
+  const widest = byId[id].points.map((p) => widestAt(p[1], sign));
+  for (let i = 1; i < widest.length; i++) {
+    if (widest[i] && widest[i - 1]) superseded.jump = Math.max(superseded.jump, Math.abs(widest[i][1] - widest[i - 1][1]));
+  }
+  byId[id].points.forEach((p, i) => {
+    if (widest[i]) superseded.gapX = Math.max(superseded.gapX, Math.abs(widest[i][0]) - Math.abs(p[0]));
+  });
+}
+let curveStep = 0;
+for (const id of ['SIDE_L', 'SIDE_R']) {
+  const points = byId[id].points;
+  for (let i = 1; i < points.length; i++) curveStep = Math.max(curveStep, Math.abs(points[i][2] - points[i - 1][2]));
+}
+gate.record('the widest point of a section names no depth, and the mid-depth rule does',
+  curveStep < superseded.jump,
+  `the widest point jumps ${mm(superseded.jump)}mm in depth between heights 5mm apart — the side of a body is a flat wall, so under a millimetre of mesh variation decides it; the mid-depth answer moves at most ${mm(curveStep)}mm`);
 
 const foldY = evidence.landmarks?.UNDERBUST_FOLD?.y_m;
 const sideCheck = [['SIDE_L', 'SIDE_UNDERBUST_L'], ['SIDE_R', 'SIDE_UNDERBUST_R']].map(([curveId, markId]) => {
   const mark = evidence.landmarks?.[markId]?.xyz_m;
   const at = byId[curveId].points.reduce((best, p) =>
     (best === null || Math.abs(p[1] - foldY) < Math.abs(best[1] - foldY) ? p : best), null);
-  return { markId, delta: mark && at ? Math.hypot(mark[0] - at[0], mark[2] - at[2]) : Infinity };
+  return { markId, dx: mark && at ? Math.abs(Math.abs(mark[0]) - Math.abs(at[0])) : Infinity };
 });
-gate.record('the side curves agree with the registry\'s own side points at the fold',
-  sideCheck.every((c) => c.delta <= 0.001),
-  sideCheck.map((c) => `${c.markId} ${mm(c.delta)}mm`).join(', ') + ' — same rule, different code path');
+// The curve is a point of the same wall: it gives up less in width than the
+// depth it wins. Both sides of that comparison are measured on this mesh.
+gate.record('the side curves sit on the same wall as the registry\'s own side points',
+  sideCheck.every((c) => c.dx < superseded.jump),
+  sideCheck.map((c) => `${c.markId} ${mm(c.dx)}mm inboard in x`).join(', ')
+    + ` — against the ${mm(superseded.jump)}mm of depth the widest point cannot pin down. The registry keeps the widest point: a width needs no depth.`);
 
 // Apex verticals: through the apex, and honest without it.
 const apexCheck = [['APEX_VERTICAL_L', 'BUST_APEX_L'], ['APEX_VERTICAL_R', 'BUST_APEX_R']].map(([curveId, markId]) => {
@@ -181,22 +211,44 @@ for (const id of ['SIDE_L', 'SIDE_R']) {
   const top = byId[id].points[byId[id].points.length - 1][1];
   gate.record(`${id} stops at the armhole ceiling`,
     top <= ceiling + 1e-9 && top > ceiling - scan.step_m - 1e-9,
-    `top sample y = ${top.toFixed(4)}m, ceiling ${ceiling}m — above it the widest point is the armhole cut`);
+    `top sample y = ${top.toFixed(4)}m, ceiling ${ceiling}m — above it the section is open at the armhole, so its outermost point is the cut edge`);
 }
 
-// Every sampled point must be a point of the section at its own height: the
-// grid may not wander off the measurement surface.
-let offSurface = 0, checked = 0;
+// Every sampled point must lie on the section at its own height: the grid may
+// not wander off the measurement surface. A crossing is a point of a segment,
+// an extreme is one of its ends; both are on a segment.
+const toSegment = ([x, z], [a, b]) => {
+  const dx = b[0] - a[0], dz = b[1] - a[1];
+  const l2 = dx * dx + dz * dz;
+  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2));
+  return Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
+};
+let offSurface = 0, checked = 0, worstOff = 0;
 for (const { points } of sampled) {
   for (let i = 0; i < points.length; i += 7) {          // every 7th, ~35mm apart
     const [x, y, z] = points[i];
-    const section = segmentPoints(sectionSegments(ctx.tri, y));
+    const segments = sectionSegments(ctx.tri, y);
     checked++;
-    if (!section.some(([sx, sz]) => Math.abs(sx - x) < 1e-9 && Math.abs(sz - z) < 1e-9)) offSurface++;
+    const off = Math.min(...segments.map((seg) => toSegment([x, z], seg)));
+    worstOff = Math.max(worstOff, off);
+    if (!(off < 1e-7)) offSurface++;
   }
 }
-gate.record('every sampled point is a point of its own section',
-  offSurface === 0, `${checked} points sampled across the curves, ${offSurface} off the surface`);
+gate.record('every sampled point lies on a segment of its own section',
+  offSurface === 0, `${checked} points sampled across the curves, ${offSurface} off the surface, worst ${mm(worstOff)}mm`);
+
+// The reason the crossing rule exists: a curve read from the nearest vertex
+// stepped sideways at every height. In x a centre or apex curve now moves not
+// at all between neighbouring heights; the check is that, not a smoothness
+// number someone chose.
+const sideways = sampled.filter((s) => !s.needs && s.curve.rule === 'section_crossing_x').map((s) => {
+  let worst = 0;
+  for (let i = 1; i < s.points.length; i++) worst = Math.max(worst, Math.abs(s.points[i][0] - s.points[i - 1][0]));
+  return { id: s.curve.id, worst };
+});
+gate.record('a crossing curve does not step sideways between heights',
+  sideways.every((s) => s.worst <= 1e-9),
+  sideways.map((s) => `${s.id} ${mm(s.worst)}mm`).join(', ') + ' — x is the plane\'s, at every height');
 
 // ---- the boundaries --------------------------------------------------------
 const bounds = sampleBoundaries(loaded, ctx.tri);
@@ -239,7 +291,12 @@ gate.finish({
     contract: { path: 'contracts/body-grid.json', sha256: sha256File(CONTRACT) },
     scan,
     cross_checks: {
-      side_vs_registry_mm: sideCheck.map((c) => ({ landmark: c.markId, delta_mm: mm(c.delta) })),
+      side_vs_registry_mm: sideCheck.map((c) => ({ landmark: c.markId, inboard_in_x_mm: mm(c.dx) })),
+      superseded_widest_point: {
+        rule: 'section_extreme_x',
+        depth_jump_between_neighbouring_heights_mm: mm(superseded.jump),
+        note: 'The widest point of a section is well determined in x and undetermined in depth: the side of a body is a flat wall. Kept here so the reason the rule was replaced stays checkable.',
+      },
       armhole_vs_registry_mm: armCheck.map((c) => ({ landmark: c.markId, delta_mm: mm(c.delta) })),
       centre_off_plane_mm: mm(Math.max(...centreOff)),
     },
