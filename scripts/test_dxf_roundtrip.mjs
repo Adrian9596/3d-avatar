@@ -2,7 +2,7 @@
 /**
  * DXF round-trip gate for the pattern-draft export.
  *
- * Writes the flattened cup panels (scripts/flatten_cases.json, apex_panels_80mm)
+ * Writes the flattened cup panels (scripts/flatten_cases.json, apex_panels_75mm)
  * as an ASTM D6673-10 DXF in Gerber's dialect (scripts/dxf_writer.mjs), then
  * reads the file back with an INDEPENDENT parser written here — a different
  * author of the same rules, so a writer that misremembers the layout is caught

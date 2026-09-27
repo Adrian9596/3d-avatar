@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T17:24:15Z",
+  "generated_at": "2026-09-27T11:08:36Z",
   "purpose": "Template drafts resolve, flatten sound and stay proposals: needs … without the hand-placed roots, seam error reported per panel, the person chooses.",
   "contract": {
     "file": "contracts/pattern-templates.json",
@@ -8,12 +8,12 @@
   },
   "fixture": {
     "file": "scripts/pattern_template_fixture_landmarks.json",
-    "sha256": "75045880d9a70f31b82ef00d0f96799fc039f87b48d20b83479343f7f783794f",
+    "sha256": "a9b30709566bc171c4d329149a9b1fed3eb2ed986c32f0118672314c0ea5b015",
     "synthetic": true
   },
   "asset": {
     "file": "assets/export/avatar_master.glb",
-    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+    "sha256": "8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c"
   },
   "tolerance_mm": 3.175,
   "results": [
@@ -23,16 +23,16 @@
       "pieces": [
         {
           "name": "CUP_1PIECE_L",
-          "seam_error_mm": 19.54,
-          "seam_3d_mm": 329.8,
+          "seam_error_mm": 17.72,
+          "seam_3d_mm": 329.61,
           "triangle_flips": 0
         }
       ],
       "shared_mismatch_mm": null,
-      "iterations": 601,
+      "iterations": 376,
       "converged": true,
       "sound": true,
-      "outline_mm": 329.57,
+      "outline_mm": 329.36,
       "under_budget": true
     },
     {
@@ -41,22 +41,22 @@
       "pieces": [
         {
           "name": "CUP_2PANEL_VERTICAL_L A",
-          "seam_error_mm": 7.64,
-          "seam_3d_mm": 290.28,
+          "seam_error_mm": 6.67,
+          "seam_3d_mm": 294.66,
           "triangle_flips": 0
         },
         {
           "name": "CUP_2PANEL_VERTICAL_L B",
-          "seam_error_mm": 2.45,
-          "seam_3d_mm": 257.44,
+          "seam_error_mm": 2.02,
+          "seam_3d_mm": 259.03,
           "triangle_flips": 0
         }
       ],
-      "shared_mismatch_mm": 1.08,
-      "iterations": 1583,
+      "shared_mismatch_mm": 0.61,
+      "iterations": 1588,
       "converged": true,
       "sound": true,
-      "outline_mm": 329.57,
+      "outline_mm": 329.36,
       "under_budget": true
     },
     {
@@ -65,22 +65,22 @@
       "pieces": [
         {
           "name": "CUP_2PANEL_HORIZONTAL_L A",
-          "seam_error_mm": 3.9,
-          "seam_3d_mm": 321.94,
+          "seam_error_mm": 3.94,
+          "seam_3d_mm": 320.18,
           "triangle_flips": 0
         },
         {
           "name": "CUP_2PANEL_HORIZONTAL_L B",
-          "seam_error_mm": 2.15,
-          "seam_3d_mm": 283.88,
+          "seam_error_mm": 3.11,
+          "seam_3d_mm": 281.67,
           "triangle_flips": 0
         }
       ],
-      "shared_mismatch_mm": 0.59,
-      "iterations": 2614,
+      "shared_mismatch_mm": 0.23,
+      "iterations": 1891,
       "converged": true,
       "sound": true,
-      "outline_mm": 329.57,
+      "outline_mm": 329.36,
       "under_budget": true
     },
     {
@@ -89,16 +89,16 @@
       "pieces": [
         {
           "name": "CRADLE_FRONT_L",
-          "seam_error_mm": -2.44,
-          "seam_3d_mm": 522.6,
+          "seam_error_mm": -4.04,
+          "seam_3d_mm": 538.06,
           "triangle_flips": 0
         }
       ],
       "shared_mismatch_mm": null,
-      "iterations": 3259,
+      "iterations": 3416,
       "converged": true,
       "sound": true,
-      "outline_mm": 522.35,
+      "outline_mm": 537.82,
       "under_budget": true
     },
     {
@@ -107,16 +107,16 @@
       "pieces": [
         {
           "name": "CUP_1PIECE_R",
-          "seam_error_mm": 19.54,
-          "seam_3d_mm": 329.8,
+          "seam_error_mm": 17.72,
+          "seam_3d_mm": 329.61,
           "triangle_flips": 0
         }
       ],
       "shared_mismatch_mm": null,
-      "iterations": 610,
+      "iterations": 406,
       "converged": true,
       "sound": true,
-      "outline_mm": 329.57,
+      "outline_mm": 329.36,
       "under_budget": true
     },
     {
@@ -125,22 +125,22 @@
       "pieces": [
         {
           "name": "CUP_2PANEL_VERTICAL_R A",
-          "seam_error_mm": 7.64,
-          "seam_3d_mm": 290.28,
+          "seam_error_mm": 6.67,
+          "seam_3d_mm": 294.66,
           "triangle_flips": 0
         },
         {
           "name": "CUP_2PANEL_VERTICAL_R B",
-          "seam_error_mm": 2.45,
-          "seam_3d_mm": 257.44,
+          "seam_error_mm": 2.02,
+          "seam_3d_mm": 259.03,
           "triangle_flips": 0
         }
       ],
-      "shared_mismatch_mm": 1.08,
-      "iterations": 1578,
+      "shared_mismatch_mm": 0.61,
+      "iterations": 1419,
       "converged": true,
       "sound": true,
-      "outline_mm": 329.57,
+      "outline_mm": 329.36,
       "under_budget": true
     },
     {
@@ -149,22 +149,22 @@
       "pieces": [
         {
           "name": "CUP_2PANEL_HORIZONTAL_R A",
-          "seam_error_mm": 3.9,
-          "seam_3d_mm": 321.94,
+          "seam_error_mm": 3.94,
+          "seam_3d_mm": 320.18,
           "triangle_flips": 0
         },
         {
           "name": "CUP_2PANEL_HORIZONTAL_R B",
-          "seam_error_mm": 2.15,
-          "seam_3d_mm": 283.88,
+          "seam_error_mm": 3.11,
+          "seam_3d_mm": 281.67,
           "triangle_flips": 0
         }
       ],
-      "shared_mismatch_mm": 0.59,
-      "iterations": 2353,
+      "shared_mismatch_mm": 0.23,
+      "iterations": 1384,
       "converged": true,
       "sound": true,
-      "outline_mm": 329.57,
+      "outline_mm": 329.36,
       "under_budget": true
     },
     {
@@ -173,16 +173,16 @@
       "pieces": [
         {
           "name": "CRADLE_FRONT_R",
-          "seam_error_mm": -2.44,
-          "seam_3d_mm": 522.59,
+          "seam_error_mm": -4.07,
+          "seam_3d_mm": 538.06,
           "triangle_flips": 0
         }
       ],
       "shared_mismatch_mm": null,
-      "iterations": 3772,
+      "iterations": 3166,
       "converged": true,
       "sound": true,
-      "outline_mm": 522.34,
+      "outline_mm": 537.82,
       "under_budget": true
     }
   ],
@@ -230,7 +230,7 @@
     {
       "name": "resolution is deterministic",
       "status": "PASS",
-      "detail": "anchors sha256 ccb95649cd97…"
+      "detail": "anchors sha256 538c8e792c87…"
     },
     {
       "name": "every template flattens sound (converged, no fold-over)",
@@ -240,17 +240,17 @@
     {
       "name": "every shared seam agrees within 3.175 mm",
       "status": "PASS",
-      "detail": "CUP_2PANEL_VERTICAL_L 1.08, CUP_2PANEL_HORIZONTAL_L 0.59, CUP_2PANEL_VERTICAL_R 1.08, CUP_2PANEL_HORIZONTAL_R 0.59"
+      "detail": "CUP_2PANEL_VERTICAL_L 0.61, CUP_2PANEL_HORIZONTAL_L 0.23, CUP_2PANEL_VERTICAL_R 0.61, CUP_2PANEL_HORIZONTAL_R 0.23"
     },
     {
       "name": "the plan's §4.3 cup numbers are reproduced (±0.5 mm)",
       "status": "PASS",
-      "detail": "one piece 19.54; vertical 7.64/2.45 @ 1.08; horizontal 3.9/2.15 @ 0.59 mm"
+      "detail": "one piece 17.72; vertical 6.67/2.02 @ 0.61; horizontal 3.94/3.11 @ 0.23 mm"
     },
     {
       "name": "left and right templates agree on this mirrored body (±0.05 mm)",
       "status": "PASS",
-      "detail": "CUP_1PIECE_L: 19.54 vs 19.54; CUP_2PANEL_VERTICAL_L: 7.64/2.45 vs 7.64/2.45; CUP_2PANEL_HORIZONTAL_L: 3.9/2.15 vs 3.9/2.15; CRADLE_FRONT_L: -2.44 vs -2.44"
+      "detail": "CUP_1PIECE_L: 17.72 vs 17.72; CUP_2PANEL_VERTICAL_L: 6.67/2.02 vs 6.67/2.02; CUP_2PANEL_HORIZONTAL_L: 3.94/3.11 vs 3.94/3.11; CRADLE_FRONT_L: -4.04 vs -4.07"
     },
     {
       "name": "a template flattens fast enough to follow a landmark drag (< 400 ms)",

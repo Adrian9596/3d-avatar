@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T17:24:15Z",
+  "generated_at": "2026-09-27T11:08:36Z",
   "purpose": "The logic behind hand placement in the authoring lane: guided order, framing per landmark, the mirror offer, and the record a placed point carries.",
   "module": {
     "file": "scripts/landmark_placement.mjs",
@@ -8,7 +8,7 @@
   },
   "asset": {
     "file": "assets/export/avatar_master.glb",
-    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+    "sha256": "8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c"
   },
   "guided_order": [
     "HPS_L",
@@ -24,9 +24,9 @@
     {
       "id": "BUST_APEX_L",
       "target_m": [
-        -0.0804,
+        -0.0763,
         1.33,
-        0.1399
+        0.1393
       ],
       "distance_m": 0.5,
       "target_to_skin_mm": 0
@@ -34,9 +34,9 @@
     {
       "id": "BUST_APEX_R",
       "target_m": [
-        0.0804,
+        0.0763,
         1.33,
-        0.1399
+        0.1393
       ],
       "distance_m": 0.5,
       "target_to_skin_mm": 0
@@ -49,17 +49,17 @@
         0.1
       ],
       "distance_m": 0.9,
-      "target_to_skin_mm": 4.4
+      "target_to_skin_mm": 5.1
     },
     {
       "id": "UNDERBUST_FOLD",
       "target_m": [
         0,
-        1.27,
+        1.265,
         0.1
       ],
       "distance_m": 0.9,
-      "target_to_skin_mm": 1.1
+      "target_to_skin_mm": 1.6
     },
     {
       "id": "WAIST_LEVEL",
@@ -69,114 +69,114 @@
         0.1
       ],
       "distance_m": 0.9,
-      "target_to_skin_mm": 6.4
+      "target_to_skin_mm": 7
     },
     {
       "id": "HPS_L",
       "target_m": [
-        -0.0482,
+        -0.0458,
         1.51,
-        0.0399
+        0.0393
       ],
       "distance_m": 0.5,
-      "target_to_skin_mm": 29
+      "target_to_skin_mm": 28.6
     },
     {
       "id": "HPS_R",
       "target_m": [
-        0.0482,
+        0.0458,
         1.51,
-        0.0399
+        0.0393
       ],
       "distance_m": 0.5,
-      "target_to_skin_mm": 29
+      "target_to_skin_mm": 28.6
     },
     {
       "id": "ROOT_INNER_L",
       "target_m": [
-        -0.0322,
+        -0.0305,
         1.33,
-        0.1199
+        0.1193
       ],
       "distance_m": 0.45,
-      "target_to_skin_mm": 5.7
+      "target_to_skin_mm": 4.7
     },
     {
       "id": "ROOT_OUTER_L",
       "target_m": [
-        -0.1367,
+        -0.1297,
         1.32,
-        0.0899
+        0.0893
       ],
       "distance_m": 0.45,
-      "target_to_skin_mm": 7.6
+      "target_to_skin_mm": 13.4
     },
     {
       "id": "ROOT_BOTTOM_L",
       "target_m": [
-        -0.0804,
+        -0.0763,
         1.28,
-        0.1199
+        0.1193
       ],
       "distance_m": 0.45,
-      "target_to_skin_mm": 6.7
+      "target_to_skin_mm": 6.8
     },
     {
       "id": "ROOT_INNER_R",
       "target_m": [
-        0.0322,
+        0.0305,
         1.33,
-        0.1199
+        0.1193
       ],
       "distance_m": 0.45,
-      "target_to_skin_mm": 5.7
+      "target_to_skin_mm": 4.7
     },
     {
       "id": "ROOT_OUTER_R",
       "target_m": [
-        0.1367,
+        0.1297,
         1.32,
-        0.0899
+        0.0893
       ],
       "distance_m": 0.45,
-      "target_to_skin_mm": 7.6
+      "target_to_skin_mm": 13.4
     },
     {
       "id": "ROOT_BOTTOM_R",
       "target_m": [
-        0.0804,
+        0.0763,
         1.28,
-        0.1199
+        0.1193
       ],
       "distance_m": 0.45,
-      "target_to_skin_mm": 6.7
+      "target_to_skin_mm": 6.8
     },
     {
       "id": "ROOT_TOP_L",
       "target_m": [
-        -0.0804,
+        -0.0763,
         1.39,
-        0.1199
+        0.1193
       ],
       "distance_m": 0.45,
-      "target_to_skin_mm": 8
+      "target_to_skin_mm": 7.7
     },
     {
       "id": "ROOT_TOP_R",
       "target_m": [
-        0.0804,
+        0.0763,
         1.39,
-        0.1199
+        0.1193
       ],
       "distance_m": 0.45,
-      "target_to_skin_mm": 8
+      "target_to_skin_mm": 7.7
     },
     {
       "id": "CF_UNDERBUST",
       "target_m": [
         0,
-        1.27,
-        0.1011
+        1.265,
+        0.1016
       ],
       "distance_m": 0.6,
       "target_to_skin_mm": 0
@@ -185,8 +185,8 @@
       "id": "CB_UNDERBUST",
       "target_m": [
         0,
-        1.27,
-        -0.1083
+        1.265,
+        -0.1074
       ],
       "distance_m": 0.6,
       "target_to_skin_mm": 0
@@ -194,9 +194,9 @@
     {
       "id": "SIDE_UNDERBUST_L",
       "target_m": [
-        -0.1447,
-        1.27,
-        -0.0026
+        -0.1435,
+        1.265,
+        -0.0083
       ],
       "distance_m": 0.6,
       "target_to_skin_mm": 0
@@ -204,9 +204,9 @@
     {
       "id": "SIDE_UNDERBUST_R",
       "target_m": [
-        0.1447,
-        1.27,
-        -0.0026
+        0.1435,
+        1.265,
+        -0.0083
       ],
       "distance_m": 0.6,
       "target_to_skin_mm": 0
@@ -214,9 +214,9 @@
     {
       "id": "UNDERARM_L",
       "target_m": [
-        -0.1706,
-        1.3892,
-        -0.0647
+        -0.1696,
+        1.3874,
+        -0.0831
       ],
       "distance_m": 0.6,
       "target_to_skin_mm": 0
@@ -224,9 +224,9 @@
     {
       "id": "UNDERARM_R",
       "target_m": [
-        0.1706,
-        1.3892,
-        -0.0647
+        0.1696,
+        1.3874,
+        -0.0831
       ],
       "distance_m": 0.6,
       "target_to_skin_mm": 0
@@ -235,9 +235,9 @@
   "mirror_offer_example": {
     "from": "ROOT_INNER_L",
     "xyz_m": [
-      0.03386,
-      1.32552,
-      0.12661
+      0.03256,
+      1.32574,
+      0.12533
     ],
     "residual_mm": 0,
     "flagged": false
@@ -286,7 +286,7 @@
     {
       "name": "every framing target lies within 25 cm of the measurement surface",
       "status": "PASS",
-      "detail": "worst 29 mm (HPS_L)"
+      "detail": "worst 28.6 mm (HPS_L)"
     },
     {
       "name": "every framing pose respects the polar clamp",
@@ -321,7 +321,7 @@
     {
       "name": "a point record carries xyz, source manual and placed_with",
       "status": "PASS",
-      "detail": "{\"method\":\"drag\",\"distance_m\":0.45,\"incidence_deg\":28.4,\"footprint_mm_px\":0.28}"
+      "detail": "{\"method\":\"drag\",\"distance_m\":0.45,\"incidence_deg\":28.6,\"footprint_mm_px\":0.28}"
     },
     {
       "name": "a mirrored record says so",

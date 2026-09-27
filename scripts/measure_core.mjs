@@ -15,7 +15,7 @@
  * Girth is the perimeter of the CONVEX HULL of a section, not of the raw
  * contour: a tape bridges concavities (the cleavage gap, the spinal groove)
  * instead of sinking into them. On this body the raw contour over-reports the
- * bust by ~20mm.
+ * bust by ~18mm.
  */
 
 import { surfaceRun } from './surface_path.mjs';
@@ -319,7 +319,7 @@ export function computePoms(tri, scan, landmarks) {
  *
  * An automatic rule was written and then removed. "Highest surface point
  * outboard of the neck" returns whatever sits on its own inner cutoff: 35mm
- * gives y=1593.1mm, 45mm gives 1589.2mm, 90mm gives 1534.9mm. The answer was
+ * gave y=1593.1mm, 45mm gave 1589.2mm, 90mm gave 1534.9mm on the previous CLO3D torso. The answer was
  * set by a parameter with no anatomical basis, not by the body, and a number
  * like that is worse than no number. The head is cut off at the neck, so there
  * is no neck-base curve to detect against.

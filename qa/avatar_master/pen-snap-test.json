@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T17:24:15Z",
+  "generated_at": "2026-09-27T11:08:36Z",
   "purpose": "Where a pen anchor goes when a click lands near something it should meet: nearest within the radius, priority on ties, held constraints first; level and mirror on the skin with residuals recorded.",
   "module": {
     "file": "scripts/pen_snap.mjs",
@@ -8,7 +8,7 @@
   },
   "asset": {
     "file": "assets/export/avatar_master.glb",
-    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+    "sha256": "8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c"
   },
   "radius_px": 15,
   "priority": [
@@ -21,7 +21,7 @@
   ],
   "mirror_flag_mm": 5,
   "avatar": {
-    "apex_mirror_residual_mm": 0.029,
+    "apex_mirror_residual_mm": 0.009,
     "loop_24_max_residual_mm": 0,
     "loop_flagged": false,
     "note": "The source .blend is a mirrored half, so the residual is 0 here; on a scanned body it is expected to be non-zero and is flagged past the asymmetry threshold."
@@ -100,7 +100,7 @@
     {
       "name": "avatar: the mirrored apex lands on the surface",
       "status": "PASS",
-      "detail": "residual 0.029 mm (recorded, not budgeted)"
+      "detail": "residual 0.009 mm (recorded, not budgeted)"
     },
     {
       "name": "avatar: a mirrored 24-point loop records every residual",
@@ -110,7 +110,7 @@
     {
       "name": "the snap record names its target and residual",
       "status": "PASS",
-      "detail": "{\"kind\":\"mirror\",\"to\":\"BUST_APEX_L\",\"residual_mm\":0.029}"
+      "detail": "{\"kind\":\"mirror\",\"to\":\"BUST_APEX_L\",\"residual_mm\":0.009}"
     }
   ],
   "decision": "SNAP_RESOLVES"

@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T17:24:14Z",
+  "generated_at": "2026-09-27T11:08:35Z",
   "purpose": "The pattern-draft DXF is structurally what Gerber AccuMark imports (ASTM D6673-10, R12 dialect) and its geometry survives a read-back by an independent parser.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
-    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+    "sha256": "8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c"
   },
   "cases": {
     "file": "scripts/flatten_cases.json",
-    "sha256": "6c52127a37594b4bcd5312a20d30be3631796cfa4d16327337540418f4366e05"
+    "sha256": "a1a8e4e76738637ed5bc5f53e0fb167387f394816cc17a5ecac43a8451b312a1"
   },
   "dxf": {
     "file": "qa/avatar_master/flatten-draft.dxf",
-    "sha256": "2b072c3c524ca173a8c786b4a2ebbdcd3f1c1539688ee3a0c0b669191b28f1e9",
-    "bytes": 51719,
+    "sha256": "92e006d0c041d9c09377cf0156c7518aad1d6fcc688e3eaf2dd17bd8d557bc92",
+    "bytes": 49521,
     "layers_used": {
       "boundary": "1",
       "system_text": "1",
@@ -52,20 +52,20 @@
         0
       ],
       "bbox_mm": {
-        "width": 83.03,
-        "height": 105.7
+        "width": 108.88,
+        "height": 62.07
       }
     },
     {
       "name": "CUP_PANEL_B",
       "block": "CUP_PANEL_B",
       "insert_mm": [
-        233.03,
+        258.88,
         0
       ],
       "bbox_mm": {
-        "width": 66.43,
-        "height": 116.15
+        "width": 65.4,
+        "height": 111.88
       }
     }
   ],
@@ -73,26 +73,26 @@
     {
       "block": "CUP_PANEL_A",
       "piece_name": "CUP_PANEL_A",
-      "vertices": 161,
-      "turn_points": 2,
-      "curve_points": 159,
-      "perimeter_mm": 290.68,
+      "vertices": 153,
+      "turn_points": 3,
+      "curve_points": 150,
+      "perimeter_mm": 273.09,
       "worst_vertex_delta_mm": 0.005,
-      "perimeter_delta_mm": 0.0004
+      "perimeter_delta_mm": 0.0073
     },
     {
       "block": "CUP_PANEL_B",
       "piece_name": "CUP_PANEL_B",
-      "vertices": 167,
-      "turn_points": 2,
-      "curve_points": 165,
-      "perimeter_mm": 298.49,
+      "vertices": 161,
+      "turn_points": 3,
+      "curve_points": 158,
+      "perimeter_mm": 292.74,
       "worst_vertex_delta_mm": 0.005,
-      "perimeter_delta_mm": 0.0038
+      "perimeter_delta_mm": 0.0057
     }
   ],
   "worst_vertex_delta_mm": 0.005,
-  "worst_perimeter_delta_mm": 0.0038,
+  "worst_perimeter_delta_mm": 0.0073,
   "declared_limits": [
     "Pieces are shells of the body surface at 1:1: no ease, no seam allowance, no grading. The annotation on layer 15 says so inside the file.",
     "Grain line is a default (the body's vertical through the piece centre); Quantity 1,1 is a default. Both are for the pattern maker to set.",
@@ -103,7 +103,7 @@
     {
       "name": "the file is 7-bit ASCII",
       "status": "PASS",
-      "detail": "51719 bytes"
+      "detail": "49521 bytes"
     },
     {
       "name": "the file ends with EOF",
@@ -163,7 +163,7 @@
     {
       "name": "block CUP_PANEL_A: exactly one closed boundary polyline on layer 1",
       "status": "PASS",
-      "detail": "1 polyline(s), 161 vertices, closed=true"
+      "detail": "1 polyline(s), 153 vertices, closed=true"
     },
     {
       "name": "block CUP_PANEL_A: validation curve on layer 84 is a copy of the boundary",
@@ -178,7 +178,7 @@
     {
       "name": "block CUP_PANEL_A: every boundary vertex is a turn (2) or curve (3) point",
       "status": "PASS",
-      "detail": "2 turn + 159 curve points for 161 vertices"
+      "detail": "3 turn + 150 curve points for 153 vertices"
     },
     {
       "name": "block CUP_PANEL_A: annotation present on layer 15",
@@ -193,7 +193,7 @@
     {
       "name": "block CUP_PANEL_A: outline perimeter survives rounding",
       "status": "PASS",
-      "detail": "Δ 0.0004mm over 290.68mm"
+      "detail": "Δ 0.0073mm over 273.08mm"
     },
     {
       "name": "block CUP_PANEL_B: Piece System Text on layer 1 with the required keys",
@@ -208,7 +208,7 @@
     {
       "name": "block CUP_PANEL_B: exactly one closed boundary polyline on layer 1",
       "status": "PASS",
-      "detail": "1 polyline(s), 167 vertices, closed=true"
+      "detail": "1 polyline(s), 161 vertices, closed=true"
     },
     {
       "name": "block CUP_PANEL_B: validation curve on layer 84 is a copy of the boundary",
@@ -223,7 +223,7 @@
     {
       "name": "block CUP_PANEL_B: every boundary vertex is a turn (2) or curve (3) point",
       "status": "PASS",
-      "detail": "2 turn + 165 curve points for 167 vertices"
+      "detail": "3 turn + 158 curve points for 161 vertices"
     },
     {
       "name": "block CUP_PANEL_B: annotation present on layer 15",
@@ -238,7 +238,7 @@
     {
       "name": "block CUP_PANEL_B: outline perimeter survives rounding",
       "status": "PASS",
-      "detail": "Δ 0.0038mm over 298.48mm"
+      "detail": "Δ 0.0057mm over 292.74mm"
     }
   ],
   "decision": "DXF_ROUNDTRIPS"

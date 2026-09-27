@@ -101,7 +101,8 @@ for (const [role, name] of Object.entries(registry.expected_materials)) {
 const surface = [];
 for (const name of registry.measurement_surface) {
   const bucket = triangles.get(name);
-  if (bucket) surface.push(...bucket);
+  // no spread: a torso of ~40k triangles is more arguments than a call may take
+  if (bucket) for (const value of bucket) surface.push(value);
 }
 const tri = new Float32Array(surface);
 if (!tri.length) blocked(`measurement surface ${registry.measurement_surface} produced no geometry`);

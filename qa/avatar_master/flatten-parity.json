@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T17:24:13Z",
+  "generated_at": "2026-09-27T11:08:34Z",
   "purpose": "Agreement between the JavaScript flattening engine and its independent Python port on the same patches.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
-    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+    "sha256": "8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c"
   },
   "cases": {
     "file": "scripts/flatten_cases.json",
-    "sha256": "6c52127a37594b4bcd5312a20d30be3631796cfa4d16327337540418f4366e05"
+    "sha256": "a1a8e4e76738637ed5bc5f53e0fb167387f394816cc17a5ecac43a8451b312a1"
   },
   "engines": {
     "javascript": "scripts/flatten_core.mjs",
@@ -51,109 +51,109 @@
     },
     {
       "id": "apex_disc_40mm",
-      "vertex_count": 185,
-      "face_count": 322,
+      "vertex_count": 91,
+      "face_count": 147,
       "iterations": {
-        "js": 246,
-        "python": 246
+        "js": 247,
+        "python": 247
       },
       "max_vertex_delta_mm": 0,
       "boundary_error_delta_mm": 0,
       "interior_rms_delta_mm": 0,
       "boundary_error_mm": {
-        "js": 2.068614,
-        "python": 2.068614
+        "js": 1.766053,
+        "python": 1.766053
       }
     },
     {
       "id": "apex_disc_60mm",
-      "vertex_count": 308,
-      "face_count": 568,
+      "vertex_count": 204,
+      "face_count": 356,
       "iterations": {
-        "js": 271,
-        "python": 271
+        "js": 267,
+        "python": 267
       },
       "max_vertex_delta_mm": 0,
       "boundary_error_delta_mm": 0,
       "interior_rms_delta_mm": 0,
       "boundary_error_mm": {
-        "js": 10.023133,
-        "python": 10.023133
+        "js": 6.061566,
+        "python": 6.061566
       }
     },
     {
       "id": "apex_disc_80mm",
-      "vertex_count": 428,
-      "face_count": 807,
+      "vertex_count": 345,
+      "face_count": 627,
       "iterations": {
-        "js": 297,
-        "python": 297
+        "js": 288,
+        "python": 288
       },
       "max_vertex_delta_mm": 0,
       "boundary_error_delta_mm": 0,
       "interior_rms_delta_mm": 0,
       "boundary_error_mm": {
-        "js": 22.111503,
-        "python": 22.111503
+        "js": 16.197031,
+        "python": 16.197031
       }
     },
     {
       "id": "apex_disc_80mm_upper",
-      "vertex_count": 252,
-      "face_count": 446,
+      "vertex_count": 188,
+      "face_count": 321,
       "iterations": {
-        "js": 276,
-        "python": 276
+        "js": 265,
+        "python": 265
       },
       "max_vertex_delta_mm": 0,
       "boundary_error_delta_mm": 0,
       "interior_rms_delta_mm": 0,
       "boundary_error_mm": {
-        "js": 2.205846,
-        "python": 2.205846
+        "js": 3.069603,
+        "python": 3.069603
       }
     },
     {
       "id": "apex_disc_80mm_lower",
-      "vertex_count": 207,
-      "face_count": 361,
+      "vertex_count": 179,
+      "face_count": 306,
       "iterations": {
-        "js": 541,
-        "python": 541
+        "js": 265,
+        "python": 265
       },
       "max_vertex_delta_mm": 0,
       "boundary_error_delta_mm": 0,
       "interior_rms_delta_mm": 0,
       "boundary_error_mm": {
-        "js": 2.338161,
-        "python": 2.338161
+        "js": 5.412581,
+        "python": 5.412581
       }
     },
     {
       "id": "apex_loop_60mm",
-      "vertex_count": 308,
-      "face_count": 560,
+      "vertex_count": 220,
+      "face_count": 380,
       "iterations": {
-        "js": 362,
-        "python": 362
+        "js": 420,
+        "python": 420
       },
       "max_vertex_delta_mm": 0,
       "boundary_error_delta_mm": 0,
       "interior_rms_delta_mm": 0,
       "boundary_error_mm": {
-        "js": 12.347162,
-        "python": 12.347162
+        "js": 8.944076,
+        "python": 8.944076
       }
     },
     {
-      "id": "apex_panels_80mm",
+      "id": "apex_panels_75mm",
       "pieces": [
         "panel_a",
         "panel_b"
       ],
       "iterations": {
-        "js": 2416,
-        "python": 2416
+        "js": 985,
+        "python": 985
       },
       "max_vertex_delta_mm": 0
     }
@@ -162,7 +162,7 @@
     {
       "name": "both engines flattened the same asset",
       "status": "PASS",
-      "detail": "js 0caa604bab35… · python 0caa604bab35…"
+      "detail": "js 8a7a5053a5e0… · python 8a7a5053a5e0…"
     },
     {
       "name": "both engines used the same solver settings",
@@ -192,67 +192,67 @@
     {
       "name": "apex_disc_40mm: same patch on both sides",
       "status": "PASS",
-      "detail": "js 185v/322f · python 185v/322f"
+      "detail": "js 91v/147f · python 91v/147f"
     },
     {
       "name": "apex_disc_40mm: layouts agree to 0.001mm",
       "status": "PASS",
-      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 246 / python 246"
+      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 247 / python 247"
     },
     {
       "name": "apex_disc_60mm: same patch on both sides",
       "status": "PASS",
-      "detail": "js 308v/568f · python 308v/568f"
+      "detail": "js 204v/356f · python 204v/356f"
     },
     {
       "name": "apex_disc_60mm: layouts agree to 0.001mm",
       "status": "PASS",
-      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 271 / python 271"
+      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 267 / python 267"
     },
     {
       "name": "apex_disc_80mm: same patch on both sides",
       "status": "PASS",
-      "detail": "js 428v/807f · python 428v/807f"
+      "detail": "js 345v/627f · python 345v/627f"
     },
     {
       "name": "apex_disc_80mm: layouts agree to 0.001mm",
       "status": "PASS",
-      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 297 / python 297"
+      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 288 / python 288"
     },
     {
       "name": "apex_disc_80mm_upper: same patch on both sides",
       "status": "PASS",
-      "detail": "js 252v/446f · python 252v/446f"
+      "detail": "js 188v/321f · python 188v/321f"
     },
     {
       "name": "apex_disc_80mm_upper: layouts agree to 0.001mm",
       "status": "PASS",
-      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 276 / python 276"
+      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 265 / python 265"
     },
     {
       "name": "apex_disc_80mm_lower: same patch on both sides",
       "status": "PASS",
-      "detail": "js 207v/361f · python 207v/361f"
+      "detail": "js 179v/306f · python 179v/306f"
     },
     {
       "name": "apex_disc_80mm_lower: layouts agree to 0.001mm",
       "status": "PASS",
-      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 541 / python 541"
+      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 265 / python 265"
     },
     {
       "name": "apex_loop_60mm: same patch on both sides",
       "status": "PASS",
-      "detail": "js 308v/560f · python 308v/560f"
+      "detail": "js 220v/380f · python 220v/380f"
     },
     {
       "name": "apex_loop_60mm: layouts agree to 0.001mm",
       "status": "PASS",
-      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 362 / python 362"
+      "detail": "max vertex Δ 0mm · seam Δ 0mm · interior rms Δ 0mm · iterations js 420 / python 420"
     },
     {
-      "name": "apex_panels_80mm: layouts agree to 0.001mm",
+      "name": "apex_panels_75mm: layouts agree to 0.001mm",
       "status": "PASS",
-      "detail": "panel_a Δ 0mm · panel_b Δ 0mm · iterations js 2416 / python 2416 · restarts js 0 / python 0"
+      "detail": "panel_a Δ 0mm · panel_b Δ 0mm · iterations js 985 / python 985 · restarts js 0 / python 0"
     }
   ],
   "decision": "ENGINES_AGREE"

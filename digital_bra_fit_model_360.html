@@ -149,7 +149,7 @@ button{font:inherit}
   <header class="topbar">
     <div class="top-left">
       <div class="pill"><strong>Avatar</strong><span style="color:#98918a">preview</span></div>
-      <div class="pill status-pill" title="Baked PBR skin is applied; no approved measurement record exists for this body"><i class="status-dot"></i><span>DRAFT · NO MEASUREMENT RECORD</span></div>
+      <div class="pill status-pill" title="Refined size-L torso with a flat skin material (no textures); no approved measurement record exists for this body"><i class="status-dot"></i><span>DRAFT · NO MEASUREMENT RECORD</span></div>
     </div>
     <div class="top-right">
       <button class="icon" id="measureBtn" aria-label="Show or hide the measurement panel" aria-expanded="true">⌁</button>
@@ -295,8 +295,8 @@ import { AnimationController } from './scripts/animation_controller.mjs';
 import { loadTemplates, resolveTemplate, templatesFor, templateRecord, templatePolyline, TEMPLATE_LIMIT } from './scripts/pattern_templates.mjs';
 
 const ASSET_URL='assets/export/avatar_master.glb';
-const ASSET_VERSION='0.2.0-clo3d-textured.1';
-const ASSET_SHA='0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4';
+const ASSET_VERSION='0.3.0-clo3d-L-refined.1';
+const ASSET_SHA='8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c';
 const canvas=document.getElementById('canvas');
 const loading=document.getElementById('loading');
 const loadingDetail=document.getElementById('loadingDetail');
@@ -394,7 +394,7 @@ function prepareModel(root){
    Girth is the perimeter of the CONVEX HULL of a horizontal cross-section, not
    the perimeter of the raw contour. A tape measure bridges concavities (the
    cleavage gap, the spinal groove) instead of sinking into them; on this body
-   the raw contour over-reports the full bust by ~20mm. Calibrated against a
+   the raw contour over-reports the full bust by ~18mm. Calibrated against a
    cylinder of known girth: 628.21mm measured vs 628.32mm true (-0.11mm).
 
    Arms must be excluded: a horizontal plane at bust height also cuts both arms.

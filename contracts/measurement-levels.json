@@ -15,7 +15,7 @@
   },
   "reliability": {
     "max_y_m": 1.39,
-    "comment": "The torso surface is open at the armhole, so sections above y = 1.39m are unreliable (MEASUREMENT_PLAN.md section 4.3, and the registry's scan note). A level above it must report that it is out of range rather than a girth. On this asset the top level (+4 1/4in above a fold at y = 1.27m) lands at y = 1.378m, 11mm clear."
+    "comment": "The torso surface is open at the armhole, so sections above y = 1.39m are unreliable (MEASUREMENT_PLAN.md section 4.3, and the registry's scan note). A level above it must report that it is out of range rather than a girth. On this asset the top level (+4 1/4in above a fold at y = 1.265m) lands at y = 1.373m, 14mm clear of the armhole's lowest point (y = 1.387m)."
   },
   "source_sheets": [
     {

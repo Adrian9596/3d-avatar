@@ -85,13 +85,13 @@
       "id": "HPS_L",
       "label_en": "High point shoulder, left",
       "rule": "manual_only",
-      "comment": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
+      "comment": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 on the previous CLO3D torso (replaced 2026-09-27) 35mm gave x=-37.4mm/y=1593.1mm, 45mm gave -45.2/1589.2, 90mm gave -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
     },
     {
       "id": "HPS_R",
       "label_en": "High point shoulder, right",
       "rule": "manual_only",
-      "comment": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
+      "comment": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 on the previous CLO3D torso (replaced 2026-09-27) 35mm gave x=-37.4mm/y=1593.1mm, 45mm gave -45.2/1589.2, 90mm gave -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
     },
     {
       "id": "ROOT_INNER_L",
@@ -400,7 +400,7 @@
         "HPS_L",
         "BUST_APEX_L"
       ],
-      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced.",
+      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 on the previous CLO3D torso (replaced 2026-09-27) 35mm gave x=-37.4mm/y=1593.1mm, 45mm gave -45.2/1589.2, 90mm gave -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced.",
       "house_code": null
     },
     {
@@ -422,7 +422,7 @@
         "HPS_R",
         "BUST_APEX_R"
       ],
-      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced.",
+      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 on the previous CLO3D torso (replaced 2026-09-27) 35mm gave x=-37.4mm/y=1593.1mm, 45mm gave -45.2/1589.2, 90mm gave -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced.",
       "house_code": null
     },
     {
@@ -544,7 +544,7 @@
       "label_en": "Hip girth",
       "method": "plane_section",
       "status": "blocked",
-      "blocked_reason": "The mesh ends at y=0.995m. There is no hip geometry to measure; this needs an avatar exported with legs.",
+      "blocked_reason": "The mesh ends at y=1.043m. There is no hip geometry to measure; this needs an avatar exported with legs.",
       "house_code": null
     }
   ],

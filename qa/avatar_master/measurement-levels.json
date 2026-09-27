@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T17:24:16Z",
+  "generated_at": "2026-09-27T11:08:37Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
-    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+    "sha256": "8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c"
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "836bc7f5647a12deac6650b281b12756243bedd62155ef928d80aa0d57328c7f"
+    "sha256": "135c4abd4926590ae1b51fe28377f00a8c2ac16cda7ce9d0f1d6a4287c9b4217"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-05T11:47:09Z"
+    "generated_at": "2026-09-27T11:02:35Z"
   },
   "sheets": [
     {
@@ -39,7 +39,7 @@
   ],
   "datum": {
     "landmark": "UNDERBUST_FOLD",
-    "y_m": 1.27,
+    "y_m": 1.265,
     "source": "auto"
   },
   "levels": [
@@ -47,112 +47,112 @@
       "id": "LVL_P4_1_4",
       "offset_in": 4.25,
       "label": "+4 1/4\"",
-      "y_m": 1.37795,
-      "girth_mm": 1014.9,
+      "y_m": 1.37295,
+      "girth_mm": 1015.6,
       "blocked": null
     },
     {
       "id": "LVL_P3_3_4",
       "offset_in": 3.75,
       "label": "+3 3/4\"",
-      "y_m": 1.36525,
-      "girth_mm": 1022,
+      "y_m": 1.36025,
+      "girth_mm": 1020.9,
       "blocked": null
     },
     {
       "id": "LVL_P3_1_2",
       "offset_in": 3.5,
       "label": "+3 1/2\"",
-      "y_m": 1.3589,
-      "girth_mm": 1023.8,
+      "y_m": 1.3539,
+      "girth_mm": 1021.9,
       "blocked": null
     },
     {
       "id": "LVL_P1_1_4",
       "offset_in": 1.25,
       "label": "+1 1/4\"",
-      "y_m": 1.30175,
-      "girth_mm": 961.8,
+      "y_m": 1.29675,
+      "girth_mm": 943.6,
       "blocked": null
     },
     {
       "id": "LVL_P0_3_4",
       "offset_in": 0.75,
       "label": "+3/4\"",
-      "y_m": 1.28905,
-      "girth_mm": 918.9,
+      "y_m": 1.28405,
+      "girth_mm": 894.1,
       "blocked": null
     },
     {
       "id": "LVL_P0_1_2",
       "offset_in": 0.5,
       "label": "+1/2\"",
-      "y_m": 1.2827,
-      "girth_mm": 890.7,
+      "y_m": 1.2777,
+      "girth_mm": 862.8,
       "blocked": null
     },
     {
       "id": "LVL_ZERO",
       "offset_in": 0,
       "label": null,
-      "y_m": 1.27,
-      "girth_mm": 830.9,
+      "y_m": 1.265,
+      "girth_mm": 818.5,
       "blocked": null
     },
     {
       "id": "LVL_M1",
       "offset_in": -1,
       "label": "-1\"",
-      "y_m": 1.2446,
-      "girth_mm": 792.6,
+      "y_m": 1.2396,
+      "girth_mm": 787.4,
       "blocked": null
     },
     {
       "id": "LVL_M1_1_4",
       "offset_in": -1.25,
       "label": "-1 1/4\"",
-      "y_m": 1.23825,
-      "girth_mm": 787.5,
+      "y_m": 1.23325,
+      "girth_mm": 782.8,
       "blocked": null
     },
     {
       "id": "LVL_M1_1_2",
       "offset_in": -1.5,
       "label": "-1 1/2\"",
-      "y_m": 1.2319,
-      "girth_mm": 783.1,
+      "y_m": 1.2269,
+      "girth_mm": 778.8,
       "blocked": null
     },
     {
       "id": "LVL_M1_3_4",
       "offset_in": -1.75,
       "label": "-1 3/4\"",
-      "y_m": 1.22555,
-      "girth_mm": 778.9,
+      "y_m": 1.22055,
+      "girth_mm": 775.2,
       "blocked": null
     },
     {
       "id": "LVL_M2",
       "offset_in": -2,
       "label": "-2\"",
-      "y_m": 1.2192,
-      "girth_mm": 775.3,
+      "y_m": 1.2142,
+      "girth_mm": 772.1,
       "blocked": null
     },
     {
       "id": "LVL_M2_1_4",
       "offset_in": -2.25,
       "label": "-2 1/4\"",
-      "y_m": 1.21285,
-      "girth_mm": 772.2,
+      "y_m": 1.20785,
+      "girth_mm": 769.8,
       "blocked": null
     },
     {
       "id": "LVL_M2_1_2",
       "offset_in": -2.5,
       "label": "-2 1/2\"",
-      "y_m": 1.2065,
-      "girth_mm": 769.9,
+      "y_m": 1.2015,
+      "girth_mm": 768.3,
       "blocked": null
     }
   ],
@@ -217,7 +217,7 @@
     {
       "name": "every level resolves from the detected datum",
       "status": "PASS",
-      "detail": "UNDERBUST_FOLD at y = 1.2700m, 14 heights"
+      "detail": "UNDERBUST_FOLD at y = 1.2650m, 14 heights"
     },
     {
       "name": "a level height is the datum plus its offset in inches, exactly",
@@ -247,12 +247,12 @@
     {
       "name": "a level blocked by the range ceiling still carries its ring, only the girth withheld",
       "status": "PASS",
-      "detail": "y = 1.4200m, above the 1.39m ceiling — blocked: above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring, section: 52 pts"
+      "detail": "y = 1.4200m, above the 1.39m ceiling — blocked: above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring, section: 86 pts"
     },
     {
       "name": "the whole stack lands on the reliable part of this torso",
       "status": "PASS",
-      "detail": "+4.25in at y = 1.3780m (12mm below the armhole ceiling), -2.5in at y = 1.2065m"
+      "detail": "+4.25in at y = 1.3729m (17mm below the armhole ceiling), -2.5in at y = 1.2015m"
     },
     {
       "name": "without the datum landmark the stack reads needs …, never a number",

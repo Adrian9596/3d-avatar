@@ -20,8 +20,8 @@ The authoring lane's Save buttons trigger a browser file download (`landmarks.ma
 
 ## What's in this repo
 
-- **Canonical editable source:** [`assets/source/avatar_master.blend`](assets/source/avatar_master.blend) — a checkpoint saved from a CLO3D "Avatarclo1" export. The untouched original sits at [`Avatarclo1_half_beautified_3quarter.blend`](Avatarclo1_half_beautified_3quarter.blend) in the project root.
-- **Canonical export:** [`assets/export/avatar_master.glb`](assets/export/avatar_master.glb) — baked PBR skin embedded, ~10 MB.
+- **Canonical editable source:** [`assets/source/avatar_master.blend`](assets/source/avatar_master.blend) — the refined size-L torso (the CLO3D "AVT L" body, smoothed, with short arm stubs), built by [`scripts/build_refined_l_avatar.py`](scripts/build_refined_l_avatar.py) from a CLO3D-ready file kept outside the repo. The untouched CLO3D original it descends from sits at [`Avatarclo1_half_beautified_3quarter.blend`](Avatarclo1_half_beautified_3quarter.blend) in the project root.
+- **Canonical export:** [`assets/export/avatar_master.glb`](assets/export/avatar_master.glb) — flat skin material, no textures, ~0.6 MB.
 - **One app, holding every tool:** [`digital_bra_fit_model_360.html`](digital_bra_fit_model_360.html) — pen, live cross-section, reference levels, body grid, hand-placed landmarks and the 2D pattern draft. A single self-contained HTML file (Three.js via an import map over `node_modules`).
   - There were two viewer lanes until 2026-09-06, and a parity gate to stop them disagreeing. The second one carried none of the authoring tools, so opening it meant finding a tool missing; they were merged. What is left of the split is a gate that keeps the app from growing a second copy of the maths ([`validate:single-engine`](scripts/test_single_engine.mjs)).
   - It reads every number through the shared engine ([`scripts/measure_core.mjs`](scripts/measure_core.mjs)) and the registry ([`contracts/measurement-registry.json`](contracts/measurement-registry.json)), so there is one place to correct a measurement rule.
@@ -33,8 +33,9 @@ From [`contracts/avatar-asset-contract.md`](contracts/avatar-asset-contract.md):
 
 - **No approved measurement record** exists for this body. Nothing in this asset licenses a bust/underbust/cup claim.
 - **No morph targets, no rig, no animation clips.** The viewer correctly shows "Blocked" for shape/motion controls instead of faking capability — this is intentional, not a missing feature.
-- **Torso only:** neck cut at the base of the head, arms cut at the wrist, body cut at the waist/hip. No head, hands, legs, eyes, teeth, or hair geometry.
-- **Original CLO3D textures are gone** — they only ever existed on the Windows machine that made the export. The current skin comes from a re-baked `Mara_body3_*` / `Mara_arm2_*` set (2048², packed into the `.blend`).
+- **Torso only:** neck cut at the base of the head, short closed arm stubs, body cut above the hip (y = 1.043 m). No head, hands, legs, eyes, teeth, or hair geometry.
+- **No textures:** the skin is one flat PBR tone (the median of the previous baked map). The original CLO3D textures only ever existed on the Windows machine that made the export and are gone.
+- **A smoothed surface:** the refinement moved landmarks read off extremes — the bust apex sits 4 mm nearer the centre front than on the previous CLO3D mesh and the underbust fold was found 5 mm lower — so numbers are not comparable one for one with evidence from before 2026-09-27.
 - Two measurements are deliberately withheld rather than guessed: **HPS** (`manual_only` — an earlier automatic rule was deleted for returning whatever sat on its own made-up cutoff) and **cup volume** (uses a closed-surface integral, not the older projection method, which was 7% light on an overhanging mound).
 
 ## Prerequisites
