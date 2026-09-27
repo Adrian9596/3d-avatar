@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, levelsRecord, outOfRange,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, levelsRecord, outOfRange,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -354,7 +354,40 @@ for (const curve of curves) {
   gate.record(`${curve.id}: from ${curve.from.strap} ${curve.from.corner} to ${curve.to.landmark} on each side, over the skin`,
     ok,
     curve.blocked || curve.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm`).join('; '));
+  if (curve.kind !== 'tangent_curve' || curve.blocked) continue;
+  const onSkin = (pts) => pts.every((p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; });
+  const mirrored = (a, b) => a.points.length === b.points.length && a.points.every((p, i) => Math.hypot(p[0] + b.points[i][0], p[1] - b.points[i][1], p[2] - b.points[i][2]) < 1e-4);
+  // the handles as declared: along the shortest path, so the curve reads it
+  const declared = curve.runs.every((r) => r.length_m >= r.guide_length_m - 1e-3 && r.length_m - r.guide_length_m < 1e-3);
+  gate.record(`${curve.id}: with the contract's handles its length is the shortest path's within 1mm`,
+    declared,
+    curve.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm vs shortest ${(r.guide_length_m * 1000).toFixed(1)}mm`).join('; '));
+  // each tangent runs on the skin from its end to its tip, and the tip reads back as its handle
+  const tangents = curve.runs.every((r) => r.tangents.length === 2 && r.tangents.every((t) => {
+    const back = handleFromPoint(r.frames[t.end], t.tip), want = curve.handles[t.end];
+    const end = t.end === 'from' ? r.from : r.to;
+    return t.points[0].every((v, i) => v === end[i]) && t.points[t.points.length - 1].every((v, i) => v === t.tip[i]) && onSkin(t.points)
+      && Math.abs(back.length_mm - want.length_mm) < 0.5 && Math.abs(back.angle_deg - want.angle_deg) < 1;
+  }));
+  gate.record(`${curve.id}: each tangent lies on the skin and its tip reads back as its handle`,
+    tangents,
+    curve.runs[0].tangents.map((t) => { const b = handleFromPoint(curve.runs[0].frames[t.end], t.tip); return `${t.end} ${b.angle_deg.toFixed(2)}deg ${b.length_mm.toFixed(2)}mm`; }).join('; '));
+  // dragged: both sides follow, mirrored, still on the skin, and the length follows the shape
+  const turned = { from: { angle_deg: 30, length_mm: 50 }, to: { angle_deg: -20, length_mm: 45 } };
+  const bent = bendCurve(curve, turned, ctx.grid);
+  const bentOk = !bent.blocked && bent.runs.length === 2 && mirrored(bent.runs[0], bent.runs[1])
+    && bent.runs.every((r) => onSkin(r.points) && r.points[0].every((v, i) => v === curve.runs.find((c) => c.side === r.side).from[i]))
+    && Math.abs(bent.runs[0].length_m - curve.runs[0].length_m) > 1e-3;
+  const back = bendCurve(bent, curve.handles, ctx.grid);
+  const backOk = !back.blocked && back.runs.every((r, i) => Math.abs(r.length_m - curve.runs[i].length_m) < 1e-9);
+  gate.record(`${curve.id}: turning the handles reshapes both sides, mirrored, on the skin, and putting them back restores it`,
+    bentOk && backOk,
+    bent.blocked || `turned ${bent.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm`).join(', ')}; restored ${back.runs?.map((r) => (r.length_m * 1000).toFixed(1)).join(', ')}mm`);
 }
+const brokenHandles = loadLevels({ ...contract, curves: (contract.curves || []).map((c) => ({ ...c, kind: 'tangent_curve', handles: { from: { angle_deg: 'up', length_mm: 40 }, to: { angle_deg: 0, length_mm: -1 } } })) }, ctx.registry);
+gate.record('a tangent curve without a sound pair of handles is refused',
+  (contract.curves || []).length === 0 || (brokenHandles.curves.length === 0 && brokenHandles.errors.some((e) => /handles\.from\.angle_deg/.test(e) && /handles\.to\.length_mm/.test(e))),
+  brokenHandles.errors.join('; ').slice(0, 160));
 
 // ---- evidence ---------------------------------------------------------------
 const body = {
@@ -415,7 +448,13 @@ const body = {
   })),
   curves: curves.map((c) => ({
     id: c.id, from: c.from, to: c.to, colour: c.colour, blocked: c.blocked,
-    runs: c.runs.map((r) => ({ side: r.side, length_mm: Number((r.length_m * 1000).toFixed(1)), from_m: r.from.map((v) => Number(v.toFixed(5))), to_m: r.to.map((v) => Number(v.toFixed(5))) })),
+    kind: c.kind, handles: c.handles || null,
+    runs: c.runs.map((r) => ({
+      side: r.side, length_mm: Number((r.length_m * 1000).toFixed(1)),
+      ...(r.guide_length_m ? { shortest_path_mm: Number((r.guide_length_m * 1000).toFixed(1)) } : {}),
+      from_m: r.from.map((v) => Number(v.toFixed(5))), to_m: r.to.map((v) => Number(v.toFixed(5))),
+      ...(r.tangents ? { tips_m: Object.fromEntries(r.tangents.map((t) => [t.end, t.tip.map((v) => Number(v.toFixed(5)))])) } : {}),
+    })),
   })),
   declared_limits: contract.declared_limits,
 };

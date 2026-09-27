@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T14:24:20Z",
+  "generated_at": "2026-09-27T14:52:55Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "0128ad5a74dc51672c6a731726fb44df3236c43aa8b2dcbb268d6773fec3f427"
+    "sha256": "5b4790be72e4c6a4d61b573bb5519749d8764bfc2dd8ff72b847f52f776ede92"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T14:23:55Z"
+    "generated_at": "2026-09-27T14:52:31Z"
   },
   "sheets": [
     {
@@ -398,10 +398,22 @@
       },
       "colour": "#1f6fe0",
       "blocked": null,
+      "kind": "tangent_curve",
+      "handles": {
+        "from": {
+          "angle_deg": 0,
+          "length_mm": 40
+        },
+        "to": {
+          "angle_deg": 0,
+          "length_mm": 40
+        }
+      },
       "runs": [
         {
           "side": "L",
-          "length_mm": 119,
+          "length_mm": 119.2,
+          "shortest_path_mm": 119,
           "from_m": [
             -0.11614,
             1.4312,
@@ -411,11 +423,24 @@
             -0.1604,
             1.355,
             -0.0059
-          ]
+          ],
+          "tips_m": {
+            "from": [
+              -0.14824,
+              1.40774,
+              0.04643
+            ],
+            "to": [
+              -0.15912,
+              1.38263,
+              0.0232
+            ]
+          }
         },
         {
           "side": "R",
-          "length_mm": 119,
+          "length_mm": 119.2,
+          "shortest_path_mm": 119,
           "from_m": [
             0.11614,
             1.4312,
@@ -425,7 +450,19 @@
             0.1604,
             1.355,
             -0.0059
-          ]
+          ],
+          "tips_m": {
+            "from": [
+              0.14824,
+              1.40774,
+              0.04643
+            ],
+            "to": [
+              0.15912,
+              1.38263,
+              0.0232
+            ]
+          }
         }
       ]
     }
@@ -636,7 +673,27 @@
     {
       "name": "CURVE_CUP_ARMHOLE: from STRAP_MAXP2_CF_TO_CB front_outer to SIDE_WING_HIGH on each side, over the skin",
       "status": "PASS",
-      "detail": "L 119.0mm; R 119.0mm"
+      "detail": "L 119.2mm; R 119.2mm"
+    },
+    {
+      "name": "CURVE_CUP_ARMHOLE: with the contract's handles its length is the shortest path's within 1mm",
+      "status": "PASS",
+      "detail": "L 119.2mm vs shortest 119.0mm; R 119.2mm vs shortest 119.0mm"
+    },
+    {
+      "name": "CURVE_CUP_ARMHOLE: each tangent lies on the skin and its tip reads back as its handle",
+      "status": "PASS",
+      "detail": "from -0.02deg 39.57mm; to 0.00deg 40.00mm"
+    },
+    {
+      "name": "CURVE_CUP_ARMHOLE: turning the handles reshapes both sides, mirrored, on the skin, and putting them back restores it",
+      "status": "PASS",
+      "detail": "turned L 122.4mm, R 122.4mm; restored 119.2, 119.2mm"
+    },
+    {
+      "name": "a tangent curve without a sound pair of handles is refused",
+      "status": "PASS",
+      "detail": "CURVE_CUP_ARMHOLE: handles.from.angle_deg must be a number of degrees; handles.to.length_mm must be a positive number"
     }
   ],
   "decision": "LEVELS_RESOLVE_ON_THIS_BODY"

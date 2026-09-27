@@ -58,6 +58,9 @@ button{font:inherit}
 .mtable td.val{font-weight:700}
 .mtable td.in{color:#7d766f}
 .mtable tr.landmark td.val{font-weight:500;color:#7d766f}
+.mtable td.tangent{white-space:nowrap}
+.mtable .angle{color:#7d766f;font-variant-numeric:tabular-nums}
+.mtable .curve-reset{border:0;background:none;color:#1f8a70;font:inherit;font-weight:700;cursor:pointer;padding:0 2px}
 .mtable td em{font-style:normal;color:#a8760f;font-weight:700}
 .mnote em{font-style:normal;color:#a8760f;font-weight:700}
 .mnote{margin-top:9px;font-size:9px;line-height:1.55;color:#948c85}
@@ -274,7 +277,7 @@ import { draftMesh, draftPieces, flattenDraft, draftSummary, draftExport, SEAM_T
    The module resolves and measures them through the SAME section engine the
    POMs use, so a level and a POM can never disagree about the same slice; this
    file only draws what it returns. */
-import { loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, levelLabel } from './scripts/measurement_levels.mjs';
+import { loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, levelLabel } from './scripts/measurement_levels.mjs';
 /* The vertical half of the same frame: centre, side and apex curves plus the
    four lines this mesh is cut on, declared in contracts/body-grid.json. Every
    rule in it is an extreme or an exact feature, never a threshold, and a curve
@@ -425,6 +428,14 @@ let overrides={landmarks:{}};
 try{const stored=localStorage.getItem('landmarkOverrides');if(stored)overrides=JSON.parse(stored)}catch(error){/* private mode */}
 savedLandmarksJson=JSON.stringify(overrides.landmarks||{});
 let measureRowData=[],selectedTapeIndex=-1,tapesVisible=true;
+// Tangent handles dragged on a curve (the cup armhole), per curve id. A
+// per-viewer convenience: the contract's handles are the record.
+let curveHandles={},curveRowEls={},curveDrag=null;
+try{
+  const stored=JSON.parse(localStorage.getItem('curveHandles')||'{}');
+  const ok=h=>Number.isFinite(h?.angle_deg)&&Number.isFinite(h?.length_mm)&&h.length_mm>0;
+  for(const [id,pair] of Object.entries(stored||{}))if(ok(pair?.from)&&ok(pair?.to))curveHandles[id]={from:pair.from,to:pair.to};
+}catch(error){/* private mode */}
 try{tapesVisible=localStorage.getItem('tapesVisible')!=='0'}catch(error){/* private mode */}
 
 function collectSurfaceTriangles(root,materialNames){
@@ -489,7 +500,7 @@ async function loadRegistry(){
    Line2 draws screen-space-width strips instead, which is what makes a tape
    readable on the body and in a screenshot. Every LineMaterial needs its
    resolution kept in sync with the canvas. ----------------------------------*/
-const TAPE_COLOR=0xd93a2b,INK_COLOR=0x2f4f6f;
+const TAPE_COLOR=0xd93a2b,INK_COLOR=0x2f4f6f,HANDLE_COLOR=0x1f8a70;
 const lineMaterials=new Set();
 
 function makeLine(points,{color,width,opacity=1,depthTest=true,order=0,dash=null}){
@@ -555,6 +566,16 @@ function redrawTapes(){
       tapeGroup.add(makeLine(pts,{color,width:row.color?(selected?4.5:3.5):(selected?3.2:2),opacity:row.color?1:(selected?1:.6)}));
       if(selected){
         tapeGroup.add(makeLine(pts,{color,width:1.6,opacity:.25,depthTest:false,order:3}));
+      }
+    }
+    // a shaped curve's two tangent handles: a dashed line to a dot you drag
+    if(selected&&row.tangents)for(const t of row.tangents){
+      const pts=lift(t.points);
+      tapeGroup.add(makeLine(pts,{color:HANDLE_COLOR,width:1.8,dash:[0.003,0.002]}));
+      tapeGroup.add(makeLine(pts,{color:HANDLE_COLOR,width:1,opacity:.3,depthTest:false,order:3}));
+      for(const [at,radius] of [[pts[0],0.0022],[pts[pts.length-1],0.0036]]){
+        const dot=new THREE.Mesh(new THREE.SphereGeometry(radius,16,12),new THREE.MeshBasicMaterial({color:HANDLE_COLOR,depthTest:false}));
+        dot.position.copy(at);dot.renderOrder=4;tapeGroup.add(dot);
       }
     }
   });
@@ -650,14 +671,19 @@ function renderReferenceTapeRows(fromId,tbody){
 
 /* A curve from a strap corner to a landmark ("curves" in
    contracts/measurement-levels.json), such as the cup armhole: one row per
-   side, its length the shortest path over the skin. */
+   side with its length on the skin. A "tangent_curve" is shaped by two tangent
+   handles: select a side's row and drag the round dots on the body; one pair
+   shapes both sides, mirrored, and every number here follows the drag. */
 function renderCurveRows(curve,tbody){
   const den=registry.reporting.inch_denominator;
   const corner=curve.from.corner.replace('_',' ');
+  const shaped=curve.kind==='tangent_curve';
+  const els=curveRowEls[curve.id]={sides:{},handles:{}};
   for(const side of ['L','R']){
     const label=`${curve.label} ${side}`;
     const tr=document.createElement('tr');
-    tr.title=`From the strap's ${corner} corner to ${curve.to.landmark}_${side}, the shortest path over the skin.`;
+    tr.title=`From the strap's ${corner} corner to ${curve.to.landmark}_${side}, `
+      +(shaped?'shaped by two tangent handles: select this row, then drag the round dots on the body.':'the shortest path over the skin.');
     const run=curve.runs.find(r=>r.side===side);
     if(curve.blocked||!run){
       tr.className='landmark';
@@ -667,11 +693,73 @@ function renderCurveRows(curve,tbody){
       continue;
     }
     tr.setAttribute('aria-selected','false');
-    tr.innerHTML=`<td><span style="color:${curve.colour}">▮</span> ${label}</td><td class="val">${CM(run.length_m)}</td><td class="in">${inchFraction(run.length_m,den)}</td>`;
+    tr.innerHTML=`<td><span style="color:${curve.colour}">▮</span> ${label}</td><td class="val"></td><td class="in"></td>`;
     selectableTape(tr,tbody);
     tbody.appendChild(tr);
-    measureRowData.push({label,paths:[run.points],color:parseInt(curve.colour.slice(1),16)});
+    els.sides[side]={tr,index:measureRowData.length,title:tr.title};
+    measureRowData.push({label,paths:[run.points],color:parseInt(curve.colour.slice(1),16),curve:curve.id,side,tangents:run.tangents||null});
   }
+  if(shaped&&!curve.blocked)for(const [end,where] of [['from','at strap'],['to','at wing']]){
+    const tr=document.createElement('tr');
+    tr.title=`The tangent handle ${where}: its length, and its angle from the shortest path over the skin (positive turns it up toward the shoulder). Drag its dot on the body to change it; ↺ puts both handles back to the contract's.`;
+    // one reset for the pair, on the first handle's row
+    const reset=end==='from'?' <button type="button" class="curve-reset" aria-label="Reset the tangent handles">↺</button>':'';
+    tr.innerHTML=`<td class="tangent"><span style="color:#${HANDLE_COLOR.toString(16).padStart(6,'0')}">↳</span> Tangent ${where} <span class="angle"></span>${reset}</td><td class="val"></td><td class="in"></td>`;
+    tr.querySelector('button')?.addEventListener('click',event=>{event.stopPropagation();resetCurveHandles(curve.id)});
+    tbody.appendChild(tr);
+    els.handles[end]=tr;
+  }
+  updateCurveRows(curve);
+}
+
+/* The numbers in a curve's rows, rewritten in place while a handle is dragged
+   (the table is not rebuilt, so the selection holds). */
+function updateCurveRows(curve){
+  const den=registry.reporting.inch_denominator;
+  const els=curveRowEls[curve.id];
+  if(!els)return;
+  const base=(levelContract?.curves||[]).find(c=>c.id===curve.id)?.handles;
+  const moved=Boolean(base&&curve.handles&&['from','to'].some(end=>
+    Math.abs(curve.handles[end].angle_deg-base[end].angle_deg)>0.05||Math.abs(curve.handles[end].length_mm-base[end].length_mm)>0.05));
+  for(const run of curve.runs){
+    const el=els.sides[run.side];
+    if(!el)continue;
+    el.tr.querySelector('.val').textContent=CM(run.length_m);
+    el.tr.querySelector('.in').textContent=inchFraction(run.length_m,den);
+    const row=measureRowData[el.index];
+    row.paths=[run.points];row.tangents=run.tangents||null;
+    if(run.guide_length_m)el.tr.title=el.title+` Shortest path ${CM(run.guide_length_m)} cm; this curve ${CM(run.length_m)} cm.`;
+  }
+  for(const [end,tr] of Object.entries(els.handles)){
+    const h=curve.handles[end],length=h.length_mm/1000,a=Math.round(h.angle_deg);
+    tr.querySelector('.angle').textContent=`${a>0?'+':a<0?'−':''}${Math.abs(a)}°`;
+    tr.querySelector('.val').textContent=CM(length);
+    tr.querySelector('.in').textContent=inchFraction(length,den).replace(/^0 /,'');
+    const reset=tr.querySelector('button');
+    if(reset)reset.hidden=!moved;
+  }
+}
+
+function resetCurveHandles(id){
+  const i=measuredCurves.findIndex(c=>c.id===id);
+  const base=(levelContract?.curves||[]).find(c=>c.id===id)?.handles;
+  if(i<0||!base)return;
+  delete curveHandles[id];
+  const next=bendCurve(measuredCurves[i],base,measureGrid);
+  if(next.blocked)return;
+  measuredCurves[i]=next;
+  saveCurveHandles();updateCurveRows(next);redrawTapes();syncCurveState();
+}
+
+function saveCurveHandles(){
+  try{localStorage.setItem('curveHandles',JSON.stringify(curveHandles))}catch(error){/* private mode */}
+}
+
+function syncCurveState(){
+  prototypeState.curves=measuredCurves.map(c=>({id:c.id,kind:c.kind,blocked:c.blocked,
+    handles:c.handles?Object.fromEntries(Object.entries(c.handles).map(([end,h])=>[end,{angle_deg:+h.angle_deg.toFixed(1),length_mm:+h.length_mm.toFixed(1)}])):null,
+    length_mm:Object.fromEntries(c.runs.map(r=>[r.side,+(r.length_m*1000).toFixed(1)]))}));
+  syncDiagnostics();
 }
 
 /* A strap over the shoulder ("straps" in contracts/measurement-levels.json): a
@@ -1241,7 +1329,13 @@ function recomputeLevels(){
     const id=`${curve.to.landmark}_${side}`,p=landmarkValue(id);
     if(p&&Number.isFinite(p.x))curveMarks[id]=[p.x,p.y,p.z];
   }
-  measuredCurves=levelContract&&measureGrid?measureCurves(levelContract,measuredStraps,curveMarks,measureGrid):[];
+  measuredCurves=levelContract&&measureGrid?measureCurves(levelContract,measuredStraps,curveMarks,measureGrid,curveHandles):[];
+  // a remembered shape that no longer lies on the skin falls back to the contract's
+  if(measuredCurves.some(c=>c.blocked&&curveHandles[c.id])){
+    for(const c of measuredCurves)if(c.blocked)delete curveHandles[c.id];
+    measuredCurves=measureCurves(levelContract,measuredStraps,curveMarks,measureGrid,curveHandles);
+  }
+  syncCurveState();
   drawLevels();
   renderLevelList();
 }
@@ -1774,6 +1868,69 @@ function previewLandmark(id,hit){
     placeLandmark(id,at.hit,'drag',{persist:false,deselect:false});
   });
 }
+/* Dragging a curve's tangent handle. The dot is picked in screen space, like
+   the pen's control points; the press is claimed before the pen and the
+   camera see it (a capture listener), and everywhere else the pointer is
+   theirs. The dragged side's frame reads the handle; bendCurve shapes both. */
+function curveHandleAt(clientX,clientY){
+  const row=measureRowData[selectedTapeIndex];
+  if(!row?.tangents||!camera)return null;
+  const rect=canvas.getBoundingClientRect(),v=new THREE.Vector3();
+  let best=null;
+  for(const t of row.tangents){
+    v.set(t.tip[0],t.tip[1],t.tip[2]).project(camera);
+    if(v.z>1)continue;
+    const d=Math.hypot(rect.left+(v.x*.5+.5)*rect.width-clientX,rect.top+(-v.y*.5+.5)*rect.height-clientY);
+    if(d<=15&&(!best||d<best.d))best={d,end:t.end,curve:row.curve,side:row.side};
+  }
+  return best;
+}
+function applyCurveDrag(){
+  const drag=curveDrag;
+  if(!drag)return;
+  drag.frame=null;
+  const i=measuredCurves.findIndex(c=>c.id===drag.curve);
+  const curve=measuredCurves[i],run=curve?.runs.find(r=>r.side===drag.side);
+  if(!run||!drag.point)return;
+  const handle=handleFromPoint(run.frames[drag.end],drag.point);
+  if(!(handle.length_mm>=3))return;
+  const next=bendCurve(curve,{...curve.handles,[drag.end]:handle},measureGrid);
+  if(next.blocked)return;                          // keep the last shape that lay on the skin
+  measuredCurves[i]=next;curveHandles[curve.id]=next.handles;
+  updateCurveRows(next);redrawTapes();
+}
+canvas.addEventListener('pointerdown',event=>{
+  if(event.button!==0||placingLandmark)return;
+  const grab=curveHandleAt(event.clientX,event.clientY);
+  if(!grab)return;
+  event.stopImmediatePropagation();event.preventDefault();
+  curveDrag={...grab,point:null,frame:null};
+  controls.enabled=false;cameraGoal=null;
+  canvas.setPointerCapture(event.pointerId);
+  canvas.style.cursor='grabbing';
+},{capture:true});
+canvas.addEventListener('pointermove',event=>{
+  if(!curveDrag){
+    const over=Boolean(measureRowData[selectedTapeIndex]?.tangents&&curveHandleAt(event.clientX,event.clientY));
+    if(over)canvas.style.cursor='grab';
+    else if(canvas.style.cursor==='grab')canvas.style.cursor='';
+    return;
+  }
+  event.stopImmediatePropagation();
+  const hit=surfaceHitForLandmark(event.clientX,event.clientY);
+  if(!hit)return;
+  curveDrag.point=[hit.point.x,hit.point.y,hit.point.z];
+  if(!curveDrag.frame)curveDrag.frame=requestAnimationFrame(applyCurveDrag);
+},{capture:true});
+for(const type of ['pointerup','pointercancel'])canvas.addEventListener(type,event=>{
+  if(!curveDrag)return;
+  event.stopImmediatePropagation();
+  if(curveDrag.frame){cancelAnimationFrame(curveDrag.frame);applyCurveDrag()}
+  curveDrag=null;
+  controls.enabled=true;canvas.style.cursor='';
+  if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);
+  saveCurveHandles();syncCurveState();
+},{capture:true});
 canvas.addEventListener('pointerdown',event=>{
   if(!placingLandmark||event.button!==0)return;
   const hit=surfaceHitForLandmark(event.clientX,event.clientY);
