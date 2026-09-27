@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T13:02:10Z",
+  "generated_at": "2026-09-27T13:27:25Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "ea60340211c88e97ff450df3465b0c3476d049ae06ff1980b1ee86a0ea81c846"
+    "sha256": "8fff9533c3b511a9edaae6df203340515ba0d15d0fc09d0b4bc57a42cc1d1f85"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T13:01:49Z"
+    "generated_at": "2026-09-27T13:26:53Z"
   },
   "sheets": [
     {
@@ -252,6 +252,36 @@
       ]
     }
   ],
+  "ticks": [
+    {
+      "id": "TICK_MAXP2_CB_4IN",
+      "on": "TAPE_MAXGIRTH_P2",
+      "offset_in": 4,
+      "length_mm": 5,
+      "colour": "#1f6fe0",
+      "blocked": null,
+      "marks": [
+        {
+          "side": "L",
+          "point_m": [
+            -0.10012,
+            1.4058,
+            -0.1347
+          ],
+          "arc_mm": 101.6
+        },
+        {
+          "side": "R",
+          "point_m": [
+            0.10012,
+            1.4058,
+            -0.1347
+          ],
+          "arc_mm": 101.6
+        }
+      ]
+    }
+  ],
   "declared_limits": [
     "Reference levels are heights from the underbust line, not a fit recommendation and not a size.",
     "The figure on the source sheets is not this avatar; only the protocol transfers, never a dimension.",
@@ -414,6 +444,16 @@
       "name": "LINE_CB_MAXP2_TO_M1_1_2: on the centre back from TAPE_MAXGIRTH_P2 down to LVL_M1_1_2, along the skin",
       "status": "PASS",
       "detail": "y 1.4058 -> 1.2269m, 182.8mm on the skin, chord 181.0mm"
+    },
+    {
+      "name": "every declared tick validates",
+      "status": "PASS",
+      "detail": "1 tick(s): TICK_MAXP2_CB_4IN on TAPE_MAXGIRTH_P2"
+    },
+    {
+      "name": "TICK_MAXP2_CB_4IN: 5mm marks across TAPE_MAXGIRTH_P2, 4in from centre back each way along it",
+      "status": "PASS",
+      "detail": "L at x = -100.1mm, arc 101.60mm, 5.00mm long; R at x = 100.1mm, arc 101.60mm, 5.00mm long; cos to the tape 6.0e-17"
     }
   ],
   "decision": "LEVELS_RESOLVE_ON_THIS_BODY"

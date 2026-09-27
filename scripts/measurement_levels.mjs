@@ -125,11 +125,26 @@ export function loadLevels(contract, registry) {
     else lines.push(line);
   }
 
+  // Tick marks across a level or tape, a distance either side of centre back.
+  const ticks = [];
+  for (const tick of contract?.ticks || []) {
+    const problems = [];
+    if (!tick.id || heightIds.has(tick.id) || shapeIds.has(tick.id) || lines.some((l) => l.id === tick.id) || ticks.some((t) => t.id === tick.id)) problems.push('missing or duplicate id');
+    if (!heightIds.has(tick.on)) problems.push(`on ${tick.on} is not a valid level or reference tape`);
+    if (tick.anchor !== 'centre_back') problems.push(`unknown anchor ${tick.anchor}`);
+    if (!(Number.isFinite(tick.offset_in) && tick.offset_in > 0)) problems.push('offset_in must be a positive number');
+    if (!(Number.isFinite(tick.length_mm) && tick.length_mm > 0)) problems.push('length_mm must be a positive number');
+    if (!/^#[0-9a-f]{6}$/i.test(tick.colour || '')) problems.push('colour must be #rrggbb');
+    if (problems.length) errors.push(`${tick.id || '?'}: ${problems.join('; ')}`);
+    else ticks.push(tick);
+  }
+
   return {
     levels,
     shapes,
     tapes,
     lines,
+    ticks,
     groups,
     datum,
     errors,
@@ -487,4 +502,60 @@ export function measureLines(loaded, measured, tapes, tri) {
   for (const l of measured?.levels || []) heights[l.id] = l.y_m;
   for (const t of tapes || []) heights[t.id] = t.y_m;
   return (loaded.lines || []).map((line) => measureLine(line, heights, tri));
+}
+
+/* --- tick marks ------------------------------------------------------------------
+   A short mark across a level or tape, `offset_in` along it from its centre back
+   on each side (walked on the section, as a tape measures). The mark crosses the
+   tape at right angles on the skin: its direction is the surface's own, taken
+   from the section's tangent and the vertical cut through the point, and it is
+   centred on the tape. ------------------------------------------------------------ */
+
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const unit = (a) => { const n = Math.hypot(...a) || 1; return a.map((v) => v / n); };
+
+export function measureTick(tick, heights, tri) {
+  const y = heights[tick.on];
+  if (!Number.isFinite(y)) return { ...tick, blocked: `needs ${tick.on}`, marks: [] };
+  const section = sectionSegments(tri, y);
+  const cb = backCrossing(section, 0);
+  if (!cb) return { ...tick, blocked: 'no centre back on that section', marks: [] };
+  const along = tick.offset_in * METRES_PER_INCH;
+  const half = tick.length_mm / 2000;
+  const marks = [];
+  for (const side of ['L', 'R']) {
+    const walked = walkContour(section, cb, (a, b) => (side === 'R' ? a[0] > b[0] : a[0] < b[0]), byLength(along));
+    if (!walked) return { ...tick, blocked: `the section ends before ${tick.offset_in}in on the ${side} side`, marks: [] };
+    const [x, z] = walked[walked.length - 1];
+    const [px, pz] = walked[walked.length - 2];
+    const point = [x, y, z];
+    const tangent = unit([x - px, 0, z - pz]);
+    // the skin's vertical direction here: a short walk each way in the plane x = const
+    const vertical = verticalSegments(tri, x);
+    const up = walkContour(vertical, [y, z], (a, b) => a[0] > b[0], byLength(half));
+    const down = walkContour(vertical, [y, z], (a, b) => a[0] < b[0], byLength(half));
+    if (!up || !down) return { ...tick, blocked: `no skin across the tape on the ${side} side`, marks: [] };
+    const [uy, uz] = up[up.length - 1], [dy, dz] = down[down.length - 1];
+    const normal = cross(tangent, unit([0, uy - dy, uz - dz]));
+    let across = unit(cross(normal, tangent));
+    if (across[1] < 0) across = across.map((v) => -v);
+    marks.push({
+      side,
+      point,
+      arc_m: polylineLength(walked.map(([wx, wz]) => [wx, y, wz])),
+      points: [-half, 0, half].map((t) => point.map((v, i) => v + across[i] * t)),
+      tangent,
+      normal: unit(normal),
+    });
+  }
+  return { ...tick, blocked: null, y_m: y, centre_back: [0, y, cb[1]], marks };
+}
+
+/** Every declared tick, on the heights of the measured levels and tapes. */
+export function measureTicks(loaded, measured, tapes, tri) {
+  const heights = {};
+  for (const l of measured?.levels || []) heights[l.id] = l.y_m;
+  for (const t of tapes || []) heights[t.id] = t.y_m;
+  return (loaded.ticks || []).map((tick) => measureTick(tick, heights, tri));
 }

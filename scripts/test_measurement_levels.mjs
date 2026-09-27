@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, levelsRecord, outOfRange,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, levelsRecord, outOfRange,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -263,6 +263,27 @@ for (const line of lines) {
     line.blocked || `y ${line.top[1].toFixed(4)} -> ${line.bottom[1].toFixed(4)}m, ${(line.length_m * 1000).toFixed(1)}mm on the skin, chord ${(line.chord_m * 1000).toFixed(1)}mm`);
 }
 
+// ---- 7. tick marks -------------------------------------------------------------------
+gate.record('every declared tick validates',
+  loaded.ticks.length === (contract.ticks || []).length,
+  `${loaded.ticks.length} tick(s): ${loaded.ticks.map((t) => `${t.id} on ${t.on}`).join(', ') || 'none'}`);
+const ticks = measureTicks(loaded, measured, tapes, ctx.tri);
+for (const tick of ticks) {
+  const len = (m) => Math.hypot(...m.points[2].map((v, i) => v - m.points[0][i]));
+  const along = (m) => m.points[2].map((v, i) => v - m.points[0][i]);
+  const ok = !tick.blocked && tick.marks.length === 2
+    && tick.marks.every((m) => Math.abs(m.arc_m - tick.offset_in * METRES_PER_INCH) < 1e-9
+      && Math.abs(len(m) - tick.length_mm / 1000) < 1e-9
+      && Math.abs(m.point[1] - heightOf(tick.on)) < 1e-12
+      && m.points[1].every((v, i) => v === m.point[i]))
+    && Math.abs(tick.marks[0].point[0] + tick.marks[1].point[0]) < 1e-5;
+  // right angles to the tape: no component along the section's tangent at the mark
+  const worst = Math.max(...tick.marks.map((m) => Math.abs(along(m).reduce((sum, v, i) => sum + v * m.tangent[i], 0)) / len(m)));
+  gate.record(`${tick.id}: ${tick.length_mm}mm marks across ${tick.on}, ${tick.offset_in}in from centre back each way along it`,
+    ok && worst < 1e-9,
+    tick.blocked || tick.marks.map((m) => `${m.side} at x = ${(m.point[0] * 1000).toFixed(1)}mm, arc ${(m.arc_m * 1000).toFixed(2)}mm, ${(len(m) * 1000).toFixed(2)}mm long`).join('; ') + `; cos to the tape ${worst.toExponential(1)}`);
+}
+
 // ---- evidence ---------------------------------------------------------------
 const body = {
   purpose: 'The house "how to measure" level stack, read off the source sheets and resolved on this avatar.',
@@ -301,6 +322,10 @@ const body = {
       top_m: l.top.map((v) => Number(v.toFixed(5))),
       bottom_m: l.bottom.map((v) => Number(v.toFixed(5))),
     }),
+  })),
+  ticks: ticks.map((t) => ({
+    id: t.id, on: t.on, offset_in: t.offset_in, length_mm: t.length_mm, colour: t.colour, blocked: t.blocked,
+    marks: t.marks.map((m) => ({ side: m.side, point_m: m.point.map((v) => Number(v.toFixed(5))), arc_mm: Number((m.arc_m * 1000).toFixed(2)) })),
   })),
   declared_limits: contract.declared_limits,
 };
