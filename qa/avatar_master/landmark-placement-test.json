@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T12:11:04Z",
+  "generated_at": "2026-09-27T12:31:00Z",
   "purpose": "The logic behind hand placement in the authoring lane: guided order, framing per landmark, the mirror offer, and the record a placed point carries.",
   "module": {
     "file": "scripts/landmark_placement.mjs",
@@ -234,9 +234,9 @@
     {
       "id": "SIDE_WING_LOW_L",
       "target_m": [
-        -0.1367,
+        -0.1361,
         1.2206,
-        -0.0123
+        0.0004
       ],
       "distance_m": 0.6,
       "target_to_skin_mm": 0
@@ -244,9 +244,9 @@
     {
       "id": "SIDE_WING_LOW_R",
       "target_m": [
-        0.1367,
+        0.1361,
         1.2206,
-        -0.0123
+        0.0004
       ],
       "distance_m": 0.6,
       "target_to_skin_mm": 0

@@ -695,9 +695,9 @@ function recomputeMeasurements(elapsedMs){
   }
   foldMarks=marks&&marks.fold?findFoldLandmarks(torsoTris,marks.fold.y):{};
   poms=marks?computePoms(torsoTris,measureScan,marks):null;
-  // the wing runs up the side from its registry offset below the fold to the max-girth section
+  // the wing runs up from its registry point below the fold (moved forward along that section) to the max-girth side point
   const wingRule=(registry.landmarks||[]).find(l=>l.id==='SIDE_WING_LOW_L')||{};
-  wingMarks=marks?findWingLandmarks(torsoTris,marks,wingRule.offset_in):{};
+  wingMarks=marks?findWingLandmarks(torsoTris,marks,wingRule.offset_in,wingRule.forward_in):{};
   if(poms&&measureGrid)Object.assign(poms,computeSurfacePoms(
     measureGrid,torsoTris,marks,{hps,manualPoints,foldLandmarks:foldMarks,wing:wingMarks}));
   const elapsed=elapsedMs??Math.round(performance.now()-started);

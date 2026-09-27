@@ -146,7 +146,7 @@ const armholes = findArmholes(tri);
 record('the torso surface has the four boundary loops the underarm rule needs',
   armholes.loops === 4, `${armholes.loops} loop(s): neck, waist, two armholes`);
 const wingRule = (registry.landmarks || []).find((l) => l.id === 'SIDE_WING_LOW_L') || {};
-const wing = findWingLandmarks(tri, marks, wingRule.offset_in);
+const wing = findWingLandmarks(tri, marks, wingRule.offset_in, wingRule.forward_in);
 Object.assign(poms, computeSurfacePoms(buildGrid(tri), tri, marks,
   { hps, manualPoints, foldLandmarks, wing }));
 record(

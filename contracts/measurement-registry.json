@@ -183,21 +183,23 @@
     },
     {
       "id": "SIDE_WING_LOW_L",
-      "label_en": "Wing height, lower side point (left)",
+      "label_en": "Wing height, lower point (left): side of the -1 3/4in section, 1/2in forward",
       "rule": "offset_section_extreme_x",
       "from": "UNDERBUST_FOLD",
       "offset_in": -1.75,
       "side": "x_negative",
-      "comment": "The outermost point in x, on its side, of the section 1 3/4in below the underbust fold: the same rule SIDE_UNDERBUST uses on the fold section itself, at the height the house takes the bottom of the wing from (asked for 2026-09-27). The offset is this rule's own field; it is not read from the reference levels, which are not measurements."
+      "comment": "The outermost point in x, on its side, of the section 1 3/4in below the underbust fold (the rule SIDE_UNDERBUST uses on the fold section), then 1/2in toward the front along that section's own contour, as a tape would be moved (house definition, 2026-09-27). Both distances are this rule's own fields; they are not read from the reference levels, which are not measurements.",
+      "forward_in": 0.5
     },
     {
       "id": "SIDE_WING_LOW_R",
-      "label_en": "Wing height, lower side point (right)",
+      "label_en": "Wing height, lower point (right): side of the -1 3/4in section, 1/2in forward",
       "rule": "offset_section_extreme_x",
       "from": "UNDERBUST_FOLD",
       "offset_in": -1.75,
       "side": "x_positive",
-      "comment": "See SIDE_WING_LOW_L."
+      "comment": "See SIDE_WING_LOW_L.",
+      "forward_in": 0.5
     },
     {
       "id": "SIDE_WING_HIGH_L",
@@ -335,7 +337,7 @@
       "tolerance_mm": 1.0,
       "status": "auto",
       "house_code": null,
-      "comment": "The shortest surface path up the side, from the side point 1 3/4in below the underbust fold to the side point of the max-girth section (house definition, 2026-09-27). It replaced underarm to the underbust side point."
+      "comment": "The shortest surface path from the lower wing point (the side point 1 3/4in below the underbust fold, moved 1/2in forward along that section) to the side point of the max-girth section (house definition, 2026-09-27). It replaced underarm to the underbust side point."
     },
     {
       "id": "BODY_BAND_FRONT_R",
@@ -374,7 +376,7 @@
       "tolerance_mm": 1.0,
       "status": "auto",
       "house_code": null,
-      "comment": "The shortest surface path up the side, from the side point 1 3/4in below the underbust fold to the side point of the max-girth section (house definition, 2026-09-27). It replaced underarm to the underbust side point."
+      "comment": "The shortest surface path from the lower wing point (the side point 1 3/4in below the underbust fold, moved 1/2in forward along that section) to the side point of the max-girth section (house definition, 2026-09-27). It replaced underarm to the underbust side point."
     },
     {
       "id": "BODY_UNDERBUST_TO_APEX_L",

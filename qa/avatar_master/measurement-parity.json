@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T12:10:54Z",
+  "generated_at": "2026-09-27T12:30:50Z",
   "purpose": "Asserts the Python authority pass and the JavaScript engine the viewer uses agree.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
@@ -8,10 +8,10 @@
   },
   "registry": {
     "file": "contracts/measurement-registry.json",
-    "sha256": "df362d17acf4f16d5199f9db00913423584d32c8ca80ff9730a0e0c0df9f7904"
+    "sha256": "422ccfe1a7ae502d2532777f7abca21e5bda50a2787d2c261c6f3f5ef28b9c92"
   },
   "tolerance_mm": 0.5,
-  "worst_delta_mm": 0.0311,
+  "worst_delta_mm": 0.0393,
   "comparisons": [
     {
       "id": "BODY_WAIST_GIRTH",
@@ -64,9 +64,9 @@
     },
     {
       "id": "BODY_WING_HEIGHT_L",
-      "python_mm": 136.8,
-      "javascript_mm": 136.8264,
-      "delta_mm": 0.0264,
+      "python_mm": 137,
+      "javascript_mm": 136.9607,
+      "delta_mm": 0.0393,
       "tolerance_mm": 0.5
     },
     {
@@ -78,9 +78,9 @@
     },
     {
       "id": "BODY_WING_HEIGHT_R",
-      "python_mm": 136.8,
-      "javascript_mm": 136.8264,
-      "delta_mm": 0.0264,
+      "python_mm": 137,
+      "javascript_mm": 136.9607,
+      "delta_mm": 0.0393,
       "tolerance_mm": 0.5
     },
     {
@@ -107,7 +107,7 @@
     {
       "name": "evidence matches the registry on disk",
       "status": "PASS",
-      "detail": "sha256 df362d17acf4…"
+      "detail": "sha256 422ccfe1a7ae…"
     },
     {
       "name": "engine scan defaults match the registry",
@@ -177,7 +177,7 @@
     {
       "name": "BODY_WING_HEIGHT_L parity",
       "status": "PASS",
-      "detail": "python 136.8mm vs js 136.8264mm — Δ 0.026mm"
+      "detail": "python 137mm vs js 136.9607mm — Δ 0.039mm"
     },
     {
       "name": "BODY_BAND_FRONT_R parity",
@@ -187,7 +187,7 @@
     {
       "name": "BODY_WING_HEIGHT_R parity",
       "status": "PASS",
-      "detail": "python 136.8mm vs js 136.8264mm — Δ 0.026mm"
+      "detail": "python 137mm vs js 136.9607mm — Δ 0.039mm"
     },
     {
       "name": "BODY_UNDERBUST_TO_APEX_L parity",

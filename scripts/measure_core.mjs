@@ -452,14 +452,61 @@ export function sectionSidePoints(tri, y) {
   return { sideL: make(sideL), sideR: make(sideR) };
 }
 
+/** The point `distance` metres along a section's own contour from `from` (a
+ *  point on it), walking toward the front (+z) — where a tape laid on that
+ *  section and slid forward would be. Null if the contour ends first. */
+export function sectionWalkForward(tri, y, from, distance) {
+  if (!from || !(distance > 0)) return from || null;
+  const key = (p) => `${Math.round(p[0] * 1e5)},${Math.round(p[1] * 1e5)}`;
+  const nodes = new Map();
+  const node = (p) => {
+    const k = key(p);
+    if (!nodes.has(k)) nodes.set(k, { p, next: [] });
+    return nodes.get(k);
+  };
+  for (const [a, b] of sectionSegments(tri, y)) {
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) <= 0) continue;
+    const na = node(a), nb = node(b);
+    na.next.push(nb);
+    nb.next.push(na);
+  }
+  let current = nodes.get(key([from.x, from.z]));
+  if (!current) return null;
+  let previous = null;
+  let left = distance;
+  for (let guard = 0; guard < nodes.size + 1; guard++) {
+    const options = current.next.filter((n) => n !== previous);
+    if (!options.length) return null;
+    // first step: the neighbour further front; after that, onward along the chain
+    const step = previous ? options[0] : options.reduce((best, n) => (n.p[1] > best.p[1] ? n : best));
+    const length = Math.hypot(step.p[0] - current.p[0], step.p[1] - current.p[1]);
+    if (length >= left) {
+      const t = left / length;
+      return { x: current.p[0] + (step.p[0] - current.p[0]) * t, y, z: current.p[1] + (step.p[1] - current.p[1]) * t };
+    }
+    left -= length;
+    previous = current;
+    current = step;
+  }
+  return null;
+}
+
 /** Ends of the wing height: the side points of the section `offsetIn` inches
- *  from the underbust fold (below it when negative) and of the max-girth
- *  section. `offsetIn` is the registry's SIDE_WING_LOW rule field. */
-export function findWingLandmarks(tri, marks, offsetIn) {
+ *  from the underbust fold (below it when negative), moved `forwardIn` inches
+ *  toward the front along that section, and the side points of the max-girth
+ *  section. Both inch values are the registry's SIDE_WING_LOW rule fields. */
+export function findWingLandmarks(tri, marks, offsetIn, forwardIn = 0) {
   if (!marks || !marks.fold || !marks.maxGirth || !Number.isFinite(offsetIn)) return {};
-  const low = sectionSidePoints(tri, marks.fold.y + offsetIn * 0.0254);
+  const lowY = marks.fold.y + offsetIn * 0.0254;
+  const low = sectionSidePoints(tri, lowY);
   const high = sectionSidePoints(tri, marks.maxGirth.y);
-  return { lowL: low.sideL, lowR: low.sideR, highL: high.sideL, highR: high.sideR };
+  const forward = (Number.isFinite(forwardIn) ? forwardIn : 0) * 0.0254;
+  return {
+    lowL: sectionWalkForward(tri, lowY, low.sideL, forward),
+    lowR: sectionWalkForward(tri, lowY, low.sideR, forward),
+    highL: high.sideL,
+    highR: high.sideR,
+  };
 }
 
 /** Arc length along a horizontal section between two points on it. A band

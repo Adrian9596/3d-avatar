@@ -552,14 +552,63 @@ def section_side_points(tri: list[float], y: float) -> dict:
     return {"side_l": make(side_l), "side_r": make(side_r)}
 
 
-def find_wing_landmarks(tri: list[float], marks: dict | None, offset_in) -> dict:
+def section_walk_forward(tri: list[float], y: float, start, distance: float):
+    """The point `distance` metres along a section's own contour from `start`,
+    walking toward the front (+z), as a tape slid forward along it. None if the
+    contour ends first."""
+    if not start or not distance > 0:
+        return start
+    key = lambda p: (round(p[0] * 1e5), round(p[1] * 1e5))  # noqa: E731
+    coords: dict[tuple, tuple] = {}
+    nxt: dict[tuple, list[tuple]] = {}
+    for a, b in section_segments(tri, y):
+        if math.hypot(b[0] - a[0], b[1] - a[1]) <= 0:
+            continue
+        ka, kb = key(a), key(b)
+        coords.setdefault(ka, a)
+        coords.setdefault(kb, b)
+        nxt.setdefault(ka, []).append(kb)
+        nxt.setdefault(kb, []).append(ka)
+    current = key((start["x"], start["z"]))
+    if current not in coords:
+        return None
+    previous = None
+    left = distance
+    for _ in range(len(coords) + 1):
+        options = [n for n in nxt[current] if n != previous]
+        if not options:
+            return None
+        if previous is None:
+            step = options[0]
+            for n in options[1:]:
+                if coords[n][1] > coords[step][1]:
+                    step = n
+        else:
+            step = options[0]
+        p, q = coords[current], coords[step]
+        length = math.hypot(q[0] - p[0], q[1] - p[1])
+        if length >= left:
+            t = left / length
+            return {"x": p[0] + (q[0] - p[0]) * t, "y": y, "z": p[1] + (q[1] - p[1]) * t}
+        left -= length
+        previous, current = current, step
+    return None
+
+
+def find_wing_landmarks(tri: list[float], marks: dict | None, offset_in, forward_in=0) -> dict:
     """Ends of the wing height: the side points of the section offset_in inches
-    from the underbust fold (below it when negative) and of the max-girth section."""
+    from the underbust fold (below it when negative), moved forward_in inches
+    toward the front along that section, and the side points of the max-girth
+    section."""
     if not marks or not marks.get("fold") or not marks.get("max_girth") or offset_in is None:
         return {}
-    low = section_side_points(tri, marks["fold"]["y"] + offset_in * 0.0254)
+    low_y = marks["fold"]["y"] + offset_in * 0.0254
+    low = section_side_points(tri, low_y)
     high = section_side_points(tri, marks["max_girth"]["y"])
-    return {"low_l": low["side_l"], "low_r": low["side_r"], "high_l": high["side_l"], "high_r": high["side_r"]}
+    forward = (forward_in or 0) * 0.0254
+    return {"low_l": section_walk_forward(tri, low_y, low["side_l"], forward),
+            "low_r": section_walk_forward(tri, low_y, low["side_r"], forward),
+            "high_l": high["side_l"], "high_r": high["side_r"]}
 
 
 def section_arc(tri, y, start, goal):
@@ -934,8 +983,9 @@ def main() -> int:
     if armholes.get("loops") not in (None, 4):
         failures.append(f"the torso surface has {armholes['loops']} boundary loops, not the 4 expected "
                         "(neck, waist, two armholes), so the underarm landmarks cannot be identified")
-    wing_offset = landmark_rules.get("SIDE_WING_LOW_L", {}).get("offset_in")
-    wing_marks = find_wing_landmarks(tri, marks, wing_offset) if (marks and tri) else {}
+    wing_rule = landmark_rules.get("SIDE_WING_LOW_L", {})
+    wing_marks = (find_wing_landmarks(tri, marks, wing_rule.get("offset_in"), wing_rule.get("forward_in", 0))
+                  if (marks and tri) else {})
     if marks and tri:
         grid = sp.build_grid(tri)
         computed.update(compute_surface_poms(grid, tri, marks, hps, manual_points, fold_marks, wing_marks))
