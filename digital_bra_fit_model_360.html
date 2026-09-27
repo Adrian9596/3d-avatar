@@ -667,6 +667,15 @@ function renderStrapRow(strap,tbody){
   selectableTape(tr,tbody);
   tbody.appendChild(tr);
   measureRowData.push({label:strap.label,paths:strap.bands.map(band=>band.outline),color:parseInt(strap.colour.slice(1),16)});
+  // its length: the middle of the band, tick to tick over the shoulder
+  const lengthLabel=`${strap.label} length`;
+  const lr=document.createElement('tr');
+  lr.title=`Along the middle of the strap, from the ${strap.from} mark over the shoulder to the ${strap.to} mark, on the skin. Edges ${CM(b.inner_length_m)} cm (neck side) and ${CM(b.outer_length_m)} cm (arm side).`;
+  lr.setAttribute('aria-selected','false');
+  lr.innerHTML=`<td><span style="color:${strap.colour}">▮</span> ${lengthLabel}</td><td class="val">${CM(b.length_m)}</td><td class="in">${inchFraction(b.length_m,den)}</td>`;
+  selectableTape(lr,tbody);
+  tbody.appendChild(lr);
+  measureRowData.push({label:lengthLabel,paths:strap.bands.map(band=>band.centre),color:parseInt(strap.colour.slice(1),16)});
 }
 
 /* Tick marks ("ticks" in contracts/measurement-levels.json): short marks in

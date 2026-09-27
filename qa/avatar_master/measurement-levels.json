@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T14:04:05Z",
+  "generated_at": "2026-09-27T14:07:06Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "80229550bf56eb255da4fcceae7ac14d236d8dbe981cb826a04200235db8ac94"
+    "sha256": "3a0b0674f20ff817f224af34e4511c81ece83a99624e80f5a734aff0e8b12766"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T14:01:43Z"
+    "generated_at": "2026-09-27T14:06:42Z"
   },
   "sheets": [
     {
@@ -323,6 +323,7 @@
           "side": "L",
           "front_width_mm": 20,
           "back_width_mm": 20,
+          "length_mm": 358.1,
           "inner_length_mm": 366.3,
           "outer_length_mm": 349.6,
           "top_width_mm": 20.16,
@@ -354,6 +355,7 @@
           "side": "R",
           "front_width_mm": 20,
           "back_width_mm": 20,
+          "length_mm": 358.1,
           "inner_length_mm": 366.3,
           "outer_length_mm": 349.6,
           "top_width_mm": 20.16,
@@ -575,7 +577,7 @@
     {
       "name": "STRAP_MAXP2_CF_TO_CB: 20mm band from TICK_MAXP2_CF_4_3_8IN over the shoulder to TICK_MAXP2_CB_4IN on each side",
       "status": "PASS",
-      "detail": "L ends 20.00/20.00mm, edges 366.3/349.6mm, 20.16mm wide at the shoulder top y = 1.5359m; R ends 20.00/20.00mm, edges 366.3/349.6mm, 20.16mm wide at the shoulder top y = 1.5359m"
+      "detail": "L 358.1mm long tick to tick, ends 20.00/20.00mm, edges 366.3/349.6mm, 20.16mm wide at the shoulder top y = 1.5359m; R 358.1mm long tick to tick, ends 20.00/20.00mm, edges 366.3/349.6mm, 20.16mm wide at the shoulder top y = 1.5359m"
     }
   ],
   "decision": "LEVELS_RESOLVE_ON_THIS_BODY"

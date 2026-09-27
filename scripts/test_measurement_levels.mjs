@@ -309,6 +309,9 @@ for (const strap of straps) {
       && Object.values(b.corners).every((c) => c[1] === y)
       && same(b.outline[0], b.outline[b.outline.length - 1])
       && b.top_y_m > y + 0.05
+      // the length runs tick to tick, between the two edges' lengths
+      && [[b.centre[0], from], [b.centre[b.centre.length - 1], to]].every(([p, t]) => same(p, t.marks.find((m) => m.side === b.side).point))
+      && b.length_m > Math.min(b.inner_length_m, b.outer_length_m) && b.length_m < Math.max(b.inner_length_m, b.outer_length_m)
       // each end is centred on its tick: the tick's point lies on the end, between the two corners
       && [[from, 'front'], [to, 'back']].every(([t, end]) => {
         const p = t.marks.find((m) => m.side === b.side).point;
@@ -319,7 +322,7 @@ for (const strap of straps) {
     && same(strap.bands[0].corners.front_inner.map((v, i) => (i ? v : -v)), strap.bands[1].corners.front_inner);
   gate.record(`${strap.id}: ${strap.width_mm}mm band from ${strap.from} over the shoulder to ${strap.to} on each side`,
     ok,
-    strap.blocked || strap.bands.map((b) => `${b.side} ends ${(b.front_width_m * 1000).toFixed(2)}/${(b.back_width_m * 1000).toFixed(2)}mm, edges ${(b.inner_length_m * 1000).toFixed(1)}/${(b.outer_length_m * 1000).toFixed(1)}mm, ${(b.top_width_m * 1000).toFixed(2)}mm wide at the shoulder top y = ${b.top_y_m.toFixed(4)}m`).join('; '));
+    strap.blocked || strap.bands.map((b) => `${b.side} ${(b.length_m * 1000).toFixed(1)}mm long tick to tick, ends ${(b.front_width_m * 1000).toFixed(2)}/${(b.back_width_m * 1000).toFixed(2)}mm, edges ${(b.inner_length_m * 1000).toFixed(1)}/${(b.outer_length_m * 1000).toFixed(1)}mm, ${(b.top_width_m * 1000).toFixed(2)}mm wide at the shoulder top y = ${b.top_y_m.toFixed(4)}m`).join('; '));
 }
 
 // ---- evidence ---------------------------------------------------------------
@@ -371,6 +374,7 @@ const body = {
       side: b.side,
       front_width_mm: Number((b.front_width_m * 1000).toFixed(2)),
       back_width_mm: Number((b.back_width_m * 1000).toFixed(2)),
+      length_mm: Number((b.length_m * 1000).toFixed(1)),
       inner_length_mm: Number((b.inner_length_m * 1000).toFixed(1)),
       outer_length_mm: Number((b.outer_length_m * 1000).toFixed(1)),
       top_width_mm: Number((b.top_width_m * 1000).toFixed(2)),

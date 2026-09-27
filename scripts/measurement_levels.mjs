@@ -643,8 +643,10 @@ export function measureStrap(strap, ticks, heights, tri) {
     if (Object.values(corners).some((c) => !c)) return { ...strap, blocked: `the tape ends before the strap's corners on the ${side} side`, bands: [] };
     const inner = overShoulder(tri, corners.front_inner, corners.back_inner);
     const outer = overShoulder(tri, corners.front_outer, corners.back_outer);
+    // the strap's length is its middle: tick to tick over the shoulder
+    const centre = overShoulder(tri, f, b);
     const MISS_M = 1e-6;
-    if (!inner || !outer || inner.miss_m > MISS_M || outer.miss_m > MISS_M) {
+    if (!inner || !outer || !centre || [inner, outer, centre].some((e) => e.miss_m > MISS_M)) {
       return { ...strap, blocked: `the skin over the ${side} shoulder does not carry the strap from tick to tick`, bands: [] };
     }
     const cut = (p, q) => section && [...walkContour(section, [p[0], p[2]], (a, c) => Math.abs(a[0] - q[0]) < Math.abs(c[0] - q[0]), byCoordinate(0, q[0]))].map(([x, z]) => [x, y, z]);
@@ -658,6 +660,8 @@ export function measureStrap(strap, ticks, heights, tri) {
       corners,
       front_width_m: polylineLength(frontEnd),
       back_width_m: polylineLength(backEnd),
+      length_m: polylineLength(centre.points),
+      centre: centre.points,
       inner_length_m: polylineLength(inner.points),
       outer_length_m: polylineLength(outer.points),
       top_width_m: Math.hypot(ti[0] - to_[0], ti[1] - to_[1], ti[2] - to_[2]),
