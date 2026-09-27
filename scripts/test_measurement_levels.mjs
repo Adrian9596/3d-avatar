@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, measurePoint, measurePoints, pointOffsets, levelsRecord, outOfRange,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, measurePoint, measurePoints, pointOffsets, levelsRecord, outOfRange, sectionChains,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -245,22 +245,60 @@ const unhung = measureReferenceTapes(loaded, {}, ctx.tri, { scan, maxY });
 gate.record('a reference tape without its height reads needs …, never a line',
   unhung.every((t) => t.blocked === `needs ${t.from}` && !t.chains.length), unhung.map((t) => t.blocked).join('; '));
 
-// ---- 6. centre-back lines ---------------------------------------------------------
+// ---- 6. centre-back and centre-front lines -----------------------------------------
 gate.record('every declared line validates',
   loaded.lines.length === (contract.lines || []).length,
-  `${loaded.lines.length} line(s): ${loaded.lines.map((l) => `${l.id} ${l.from} -> ${l.to}`).join(', ') || 'none'}`);
-const lines = measureLines(loaded, measured, tapes, ctx.tri);
-const heightOf = (id) => measured.levels.find((l) => l.id === id)?.y_m ?? tapes.find((t) => t.id === id)?.y_m;
+  `${loaded.lines.length} line(s): ${loaded.lines.map((l) => `${l.id} ${l.kind} ${l.from} -> ${l.to}`).join(', ') || 'none'}`);
+const brokenLine = loadLevels({ ...contract, lines: [{ id: 'L', kind: 'sideways', from: 'LVL_M1_3_4', to: 'NOPE', label: 'x' }] }, ctx.registry);
+gate.record('a line of an unknown kind or to an unknown height is refused',
+  brokenLine.lines.length === 0 && brokenLine.errors.some((e) => /unknown kind sideways/.test(e) && /to NOPE/.test(e)),
+  brokenLine.errors.join('; ').slice(0, 160));
+const lines = measureLines(loaded, measured, tapes, ctx.tri, pomHeights);
+const heightOf = (id) => measured.levels.find((l) => l.id === id)?.y_m ?? tapes.find((t) => t.id === id)?.y_m ?? pomHeights[id];
+// the torso's middle in z at a height: halfway between the section's front and back
+const midZOf = (y) => { const sec = measureSection(ctx.tri, y) || null; const zs = sec ? sec.ring.map((p) => p[1]) : [0]; return (Math.max(...zs) + Math.min(...zs)) / 2; };
+// where the section at `y` crosses x = 0 on the front (greatest z) or the back (least z)
+const centreOf = (y, front) => {
+  const zs = [];
+  for (const chain of sectionChains(ctx.tri, y)) for (let i = 1; i < chain.length; i++) {
+    const [a, b] = [chain[i - 1], chain[i]];
+    if ((a[0] > 0) !== (b[0] > 0)) zs.push(a[2] + (b[2] - a[2]) * (a[0] / (a[0] - b[0])));
+  }
+  return zs.length ? (front ? Math.max(...zs) : Math.min(...zs)) : null;
+};
+// the tape's own centre front at `y`: where its hull crosses x = 0 on the front
+const hullFrontOf = (y) => {
+  const ring = measureSection(ctx.tri, y)?.ring || [];
+  const zs = ring.flatMap((a, i) => { const b = ring[(i + 1) % ring.length]; return (a[0] > 0) !== (b[0] > 0) ? [a[1] + (b[1] - a[1]) * (a[0] / (a[0] - b[0]))] : []; });
+  return zs.length ? Math.max(...zs) : null;
+};
+const lineGaps = {};
 for (const line of lines) {
+  const front = line.kind === 'centre_front';
   const ends = [heightOf(line.from), heightOf(line.to)].sort((a, b) => b - a);
+  // the walked end is the section's own centre back (at the top) or centre front (at the bottom)
+  const start = front ? line.bottom : line.top;
+  const startZ = centreOf(start[1], front);
   const ok = !line.blocked
     && line.points.every((p) => p[0] === 0)
     && Math.abs(line.top[1] - ends[0]) < 1e-9 && Math.abs(line.bottom[1] - ends[1]) < 1e-9
     && line.points.every((p, i) => i === 0 || p[1] <= line.points[i - 1][1])
+    && startZ !== null && Math.abs(start[2] - startZ) < 1e-6
+    && line.points.every((p) => (front ? p[2] > midZOf(p[1]) : p[2] < midZOf(p[1])))
     && line.length_m >= line.chord_m;
-  gate.record(`${line.id}: on the centre back from ${line.from} down to ${line.to}, along the skin`,
+  gate.record(`${line.id}: on the centre ${front ? 'front' : 'back'} ${front ? `up from ${line.from} to ${line.to}` : `from ${line.from} down to ${line.to}`}, along the skin`,
     ok,
     line.blocked || `y ${line.top[1].toFixed(4)} -> ${line.bottom[1].toFixed(4)}m, ${(line.length_m * 1000).toFixed(1)}mm on the skin, chord ${(line.chord_m * 1000).toFixed(1)}mm`);
+  // at a POM's height the line stops on the skin; the POM's tape (a hull) may bridge in front of it
+  const pomEnd = [line.from, line.to].find((id) => id in pomHeights && !measured.levels.some((l) => l.id === id) && !tapes.some((t) => t.id === id));
+  if (!line.blocked && front && pomEnd) {
+    const end = Math.abs(line.top[1] - pomHeights[pomEnd]) < 1e-9 ? line.top : line.bottom;
+    const hullZ = hullFrontOf(end[1]);
+    lineGaps[line.id] = hullZ === null ? null : hullZ - end[2];
+    gate.record(`${line.id}: ends on the skin at ${pomEnd}'s height, behind (never in front of) that tape`,
+      hullZ !== null && hullZ - end[2] >= -1e-6,
+      hullZ === null ? 'no tape at that height' : `the ${pomEnd} tape crosses the centre front ${((hullZ - end[2]) * 1000).toFixed(1)}mm in front of the line's end`);
+  }
 }
 
 // ---- 7. tick marks -------------------------------------------------------------------
@@ -268,8 +306,6 @@ gate.record('every declared tick validates',
   loaded.ticks.length === (contract.ticks || []).length,
   `${loaded.ticks.length} tick(s): ${loaded.ticks.map((t) => `${t.id} on ${t.on}`).join(', ') || 'none'}`);
 const ticks = measureTicks(loaded, measured, tapes, ctx.tri);
-// the torso's middle in z at the tape height: halfway between the section's front and back
-const midZOf = (y) => { const sec = measureSection(ctx.tri, y) || null; const zs = sec ? sec.ring.map((p) => p[1]) : [0]; return (Math.max(...zs) + Math.min(...zs)) / 2; };
 for (const tick of ticks) {
   const midZ = midZOf(heightOf(tick.on));
   const ok = !tick.blocked && tick.marks.length === 2
@@ -480,10 +516,11 @@ const body = {
     blocked: t.blocked,
   })),
   lines: lines.map((l) => ({
-    id: l.id, from: l.from, to: l.to, blocked: l.blocked,
+    id: l.id, kind: l.kind, from: l.from, to: l.to, blocked: l.blocked,
     ...(l.blocked ? {} : {
       length_mm: Number((l.length_m * 1000).toFixed(1)),
       chord_mm: Number((l.chord_m * 1000).toFixed(1)),
+      ...(l.id in lineGaps && lineGaps[l.id] !== null ? { tape_in_front_mm: Number((lineGaps[l.id] * 1000).toFixed(1)) } : {}),
       top_m: l.top.map((v) => Number(v.toFixed(5))),
       bottom_m: l.bottom.map((v) => Number(v.toFixed(5))),
     }),
