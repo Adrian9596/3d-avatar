@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, measurePoints, levelsRecord, outOfRange,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, measurePoint, measurePoints, pointOffsets, levelsRecord, outOfRange,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -336,7 +336,8 @@ const brokenCurve = loadLevels({ ...contract, curves: [{ id: 'C', kind: 'shortes
 gate.record('a curve from an unknown strap, corner or landmark is refused',
   brokenCurve.curves.length === 0 && brokenCurve.errors.some((e) => /strap NOPE/.test(e) && /corner middle/.test(e) && /NOPE_L/.test(e)),
   brokenCurve.errors.join('; ').slice(0, 160));
-const curves = measureCurves(loaded, straps, ctx.landmarks, ctx.grid);
+const points = measurePoints(loaded, ctx.landmarks, ctx.tri);
+const curves = measureCurves(loaded, straps, ctx.landmarks, ctx.grid, {}, points);
 for (const curve of curves) {
   const strap = straps.find((s) => s.id === curve.from.strap);
   const ok = !curve.blocked && curve.runs.length === 2
@@ -357,11 +358,30 @@ for (const curve of curves) {
   if (curve.kind !== 'tangent_curve' || curve.blocked) continue;
   const onSkin = (pts) => pts.every((p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; });
   const mirrored = (a, b) => a.points.length === b.points.length && a.points.every((p, i) => Math.hypot(p[0] + b.points[i][0], p[1] - b.points[i][1], p[2] - b.points[i][2]) < 1e-4);
-  // the handles as declared: along the shortest path, so the curve reads it
-  const declared = curve.runs.every((r) => r.length_m >= r.guide_length_m - 1e-3 && r.length_m - r.guide_length_m < 1e-3);
-  gate.record(`${curve.id}: with the contract's handles its length is the shortest path's within 1mm`,
+  // the handles as declared: along the shortest path, so the curve reads it (through
+  // a point, it rounds the corner the two shortest paths make there, so a little longer)
+  const via = curve.through ? points.find((p) => p.id === curve.through.point) : null;
+  const declared = curve.runs.every((r) => r.length_m >= r.guide_length_m - 1e-3
+    && r.length_m - r.guide_length_m < (via ? 0.02 * r.guide_length_m : 1e-3));
+  gate.record(`${curve.id}: with the contract's handles its length is the shortest path's${via ? ' through the point, within 2%' : ' within 1mm'}`,
     declared,
     curve.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm vs shortest ${(r.guide_length_m * 1000).toFixed(1)}mm`).join('; '));
+  if (via) {
+    const through = curve.runs.every((r) => {
+      const m = via.marks.find((k) => k.side === r.side).point;
+      return r.points.some((q) => q.every((v, i) => v === m[i])) && Math.abs(r.leg_lengths_m[0] + r.leg_lengths_m[1] - r.length_m) < 1e-9;
+    });
+    // moving the point moves the curve with it, still through it
+    const moved = measurePoint(via, ctx.landmarks, ctx.tri, { up_in: 0.6, forward_in: 0.8 });
+    const bentVia = measureCurves({ curves: [curve] }, straps, ctx.landmarks, ctx.grid, {}, [moved])[0];
+    const follows = !moved.blocked && !bentVia.blocked && bentVia.runs.every((r) => {
+      const m = moved.marks.find((k) => k.side === r.side).point;
+      return r.points.some((q) => q.every((v, i) => v === m[i])) && onSkin(r.points);
+    }) && mirrored(bentVia.runs[0], bentVia.runs[1]);
+    gate.record(`${curve.id}: passes through ${via.id} on each side, and follows it when it moves`,
+      through && follows,
+      `legs ${curve.runs[0].leg_lengths_m.map((v) => (v * 1000).toFixed(1)).join(' + ')}mm; moved 0.6in up, 0.8in forward: ${bentVia.blocked || bentVia.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm`).join(', ')}`);
+  }
   // each tangent runs on the skin from its end to its tip, and the tip reads back as its handle
   const tangents = curve.runs.every((r) => r.tangents.length === 2 && r.tangents.every((t) => {
     const back = handleFromPoint(r.frames[t.end], t.tip), want = curve.handles[t.end];
@@ -393,11 +413,10 @@ gate.record('a tangent curve without a sound pair of handles is refused',
 gate.record('every declared point validates',
   loaded.points.length === (contract.points || []).length,
   `${loaded.points.length} point(s): ${loaded.points.map((p) => `${p.id} ${p.up_in}in up, ${p.forward_in}in forward from ${p.from.landmark}_L/R`).join(', ') || 'none'}`);
-const brokenPoint = loadLevels({ ...contract, points: [{ id: 'P', kind: 'offset_on_skin', from: { landmark: 'NOPE' }, up_in: -1, forward_in: 'x', colour: '#000000', label: 'p' }] }, ctx.registry);
+const brokenPoint = loadLevels({ ...contract, points: [{ id: 'P', kind: 'offset_on_skin', from: { landmark: 'NOPE' }, up_in: null, forward_in: 'x', colour: '#000000', label: 'p' }] }, ctx.registry);
 gate.record('a point from an unknown landmark or with bad offsets is refused',
   brokenPoint.points.length === 0 && brokenPoint.errors.some((e) => /NOPE_L/.test(e) && /up_in/.test(e) && /forward_in/.test(e)),
   brokenPoint.errors.join('; ').slice(0, 160));
-const points = measurePoints(loaded, ctx.landmarks, ctx.tri);
 for (const point of points) {
   const up = point.up_in * METRES_PER_INCH, forward = point.forward_in * METRES_PER_INCH;
   const skin = (p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; };
@@ -411,6 +430,20 @@ for (const point of points) {
         && [...m.up_path, ...m.forward_path].every(skin);
     })
     && Math.hypot(point.marks[0].point[0] + point.marks[1].point[0], point.marks[0].point[1] - point.marks[1].point[1], point.marks[0].point[2] - point.marks[1].point[2]) < 1e-4;
+  // a dragged place reads back as the offsets that reach it, on each side
+  const inverse = !point.blocked && point.marks.every((m) => {
+    const o = pointOffsets(point, m.side, m.point, ctx.landmarks, ctx.tri);
+    return o && Math.abs(o.up_in - point.up_in) < 1e-6 && Math.abs(o.forward_in - point.forward_in) < 1e-6;
+  });
+  const elsewhere = { up_in: -0.2, forward_in: 2.1 };
+  const there = measurePoint(point, ctx.landmarks, ctx.tri, elsewhere);
+  const back = !there.blocked && there.marks.every((m) => {
+    const o = pointOffsets(point, m.side, m.point, ctx.landmarks, ctx.tri);
+    return o && Math.abs(o.up_in - elsewhere.up_in) < 1e-6 && Math.abs(o.forward_in - elsewhere.forward_in) < 1e-6;
+  });
+  gate.record(`${point.id}: a place on the skin reads back as the offsets that reach it (for dragging)`,
+    inverse && back,
+    there.blocked || `contract place and ${elsewhere.up_in}in up, ${elsewhere.forward_in}in forward both read back`);
   gate.record(`${point.id}: ${point.up_in}in up the skin from ${point.from.landmark}, then ${point.forward_in}in forward, on each side`,
     ok,
     point.blocked || point.marks.map((m) => `${m.side} at (${m.point.map((v) => (v * 1000).toFixed(1)).join(', ')})mm, up ${(m.up_m * 1000).toFixed(2)}mm, forward ${(m.forward_m * 1000).toFixed(2)}mm`).join('; '));
@@ -475,10 +508,11 @@ const body = {
   })),
   curves: curves.map((c) => ({
     id: c.id, from: c.from, to: c.to, colour: c.colour, blocked: c.blocked,
-    kind: c.kind, handles: c.handles || null,
+    kind: c.kind, handles: c.handles || null, through: c.through || null,
     runs: c.runs.map((r) => ({
       side: r.side, length_mm: Number((r.length_m * 1000).toFixed(1)),
       ...(r.guide_length_m ? { shortest_path_mm: Number((r.guide_length_m * 1000).toFixed(1)) } : {}),
+      ...(r.leg_lengths_m ? { legs_mm: r.leg_lengths_m.map((v) => Number((v * 1000).toFixed(1))), through_m: r.through.map((v) => Number(v.toFixed(5))) } : {}),
       from_m: r.from.map((v) => Number(v.toFixed(5))), to_m: r.to.map((v) => Number(v.toFixed(5))),
       ...(r.tangents ? { tips_m: Object.fromEntries(r.tangents.map((t) => [t.end, t.tip.map((v) => Number(v.toFixed(5)))])) } : {}),
     })),

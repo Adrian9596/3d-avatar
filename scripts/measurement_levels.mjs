@@ -158,12 +158,27 @@ export function loadLevels(contract, registry) {
     else straps.push(strap);
   }
 
+  // Points on the skin, an offset up and then forward from a registry landmark, one per side.
+  const points = [];
+  const taken = (id) => heightIds.has(id) || shapeIds.has(id) || [lines, ticks, straps, points].some((list) => list.some((x) => x.id === id));
+  for (const point of contract?.points || []) {
+    const problems = [];
+    if (!point.id || taken(point.id)) problems.push('missing or duplicate id');
+    if (point.kind !== 'offset_on_skin') problems.push(`unknown kind ${point.kind}`);
+    for (const side of ['L', 'R']) if (!known.has(`${point.from?.landmark}_${side}`)) problems.push(`from ${point.from?.landmark}_${side} is not a registry landmark`);
+    for (const key of ['up_in', 'forward_in']) if (!Number.isFinite(point[key])) problems.push(`${key} must be a number of inches`);
+    if (!/^#[0-9a-f]{6}$/i.test(point.colour || '')) problems.push('colour must be #rrggbb');
+    if (typeof point.label !== 'string' || !point.label) problems.push('label must be a string');
+    if (problems.length) errors.push(`${point.id || '?'}: ${problems.join('; ')}`);
+    else points.push(point);
+  }
+
   // Curves on the skin from a strap corner to a registry landmark, one per side.
   const CORNERS = ['front_inner', 'front_outer', 'back_inner', 'back_outer'];
   const curves = [];
   for (const curve of contract?.curves || []) {
     const problems = [];
-    if (!curve.id || heightIds.has(curve.id) || shapeIds.has(curve.id) || lines.some((l) => l.id === curve.id) || ticks.some((t) => t.id === curve.id) || straps.some((t) => t.id === curve.id) || curves.some((c) => c.id === curve.id)) problems.push('missing or duplicate id');
+    if (!curve.id || heightIds.has(curve.id) || shapeIds.has(curve.id) || lines.some((l) => l.id === curve.id) || ticks.some((t) => t.id === curve.id) || straps.some((t) => t.id === curve.id) || points.some((t) => t.id === curve.id) || curves.some((c) => c.id === curve.id)) problems.push('missing or duplicate id');
     if (!['shortest_surface_path', 'tangent_curve'].includes(curve.kind)) problems.push(`unknown kind ${curve.kind}`);
     if (curve.kind === 'tangent_curve') {
       for (const end of ['from', 'to']) {
@@ -174,26 +189,12 @@ export function loadLevels(contract, registry) {
     }
     if (!straps.some((s) => s.id === curve.from?.strap)) problems.push(`from strap ${curve.from?.strap} is not a valid strap`);
     if (!CORNERS.includes(curve.from?.corner)) problems.push(`from corner ${curve.from?.corner} is not one of ${CORNERS.join(', ')}`);
+    if (curve.through !== undefined && (curve.kind !== 'tangent_curve' || !points.some((p) => p.id === curve.through?.point))) problems.push(`through ${curve.through?.point} is not a valid point (and only a tangent curve passes through one)`);
     for (const side of ['L', 'R']) if (!known.has(`${curve.to?.landmark}_${side}`)) problems.push(`to ${curve.to?.landmark}_${side} is not a registry landmark`);
     if (!/^#[0-9a-f]{6}$/i.test(curve.colour || '')) problems.push('colour must be #rrggbb');
     if (typeof curve.label !== 'string' || !curve.label) problems.push('label must be a string');
     if (problems.length) errors.push(`${curve.id || '?'}: ${problems.join('; ')}`);
     else curves.push(curve);
-  }
-
-  // Points on the skin, an offset up and then forward from a registry landmark, one per side.
-  const points = [];
-  const taken = (id) => heightIds.has(id) || shapeIds.has(id) || [lines, ticks, straps, curves, points].some((list) => list.some((x) => x.id === id));
-  for (const point of contract?.points || []) {
-    const problems = [];
-    if (!point.id || taken(point.id)) problems.push('missing or duplicate id');
-    if (point.kind !== 'offset_on_skin') problems.push(`unknown kind ${point.kind}`);
-    for (const side of ['L', 'R']) if (!known.has(`${point.from?.landmark}_${side}`)) problems.push(`from ${point.from?.landmark}_${side} is not a registry landmark`);
-    for (const key of ['up_in', 'forward_in']) if (!(Number.isFinite(point[key]) && point[key] >= 0)) problems.push(`${key} must be a number of inches, 0 or more`);
-    if (!/^#[0-9a-f]{6}$/i.test(point.colour || '')) problems.push('colour must be #rrggbb');
-    if (typeof point.label !== 'string' || !point.label) problems.push('label must be a string');
-    if (problems.length) errors.push(`${point.id || '?'}: ${problems.join('; ')}`);
-    else points.push(point);
   }
 
   return {
@@ -836,41 +837,69 @@ function onSkin(grid, a, b, samples) {
   return out;
 }
 
-/** One side's tangent curve from its two frames and the handle pair. */
-function tangentRun(grid, side, frames, handles, guideLength) {
-  const [P0, P3] = [frames.from.origin, frames.to.origin];
-  const [P1, P2] = [handleTip(grid, frames.from, handles.from), handleTip(grid, frames.to, handles.to)];
-  const points = [P0.slice()];
-  let jump = 0;
-  for (let s = 1; s < CURVE_SAMPLES; s++) {
-    const t = s / CURVE_SAMPLES, u = 1 - t;
+// A cubic Bezier's samples, t in (0, 1], carried onto the skin; null if one misses.
+function bezierOnSkin(grid, P0, P1, P2, P3, samples) {
+  const out = [];
+  for (let s = 1; s <= samples; s++) {
+    if (s === samples) { out.push(P3.slice()); break; }
+    const t = s / samples, u = 1 - t;
     const b = [0, 1, 2].map((i) => u * u * u * P0[i] + 3 * u * u * t * P1[i] + 3 * u * t * t * P2[i] + t * t * t * P3[i]);
     const hit = closestOnMesh(grid, b);
-    if (!hit) return { side, blocked: `the curve leaves the skin on the ${side} side` };
-    points.push(hit.point);
+    if (!hit) return null;
+    out.push(hit.point);
   }
-  points.push(P3.slice());
+  return out;
+}
+
+/** One side's tangent curve from its frames and the handle pair. With a
+ *  `through` point it is two Beziers joined there, smoothly: the tangent at the
+ *  point is the chord from end to end laid in the skin, each side of it a third
+ *  of its own segment's chord long. */
+function tangentRun(grid, side, frames, handles, guideLength, through = null) {
+  const [P0, P3] = [frames.from.origin, frames.to.origin];
+  const [T0, T3] = [handleTip(grid, frames.from, handles.from), handleTip(grid, frames.to, handles.to)];
+  let points, mid = -1;
+  if (!through) {
+    const b = bezierOnSkin(grid, P0, T0, T3, P3, CURVE_SAMPLES);
+    if (!b) return { side, blocked: `the curve leaves the skin on the ${side} side` };
+    points = [P0.slice(), ...b];
+  } else {
+    const M = through;
+    const n = closestOnMesh(grid, M)?.normal || [0, 0, 1];
+    const chord = sub(P3, P0);
+    const dir = unit(sub(chord, n.map((v) => v * dot(chord, n))));
+    const [la, lb] = [Math.hypot(...sub(M, P0)) / 3, Math.hypot(...sub(P3, M)) / 3];
+    const inA = M.map((v, i) => v - la * dir[i]), outB = M.map((v, i) => v + lb * dir[i]);
+    const share = Math.max(8, Math.round((CURVE_SAMPLES * 3 * la) / (3 * la + 3 * lb)));
+    const a = bezierOnSkin(grid, P0, T0, inA, M, share);
+    const b = bezierOnSkin(grid, M, outB, T3, P3, Math.max(8, CURVE_SAMPLES - share));
+    if (!a || !b) return { side, blocked: `the curve leaves the skin on the ${side} side` };
+    points = [P0.slice(), ...a, ...b];
+    mid = a.length;
+  }
   const length = polyLength(points);
+  let jump = 0;
   for (let i = 1; i < points.length; i++) jump = Math.max(jump, Math.hypot(...sub(points[i], points[i - 1])));
   // carried across a gap in the skin (the armhole opening) rather than along it
   if (jump > Math.max(0.012, (6 * length) / CURVE_SAMPLES)) return { side, blocked: `the curve jumps ${(jump * 1000).toFixed(0)}mm across the skin on the ${side} side` };
   return {
-    side, from: P0, to: P3, length_m: length, points, guide_length_m: guideLength,
+    side, from: P0, to: P3, through, length_m: length, points, guide_length_m: guideLength,
+    ...(through ? { leg_lengths_m: [polyLength(points.slice(0, mid + 1)), polyLength(points.slice(mid))] } : {}),
     frames,
     tangents: [
-      { end: 'from', tip: P1, points: onSkin(grid, P0, P1, TANGENT_SAMPLES) },
-      { end: 'to', tip: P2, points: onSkin(grid, P3, P2, TANGENT_SAMPLES) },
+      { end: 'from', tip: T0, points: onSkin(grid, P0, T0, TANGENT_SAMPLES) },
+      { end: 'to', tip: T3, points: onSkin(grid, P3, T3, TANGENT_SAMPLES) },
     ],
   };
 }
 
 /** Re-shape a measured tangent curve with a new handle pair, both sides, without
- *  finding the shortest path again (its frames are kept on each run). */
+ *  finding the shortest paths again (its frames are kept on each run). */
 export function bendCurve(measured, handles, grid) {
   if (measured.blocked || measured.kind !== 'tangent_curve') return measured;
   const runs = [];
   for (const run of measured.runs) {
-    const next = tangentRun(grid, run.side, run.frames, handles, run.guide_length_m);
+    const next = tangentRun(grid, run.side, run.frames, handles, run.guide_length_m, run.through);
     if (next.blocked) return { ...measured, handles, blocked: next.blocked, runs: [] };
     runs.push(next);
   }
@@ -878,22 +907,29 @@ export function bendCurve(measured, handles, grid) {
 }
 
 /** `landmarks` maps a registry id to [x, y, z]; `grid` is surface_path's buildGrid.
- *  `handles` overrides a tangent curve's contract handles ({ from, to }). */
-export function measureCurve(curve, straps, landmarks, grid, handles = null) {
+ *  `handles` overrides a tangent curve's contract handles ({ from, to });
+ *  `points` are the measured points (measurePoints), for a curve with `through`.
+ *  Each handle is read against the shortest path over the skin from its end to
+ *  the next point the curve must meet (the through point, or the other end). */
+export function measureCurve(curve, straps, landmarks, grid, handles = null, points = []) {
   const strap = straps.find((s) => s.id === curve.from.strap);
   if (!strap || strap.blocked) return { ...curve, blocked: `needs ${curve.from.strap}`, runs: [] };
   const missing = ['L', 'R'].map((side) => `${curve.to.landmark}_${side}`).filter((id) => !Array.isArray(landmarks?.[id]));
   if (missing.length) return { ...curve, blocked: `needs ${missing.join(', ')}`, runs: [] };
+  const via = curve.through ? points.find((p) => p.id === curve.through.point) : null;
+  if (curve.through && (!via || via.blocked)) return { ...curve, blocked: `needs ${curve.through.point}`, runs: [] };
   const use = curve.kind === 'tangent_curve' ? (handles || curve.handles) : null;
   const runs = [];
   for (const side of ['L', 'R']) {
     const from = strap.bands.find((b) => b.side === side).corners[curve.from.corner];
     const to = landmarks[`${curve.to.landmark}_${side}`];
-    const run = surfaceRun(grid, from, to);
-    if (!run.onSurface) return { ...curve, blocked: `no path over the skin on the ${side} side`, runs: [] };
-    if (!use) { runs.push({ side, from, to, length_m: run.length, points: run.points }); continue; }
-    const frames = { from: handleFrame(grid, run.points, false), to: handleFrame(grid, run.points, true) };
-    const bent = tangentRun(grid, side, frames, use, run.length);
+    const M = via ? via.marks.find((m) => m.side === side).point : null;
+    const legs = M ? [surfaceRun(grid, from, M), surfaceRun(grid, M, to)] : [surfaceRun(grid, from, to)];
+    if (!legs.every((l) => l.onSurface)) return { ...curve, blocked: `no path over the skin on the ${side} side`, runs: [] };
+    const guide = legs.reduce((sum, l) => sum + l.length, 0);
+    if (!use) { runs.push({ side, from, to, length_m: guide, points: legs[0].points }); continue; }
+    const frames = { from: handleFrame(grid, legs[0].points, false), to: handleFrame(grid, legs[legs.length - 1].points, true) };
+    const bent = tangentRun(grid, side, frames, use, guide, M);
     if (bent.blocked) return { ...curve, handles: use, blocked: bent.blocked, runs: [] };
     runs.push(bent);
   }
@@ -902,8 +938,8 @@ export function measureCurve(curve, straps, landmarks, grid, handles = null) {
 
 /** Every declared curve, from the measured straps. `handles` maps a curve id to a
  *  handle pair that overrides the contract's (the viewer's dragged ones). */
-export function measureCurves(loaded, straps, landmarks, grid, handles = {}) {
-  return (loaded.curves || []).map((curve) => measureCurve(curve, straps, landmarks, grid, handles[curve.id] || null));
+export function measureCurves(loaded, straps, landmarks, grid, handles = {}, points = []) {
+  return (loaded.curves || []).map((curve) => measureCurve(curve, straps, landmarks, grid, handles[curve.id] || null, points));
 }
 
 /* --- points offset from a landmark -------------------------------------------------
@@ -928,11 +964,14 @@ function onContour(segments, p) {
 
 const SNAP_M = 0.002;   // a landmark this close to the cut is on it
 
-/** `landmarks` maps a registry id to [x, y, z]. */
-export function measurePoint(point, landmarks, tri) {
+/** `landmarks` maps a registry id to [x, y, z]. `offsets` ({ up_in, forward_in })
+ *  overrides the contract's (a point dragged in the viewer); a negative offset
+ *  walks down, or back. */
+export function measurePoint(point, landmarks, tri, offsets = null) {
   const missing = ['L', 'R'].map((side) => `${point.from.landmark}_${side}`).filter((id) => !Array.isArray(landmarks?.[id]));
   if (missing.length) return { ...point, blocked: `needs ${missing.join(', ')}`, marks: [] };
-  const up = point.up_in * METRES_PER_INCH, forward = point.forward_in * METRES_PER_INCH;
+  const upIn = offsets?.up_in ?? point.up_in, forwardIn = offsets?.forward_in ?? point.forward_in;
+  const up = upIn * METRES_PER_INCH, forward = forwardIn * METRES_PER_INCH;
   const marks = [];
   for (const side of ['L', 'R']) {
     const base = landmarks[`${point.from.landmark}_${side}`];
@@ -941,27 +980,60 @@ export function measurePoint(point, landmarks, tri) {
     const cut = uprightSegments(tri, base, d);
     const start = onContour(cut, [base[1], 0]);
     if (!start.point || start.gap > SNAP_M) return { ...point, blocked: `${point.from.landmark}_${side} is not on the skin`, marks: [] };
-    const rise = up > 0 ? walkContour(cut, start.point, (a, b) => a[0] > b[0], byLength(up)) : [start.point];
-    if (!rise) return { ...point, blocked: `the skin ends before ${point.up_in}in up on the ${side} side`, marks: [] };
+    const rise = up !== 0 ? walkContour(cut, start.point, (a, b) => (up > 0 ? a[0] > b[0] : a[0] < b[0]), byLength(Math.abs(up))) : [start.point];
+    if (!rise) return { ...point, blocked: `the skin ends before ${upIn}in up on the ${side} side`, marks: [] };
     const upPath = rise.map(([y, s]) => [base[0] + s * d[0], y, base[2]]);
     const top = upPath[upPath.length - 1];
     // forward: along the level section at that height, toward the front (+z)
     const section = sectionSegments(tri, top[1]);
     const on = onContour(section, [top[0], top[2]]);
-    if (!on.point || on.gap > SNAP_M) return { ...point, blocked: `no level section through the ${side} side ${point.up_in}in up`, marks: [] };
-    const ahead = forward > 0 ? walkContour(section, on.point, (a, b) => a[1] > b[1], byLength(forward)) : [on.point];
-    if (!ahead) return { ...point, blocked: `the section ends before ${point.forward_in}in forward on the ${side} side`, marks: [] };
+    if (!on.point || on.gap > SNAP_M) return { ...point, blocked: `no level section through the ${side} side ${upIn}in up`, marks: [] };
+    const ahead = forward !== 0 ? walkContour(section, on.point, (a, b) => (forward > 0 ? a[1] > b[1] : a[1] < b[1]), byLength(Math.abs(forward))) : [on.point];
+    if (!ahead) return { ...point, blocked: `the section ends before ${forwardIn}in forward on the ${side} side`, marks: [] };
     const forwardPath = ahead.map(([x, z]) => [x, top[1], z]);
     marks.push({
       side, from: base, top, point: forwardPath[forwardPath.length - 1],
-      up_m: polylineLength(upPath), forward_m: polylineLength(forwardPath),
+      up_m: Math.sign(up) * polylineLength(upPath), forward_m: Math.sign(forward) * polylineLength(forwardPath),
       up_path: upPath, forward_path: forwardPath,
     });
   }
-  return { ...point, blocked: null, marks };
+  return { ...point, up_in: upIn, forward_in: forwardIn, moved: Boolean(offsets), blocked: null, marks };
+}
+
+/** The inverse, for a point dragged on the skin at `q` on one side: the
+ *  { up_in, forward_in } that measurePoint walks to it -- back along the level
+ *  section through q to the upright cut through the landmark, then down (or
+ *  up) that cut to the landmark. Null if q is not somewhere the walk can reach. */
+export function pointOffsets(point, side, q, landmarks, tri) {
+  const base = landmarks?.[`${point.from.landmark}_${side}`];
+  if (!Array.isArray(base) || Math.sign(q[0]) !== Math.sign(base[0])) return null;
+  const section = sectionSegments(tri, q[1]);
+  const on = onContour(section, [q[0], q[2]]);
+  if (!on.point || on.gap > SNAP_M) return null;
+  let forward = 0;
+  if (Math.abs(on.point[1] - base[2]) > 1e-9) {
+    const ahead = on.point[1] > base[2];
+    const back = walkContour(section, on.point, (a, b) => (ahead ? a[1] < b[1] : a[1] > b[1]), byCoordinate(1, base[2]));
+    if (!back) return null;
+    const end = back[back.length - 1];
+    if (Math.sign(end[0]) !== Math.sign(base[0])) return null;
+    forward = (ahead ? 1 : -1) * polylineLength(back.map(([x, z]) => [x, q[1], z]));
+  }
+  const d = [Math.sign(base[0]) || 1, 0, 0];
+  const cut = uprightSegments(tri, base, d);
+  const start = onContour(cut, [base[1], 0]);
+  if (!start.point || start.gap > SNAP_M) return null;
+  let up = 0;
+  if (Math.abs(q[1] - start.point[0]) > 1e-9) {
+    const rising = q[1] > start.point[0];
+    const walk = walkContour(cut, start.point, (a, b) => (rising ? a[0] > b[0] : a[0] < b[0]), byCoordinate(0, q[1]));
+    if (!walk) return null;
+    up = (rising ? 1 : -1) * polylineLength(walk.map(([y, sv]) => [sv, y, 0]));
+  }
+  return { up_in: up / METRES_PER_INCH, forward_in: forward / METRES_PER_INCH };
 }
 
 /** Every declared point. */
-export function measurePoints(loaded, landmarks, tri) {
-  return (loaded.points || []).map((point) => measurePoint(point, landmarks, tri));
+export function measurePoints(loaded, landmarks, tri, offsets = {}) {
+  return (loaded.points || []).map((point) => measurePoint(point, landmarks, tri, offsets[point.id] || null));
 }

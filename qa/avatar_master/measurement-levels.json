@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T15:17:16Z",
+  "generated_at": "2026-09-27T15:36:45Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "810604b2d738fa3a1062097f044d4b54ca0dc62f918b46ffb09179d6fc9d222e"
+    "sha256": "fc0a75b7cef3aca2e2451ec1ef3cd02ce75d267c880605c9778c53b50eded091"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T15:16:12Z"
+    "generated_at": "2026-09-27T15:30:15Z"
   },
   "sheets": [
     {
@@ -402,18 +402,30 @@
       "handles": {
         "from": {
           "angle_deg": 0,
-          "length_mm": 40
+          "length_mm": 30
         },
         "to": {
           "angle_deg": 0,
-          "length_mm": 40
+          "length_mm": 11
         }
+      },
+      "through": {
+        "point": "POINT_WING_HIGH_UP_3_8_FWD_1_1_4"
       },
       "runs": [
         {
           "side": "L",
-          "length_mm": 119.2,
-          "shortest_path_mm": 119,
+          "length_mm": 124.6,
+          "shortest_path_mm": 123.9,
+          "legs_mm": [
+            91.1,
+            33.6
+          ],
+          "through_m": [
+            -0.15782,
+            1.36447,
+            0.02559
+          ],
           "from_m": [
             -0.11614,
             1.4312,
@@ -426,21 +438,30 @@
           ],
           "tips_m": {
             "from": [
-              -0.14824,
-              1.40774,
-              0.04643
+              -0.13997,
+              1.41219,
+              0.05559
             ],
             "to": [
-              -0.15912,
-              1.38263,
-              0.0232
+              -0.16036,
+              1.35809,
+              0.00466
             ]
           }
         },
         {
           "side": "R",
-          "length_mm": 119.2,
-          "shortest_path_mm": 119,
+          "length_mm": 124.6,
+          "shortest_path_mm": 123.9,
+          "legs_mm": [
+            91.1,
+            33.6
+          ],
+          "through_m": [
+            0.15782,
+            1.36447,
+            0.02559
+          ],
           "from_m": [
             0.11614,
             1.4312,
@@ -453,14 +474,14 @@
           ],
           "tips_m": {
             "from": [
-              0.14824,
-              1.40774,
-              0.04643
+              0.13997,
+              1.41219,
+              0.05559
             ],
             "to": [
-              0.15912,
-              1.38263,
-              0.0232
+              0.16036,
+              1.35809,
+              0.00466
             ]
           }
         }
@@ -475,7 +496,7 @@
       },
       "up_in": 0.375,
       "forward_in": 1.25,
-      "colour": "#e0761f",
+      "colour": "#1f6fe0",
       "blocked": null,
       "marks": [
         {
@@ -707,22 +728,27 @@
     {
       "name": "CURVE_CUP_ARMHOLE: from STRAP_MAXP2_CF_TO_CB front_outer to SIDE_WING_HIGH on each side, over the skin",
       "status": "PASS",
-      "detail": "L 119.2mm; R 119.2mm"
+      "detail": "L 124.6mm; R 124.6mm"
     },
     {
-      "name": "CURVE_CUP_ARMHOLE: with the contract's handles its length is the shortest path's within 1mm",
+      "name": "CURVE_CUP_ARMHOLE: with the contract's handles its length is the shortest path's through the point, within 2%",
       "status": "PASS",
-      "detail": "L 119.2mm vs shortest 119.0mm; R 119.2mm vs shortest 119.0mm"
+      "detail": "L 124.6mm vs shortest 123.9mm; R 124.6mm vs shortest 123.9mm"
+    },
+    {
+      "name": "CURVE_CUP_ARMHOLE: passes through POINT_WING_HIGH_UP_3_8_FWD_1_1_4 on each side, and follows it when it moves",
+      "status": "PASS",
+      "detail": "legs 91.1 + 33.6mm; moved 0.6in up, 0.8in forward: L 119.4mm, R 119.4mm"
     },
     {
       "name": "CURVE_CUP_ARMHOLE: each tangent lies on the skin and its tip reads back as its handle",
       "status": "PASS",
-      "detail": "from -0.02deg 39.57mm; to 0.00deg 40.00mm"
+      "detail": "from -0.00deg 30.00mm; to 0.00deg 11.00mm"
     },
     {
       "name": "CURVE_CUP_ARMHOLE: turning the handles reshapes both sides, mirrored, on the skin, and putting them back restores it",
       "status": "PASS",
-      "detail": "turned L 122.4mm, R 122.4mm; restored 119.2, 119.2mm"
+      "detail": "turned L 133.5mm, R 133.5mm; restored 124.6, 124.6mm"
     },
     {
       "name": "a tangent curve without a sound pair of handles is refused",
@@ -737,7 +763,12 @@
     {
       "name": "a point from an unknown landmark or with bad offsets is refused",
       "status": "PASS",
-      "detail": "P: from NOPE_L is not a registry landmark; from NOPE_R is not a registry landmark; up_in must be a number of inches, 0 or more; forward_in must be a number of i"
+      "detail": "P: from NOPE_L is not a registry landmark; from NOPE_R is not a registry landmark; up_in must be a number of inches; forward_in must be a number of inches; CURV"
+    },
+    {
+      "name": "POINT_WING_HIGH_UP_3_8_FWD_1_1_4: a place on the skin reads back as the offsets that reach it (for dragging)",
+      "status": "PASS",
+      "detail": "contract place and -0.2in up, 2.1in forward both read back"
     },
     {
       "name": "POINT_WING_HIGH_UP_3_8_FWD_1_1_4: 0.375in up the skin from SIDE_WING_HIGH, then 1.25in forward, on each side",
