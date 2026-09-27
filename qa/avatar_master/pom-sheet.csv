@@ -1,9 +1,9 @@
 ﻿Sheet,Avatar mesh measurements — NOT AN APPROVED MEASUREMENT RECORD
 Asset,assets/export/avatar_master.glb
 Asset SHA-256,8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c
-Registry SHA-256,0eeb33d1adddcce728e6f67903e801f4661bfafa54acb6268a2238427ebd098a
-Measured at,2026-09-27T11:49:59+00:00
-Sheet generated at,2026-09-27T11:50:11+00:00
+Registry SHA-256,df362d17acf4f16d5199f9db00913423584d32c8ca80ff9730a0e0c0df9f7904
+Measured at,2026-09-27T12:10:40+00:00
+Sheet generated at,2026-09-27T12:10:52+00:00
 Units,cm to 0.1; inch as a reduced fraction to the nearest 1/8
 Codes,PROVISIONAL — house POM codes not yet mapped; the internal id is shown
 Limit 1,"No soft-tissue compression allowance: these are loose-tape body dimensions, so a snug band measurement reads smaller."
@@ -18,9 +18,9 @@ BODY_UNDERBUST_GIRTH,BODY_UNDERBUST_GIRTH,Underbust girth,Vòng chân ngực,81.
 BODY_BUST_GIRTH,BODY_BUST_GIRTH,Bust girth,Vòng ngực,101.1,"39 3/4""",,1.0,plane_section,convex_hull / loose_body,auto,needs_review,"Open decision 1 in MEASUREMENT_PLAN.md. Measured at apex level per ISO, NOT at the largest girth found: on this body the maximum girth sits 20mm above the apex because the ribcage broadens toward the armpits, a 1.1cm difference from wording alone. DIAG_MAX_TORSO_GIRTH reports the other reading for comparison."
 BODY_APEX_TO_APEX,BODY_APEX_TO_APEX,Bust point to bust point,Khoảng cách hai đỉnh ngực,15.3,"6""",,1.0,euclidean,,auto,auto,
 BODY_BAND_FRONT_L,BODY_BAND_FRONT_L,"Band front, centre front to side (left)","Nửa trước dây ngực, trái",20.2,"7 7/8""",,1.0,section_arc,section_arc / loose_body,auto,auto,"Measured along the underbust section itself, not as a free shortest path: a band follows the underbust line, so the arc of that section is the right model here."
-BODY_UNDERARM_TO_FOLD_L,BODY_UNDERARM_TO_FOLD_L,"Wing height, underarm to the underbust side point (left)","Chiều cao cánh, trái",14.6,"5 3/4""",,1.0,surface_path,shortest_surface_path / loose_body,auto,auto,How tall the side wing has to be before it reaches the armhole.
+BODY_WING_HEIGHT_L,BODY_WING_HEIGHT_L,"Wing height, from 1 3/4in below the underbust to the max-girth level, at the side (left)","Chiều cao cánh, trái",13.7,"5 3/8""",,1.0,surface_path,shortest_surface_path / loose_body,auto,auto,"The shortest surface path up the side, from the side point 1 3/4in below the underbust fold to the side point of the max-girth section (house definition, 2026-09-27). It replaced underarm to the underbust side point."
 BODY_BAND_FRONT_R,BODY_BAND_FRONT_R,"Band front, centre front to side (right)","Nửa trước dây ngực, phải",20.2,"7 7/8""",,1.0,section_arc,section_arc / loose_body,auto,auto,"Measured along the underbust section itself, not as a free shortest path: a band follows the underbust line, so the arc of that section is the right model here."
-BODY_UNDERARM_TO_FOLD_R,BODY_UNDERARM_TO_FOLD_R,"Wing height, underarm to the underbust side point (right)","Chiều cao cánh, phải",14.6,"5 3/4""",,1.0,surface_path,shortest_surface_path / loose_body,auto,auto,How tall the side wing has to be before it reaches the armhole.
+BODY_WING_HEIGHT_R,BODY_WING_HEIGHT_R,"Wing height, from 1 3/4in below the underbust to the max-girth level, at the side (right)","Chiều cao cánh, phải",13.7,"5 3/8""",,1.0,surface_path,shortest_surface_path / loose_body,auto,auto,"The shortest surface path up the side, from the side point 1 3/4in below the underbust fold to the side point of the max-girth section (house definition, 2026-09-27). It replaced underarm to the underbust side point."
 BODY_UNDERBUST_TO_APEX_L,BODY_UNDERBUST_TO_APEX_L,"Cup depth, underbust to apex (left)","Chiều sâu cup, trái",8.6,"3 3/8""",,1.0,surface_path,shortest_surface_path / loose_body,auto,auto,"From the point on the underbust fold section directly below the apex, up to the apex, along the surface."
 BODY_UNDERBUST_TO_APEX_R,BODY_UNDERBUST_TO_APEX_R,"Cup depth, underbust to apex (right)","Chiều sâu cup, phải",8.6,"3 3/8""",,1.0,surface_path,shortest_surface_path / loose_body,auto,auto,
 

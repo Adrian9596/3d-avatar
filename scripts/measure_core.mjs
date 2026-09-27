@@ -264,8 +264,8 @@ export const POM_LANDMARKS = {
   BREAST_ROOT_ARC_R: ['ROOT_INNER_R', 'ROOT_OUTER_R', 'UNDERBUST_FOLD'],
   BODY_BAND_FRONT_L: ['UNDERBUST_FOLD', 'CF_UNDERBUST', 'SIDE_UNDERBUST_L'],
   BODY_BAND_FRONT_R: ['UNDERBUST_FOLD', 'CF_UNDERBUST', 'SIDE_UNDERBUST_R'],
-  BODY_UNDERARM_TO_FOLD_L: ['UNDERARM_L', 'SIDE_UNDERBUST_L'],
-  BODY_UNDERARM_TO_FOLD_R: ['UNDERARM_R', 'SIDE_UNDERBUST_R'],
+  BODY_WING_HEIGHT_L: ['UNDERBUST_FOLD', 'SIDE_WING_LOW_L', 'SIDE_WING_HIGH_L'],
+  BODY_WING_HEIGHT_R: ['UNDERBUST_FOLD', 'SIDE_WING_LOW_R', 'SIDE_WING_HIGH_R'],
 };
 
 export function pomProvenance(pomId, source) {
@@ -439,6 +439,29 @@ export function findFoldLandmarks(tri, foldY) {
   };
 }
 
+/** The outermost point in x on each side of one horizontal section — the rule
+ *  SIDE_UNDERBUST uses on the fold section, at any height. */
+export function sectionSidePoints(tri, y) {
+  let sideL = null;
+  let sideR = null;
+  for (const [x, z] of segmentPoints(sectionSegments(tri, y))) {
+    if (x < 0 && (!sideL || x < sideL[0])) sideL = [x, z];
+    if (x >= 0 && (!sideR || x > sideR[0])) sideR = [x, z];
+  }
+  const make = (p) => (p ? { x: p[0], y, z: p[1] } : null);
+  return { sideL: make(sideL), sideR: make(sideR) };
+}
+
+/** Ends of the wing height: the side points of the section `offsetIn` inches
+ *  from the underbust fold (below it when negative) and of the max-girth
+ *  section. `offsetIn` is the registry's SIDE_WING_LOW rule field. */
+export function findWingLandmarks(tri, marks, offsetIn) {
+  if (!marks || !marks.fold || !marks.maxGirth || !Number.isFinite(offsetIn)) return {};
+  const low = sectionSidePoints(tri, marks.fold.y + offsetIn * 0.0254);
+  const high = sectionSidePoints(tri, marks.maxGirth.y);
+  return { lowL: low.sideL, lowR: low.sideR, highL: high.sideL, highR: high.sideR };
+}
+
 /** Arc length along a horizontal section between two points on it. A band
  *  follows the underbust line, so the section's own arc is the right model —
  *  a free shortest path would cut a chord across it. */
@@ -564,9 +587,9 @@ export function computeSurfacePoms(grid, tri, marks, options = {}) {
     }
   }
 
-  // band front along the underbust line, and wing height up to the armhole
+  // band front along the underbust line, and wing height up the side
   const fold = options.foldLandmarks || {};
-  const armholes = options.armholes || {};
+  const wing = options.wing || {};
   if (marks.fold) {
     for (const side of ['L', 'R']) {
       const sidePoint = side === 'L' ? fold.sideL : fold.sideR;
@@ -574,12 +597,11 @@ export function computeSurfacePoms(grid, tri, marks, options = {}) {
         const arc = sectionArc(tri, marks.fold.y, fold.cfUnderbust, sidePoint);
         if (arc) out[`BODY_BAND_FRONT_${side}`] = { ...arc, at_y: marks.fold.y, onSurface: true };
       }
-      const armpit = side === 'L' ? armholes.armholeL : armholes.armholeR;
-      if (armpit && sidePoint) {
-        const result = run(armpit, sidePoint);
-        if (result) out[`BODY_UNDERARM_TO_FOLD_${side}`] = {
-          ...result, at_y: (armpit.y + sidePoint.y) / 2,
-        };
+      const low = side === 'L' ? wing.lowL : wing.lowR;
+      const high = side === 'L' ? wing.highL : wing.highR;
+      if (low && high) {
+        const result = run(low, high);
+        if (result) out[`BODY_WING_HEIGHT_${side}`] = { ...result, at_y: (low.y + high.y) / 2 };
       }
     }
   }

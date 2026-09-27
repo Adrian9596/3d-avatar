@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T11:50:13Z",
+  "generated_at": "2026-09-27T12:10:54Z",
   "purpose": "Asserts the Python authority pass and the JavaScript engine the viewer uses agree.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
@@ -8,7 +8,7 @@
   },
   "registry": {
     "file": "contracts/measurement-registry.json",
-    "sha256": "0eeb33d1adddcce728e6f67903e801f4661bfafa54acb6268a2238427ebd098a"
+    "sha256": "df362d17acf4f16d5199f9db00913423584d32c8ca80ff9730a0e0c0df9f7904"
   },
   "tolerance_mm": 0.5,
   "worst_delta_mm": 0.0311,
@@ -63,10 +63,10 @@
       "tolerance_mm": 0.5
     },
     {
-      "id": "BODY_UNDERARM_TO_FOLD_L",
-      "python_mm": 146.3,
-      "javascript_mm": 146.295,
-      "delta_mm": 0.005,
+      "id": "BODY_WING_HEIGHT_L",
+      "python_mm": 136.8,
+      "javascript_mm": 136.8264,
+      "delta_mm": 0.0264,
       "tolerance_mm": 0.5
     },
     {
@@ -77,10 +77,10 @@
       "tolerance_mm": 0.5
     },
     {
-      "id": "BODY_UNDERARM_TO_FOLD_R",
-      "python_mm": 146.3,
-      "javascript_mm": 146.295,
-      "delta_mm": 0.005,
+      "id": "BODY_WING_HEIGHT_R",
+      "python_mm": 136.8,
+      "javascript_mm": 136.8264,
+      "delta_mm": 0.0264,
       "tolerance_mm": 0.5
     },
     {
@@ -107,7 +107,7 @@
     {
       "name": "evidence matches the registry on disk",
       "status": "PASS",
-      "detail": "sha256 0eeb33d1addd…"
+      "detail": "sha256 df362d17acf4…"
     },
     {
       "name": "engine scan defaults match the registry",
@@ -175,9 +175,9 @@
       "detail": "python 201.6mm vs js 201.5765mm — Δ 0.023mm"
     },
     {
-      "name": "BODY_UNDERARM_TO_FOLD_L parity",
+      "name": "BODY_WING_HEIGHT_L parity",
       "status": "PASS",
-      "detail": "python 146.3mm vs js 146.295mm — Δ 0.005mm"
+      "detail": "python 136.8mm vs js 136.8264mm — Δ 0.026mm"
     },
     {
       "name": "BODY_BAND_FRONT_R parity",
@@ -185,9 +185,9 @@
       "detail": "python 201.6mm vs js 201.5765mm — Δ 0.023mm"
     },
     {
-      "name": "BODY_UNDERARM_TO_FOLD_R parity",
+      "name": "BODY_WING_HEIGHT_R parity",
       "status": "PASS",
-      "detail": "python 146.3mm vs js 146.295mm — Δ 0.005mm"
+      "detail": "python 136.8mm vs js 136.8264mm — Δ 0.026mm"
     },
     {
       "name": "BODY_UNDERBUST_TO_APEX_L parity",

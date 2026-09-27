@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T11:50:23Z",
+  "generated_at": "2026-09-27T12:11:04Z",
   "purpose": "The logic behind hand placement in the authoring lane: guided order, framing per landmark, the mirror offer, and the record a placed point carries.",
   "module": {
     "file": "scripts/landmark_placement.mjs",
@@ -230,6 +230,46 @@
       ],
       "distance_m": 0.6,
       "target_to_skin_mm": 0
+    },
+    {
+      "id": "SIDE_WING_LOW_L",
+      "target_m": [
+        -0.1367,
+        1.2206,
+        -0.0123
+      ],
+      "distance_m": 0.6,
+      "target_to_skin_mm": 0
+    },
+    {
+      "id": "SIDE_WING_LOW_R",
+      "target_m": [
+        0.1367,
+        1.2206,
+        -0.0123
+      ],
+      "distance_m": 0.6,
+      "target_to_skin_mm": 0
+    },
+    {
+      "id": "SIDE_WING_HIGH_L",
+      "target_m": [
+        -0.1604,
+        1.355,
+        -0.0059
+      ],
+      "distance_m": 0.6,
+      "target_to_skin_mm": 0
+    },
+    {
+      "id": "SIDE_WING_HIGH_R",
+      "target_m": [
+        0.1604,
+        1.355,
+        -0.0059
+      ],
+      "distance_m": 0.6,
+      "target_to_skin_mm": 0
     }
   ],
   "mirror_offer_example": {
@@ -276,7 +316,7 @@
     {
       "name": "every registry landmark has a framing",
       "status": "PASS",
-      "detail": "21 landmarks"
+      "detail": "25 landmarks"
     },
     {
       "name": "framing directions are unit and distances positive",
@@ -291,7 +331,7 @@
     {
       "name": "every framing pose respects the polar clamp",
       "status": "PASS",
-      "detail": "21 poses"
+      "detail": "25 poses"
     },
     {
       "name": "left and right framings mirror each other",

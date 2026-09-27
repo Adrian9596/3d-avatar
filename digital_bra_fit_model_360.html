@@ -252,7 +252,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 // The measurement engine is a shared module: the Node parity test imports this
 // same file, so "the viewer agrees with the test" holds by construction.
 import { DEFAULT_SCAN, measureSection, scanSurface, findLandmarks, computePoms, inchFraction,
-  applyLandmarkOverrides, pomProvenance, computeSurfacePoms, findArmholes,
+  applyLandmarkOverrides, pomProvenance, computeSurfacePoms, findArmholes, findWingLandmarks,
   findFoldLandmarks, sectionSegments, segmentPoints, isManualSource, sectionPointNearX } from './scripts/measure_core.mjs';
 import { buildGrid, closestOnMesh } from './scripts/surface_path.mjs';
 import { createPenTool } from './scripts/pen_tool.mjs';
@@ -417,7 +417,7 @@ let savedLandmarksJson='{}';   // what the last Save (or load) wrote, to mark un
 // exactly as long as a landmark is selected. Assigning placingLandmark
 // directly is how that pairing gets forgotten -- go through here.
 function setPlacingLandmark(id){placingLandmark=id||null;pen?.setSuspended(Boolean(placingLandmark));}
-let foldMarks={},armholes={};
+let foldMarks={},armholes={},wingMarks={};
 // Hand-placed landmarks are persisted per browser, and Save writes the file the
 // authority pass reads — a correction here becomes corrected evidence, not a
 // local illusion.
@@ -695,8 +695,11 @@ function recomputeMeasurements(elapsedMs){
   }
   foldMarks=marks&&marks.fold?findFoldLandmarks(torsoTris,marks.fold.y):{};
   poms=marks?computePoms(torsoTris,measureScan,marks):null;
+  // the wing runs up the side from its registry offset below the fold to the max-girth section
+  const wingRule=(registry.landmarks||[]).find(l=>l.id==='SIDE_WING_LOW_L')||{};
+  wingMarks=marks?findWingLandmarks(torsoTris,marks,wingRule.offset_in):{};
   if(poms&&measureGrid)Object.assign(poms,computeSurfacePoms(
-    measureGrid,torsoTris,marks,{hps,manualPoints,foldLandmarks:foldMarks,armholes}));
+    measureGrid,torsoTris,marks,{hps,manualPoints,foldLandmarks:foldMarks,wing:wingMarks}));
   const elapsed=elapsedMs??Math.round(performance.now()-started);
   recomputeLevels();          // before the table: it lists the levels drawn as tapes
   renderMeasurements(marks,poms,elapsed);
@@ -744,6 +747,10 @@ const LANDMARK_GROUPS=[
     {id:'CB_UNDERBUST',label:'Centre back',kind:'point'},
     {id:'SIDE_UNDERBUST_L',label:'Side point L',kind:'point'},
     {id:'SIDE_UNDERBUST_R',label:'Side point R',kind:'point'},
+    {id:'SIDE_WING_LOW_L',label:'Wing low L',kind:'point'},
+    {id:'SIDE_WING_LOW_R',label:'Wing low R',kind:'point'},
+    {id:'SIDE_WING_HIGH_L',label:'Wing top L',kind:'point'},
+    {id:'SIDE_WING_HIGH_R',label:'Wing top R',kind:'point'},
     {id:'UNDERARM_L',label:'Underarm L',kind:'point'},
     {id:'UNDERARM_R',label:'Underarm R',kind:'point'},
   ]},
@@ -778,6 +785,10 @@ function landmarkValue(id){
   if(id==='CB_UNDERBUST')return foldMarks.cbUnderbust;
   if(id==='SIDE_UNDERBUST_L')return foldMarks.sideL;
   if(id==='SIDE_UNDERBUST_R')return foldMarks.sideR;
+  if(id==='SIDE_WING_LOW_L')return wingMarks.lowL;
+  if(id==='SIDE_WING_LOW_R')return wingMarks.lowR;
+  if(id==='SIDE_WING_HIGH_L')return wingMarks.highL;
+  if(id==='SIDE_WING_HIGH_R')return wingMarks.highR;
   if(id==='UNDERARM_L')return armholes.armholeL;
   if(id==='UNDERARM_R')return armholes.armholeR;
   return null;

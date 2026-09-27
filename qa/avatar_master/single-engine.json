@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T11:50:24Z",
+  "generated_at": "2026-09-27T12:11:05Z",
   "purpose": "Static guard that the one app reaches every measurement through the shared engine and reimplements none of it.",
-  "registry_sha256": "0eeb33d1adddcce728e6f67903e801f4661bfafa54acb6268a2238427ebd098a",
+  "registry_sha256": "df362d17acf4f16d5199f9db00913423584d32c8ca80ff9730a0e0c0df9f7904",
   "checks": [
     {
       "name": "the app reads the registry from contracts/, not a copy of its own",
       "status": "PASS",
-      "detail": "sha256 0eeb33d1addd… — fetched at runtime, copied verbatim into dist/"
+      "detail": "sha256 df362d17acf4… — fetched at runtime, copied verbatim into dist/"
     },
     {
       "name": "the app imports the shared measurement engine",

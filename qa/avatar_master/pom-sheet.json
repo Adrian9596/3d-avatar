@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T11:50:11+00:00",
+  "generated_at": "2026-09-27T12:10:52+00:00",
   "source": "scripts/export_pom_sheet.py from qa/avatar_master/measurements.json",
   "asset": {
     "file": "assets/export/avatar_master.glb",
@@ -12,10 +12,10 @@
   },
   "registry": {
     "file": "contracts/measurement-registry.json",
-    "sha256": "0eeb33d1adddcce728e6f67903e801f4661bfafa54acb6268a2238427ebd098a",
+    "sha256": "df362d17acf4f16d5199f9db00913423584d32c8ca80ff9730a0e0c0df9f7904",
     "schema_version": 1
   },
-  "measured_at": "2026-09-27T11:49:59+00:00",
+  "measured_at": "2026-09-27T12:10:40+00:00",
   "provisional_codes": true,
   "landmark_overrides": {
     "file": null,
@@ -104,19 +104,19 @@
       "Notes": "Measured along the underbust section itself, not as a free shortest path: a band follows the underbust line, so the arc of that section is the right model here."
     },
     {
-      "POM code": "BODY_UNDERARM_TO_FOLD_L",
-      "Internal id": "BODY_UNDERARM_TO_FOLD_L",
-      "Point of measure": "Wing height, underarm to the underbust side point (left)",
+      "POM code": "BODY_WING_HEIGHT_L",
+      "Internal id": "BODY_WING_HEIGHT_L",
+      "Point of measure": "Wing height, from 1 3/4in below the underbust to the max-girth level, at the side (left)",
       "Điểm đo": "Chiều cao cánh, trái",
-      "cm": "14.6",
-      "inch": "5 3/4\"",
+      "cm": "13.7",
+      "inch": "5 3/8\"",
       "ml": "",
       "Tol (mm)": 1.0,
       "Method": "surface_path",
       "Tape": "shortest_surface_path / loose_body",
       "Landmark source": "auto",
       "Status": "auto",
-      "Notes": "How tall the side wing has to be before it reaches the armhole."
+      "Notes": "The shortest surface path up the side, from the side point 1 3/4in below the underbust fold to the side point of the max-girth section (house definition, 2026-09-27). It replaced underarm to the underbust side point."
     },
     {
       "POM code": "BODY_BAND_FRONT_R",
@@ -134,19 +134,19 @@
       "Notes": "Measured along the underbust section itself, not as a free shortest path: a band follows the underbust line, so the arc of that section is the right model here."
     },
     {
-      "POM code": "BODY_UNDERARM_TO_FOLD_R",
-      "Internal id": "BODY_UNDERARM_TO_FOLD_R",
-      "Point of measure": "Wing height, underarm to the underbust side point (right)",
+      "POM code": "BODY_WING_HEIGHT_R",
+      "Internal id": "BODY_WING_HEIGHT_R",
+      "Point of measure": "Wing height, from 1 3/4in below the underbust to the max-girth level, at the side (right)",
       "Điểm đo": "Chiều cao cánh, phải",
-      "cm": "14.6",
-      "inch": "5 3/4\"",
+      "cm": "13.7",
+      "inch": "5 3/8\"",
       "ml": "",
       "Tol (mm)": 1.0,
       "Method": "surface_path",
       "Tape": "shortest_surface_path / loose_body",
       "Landmark source": "auto",
       "Status": "auto",
-      "Notes": "How tall the side wing has to be before it reaches the armhole."
+      "Notes": "The shortest surface path up the side, from the side point 1 3/4in below the underbust fold to the side point of the max-girth section (house definition, 2026-09-27). It replaced underarm to the underbust side point."
     },
     {
       "POM code": "BODY_UNDERBUST_TO_APEX_L",
