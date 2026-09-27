@@ -40,7 +40,7 @@
     "root": { "label_en": "Cup root", "colour": "#c8860f", "comment": "Across the lower breast between the fold and the apex; the sheets draw these in orange." },
     "datum": { "label_en": "Underbust line", "colour": "#1f1f24", "comment": "The unlabelled black 0 line." },
     "lower": { "label_en": "Band and below", "colour": "#8a6ad0", "comment": "Below the fold toward the waist; violet on the sheets." },
-    "requested": { "label_en": "Requested", "colour": "#1f8a70", "comment": "Heights the house asked for on top of the sheets' stack. Drawn in their own colour so they are never read as part of the printed protocol." }
+    "requested": { "label_en": "Requested", "colour": "#d93a2b", "comment": "Heights the house asked for on top of the sheets' stack. Drawn in the tape red, as tapes in the measurement table too, and never in a sheet colour, so they are not read as part of the printed protocol." }
   },
   "levels": [
     { "id": "LVL_P4_1_4", "offset_in": 4.25, "label_in": "+4 1/4\"", "group": "upper" },

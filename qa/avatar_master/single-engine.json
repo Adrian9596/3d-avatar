@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T11:37:12Z",
+  "generated_at": "2026-09-27T11:43:18Z",
   "purpose": "Static guard that the one app reaches every measurement through the shared engine and reimplements none of it.",
   "registry_sha256": "0eeb33d1adddcce728e6f67903e801f4661bfafa54acb6268a2238427ebd098a",
   "checks": [

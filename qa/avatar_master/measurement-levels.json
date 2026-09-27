@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T11:37:11Z",
+  "generated_at": "2026-09-27T11:43:18Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "0f852b0098f98c4e8a454290f8176a3bb3a2240c85648a7350fed169a4c52316"
+    "sha256": "4350b27a4054a327f2ab16544e2c2e54e56d0357b48a0a85252218324ae5d783"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T11:36:44Z"
+    "generated_at": "2026-09-27T11:42:48Z"
   },
   "sheets": [
     {
