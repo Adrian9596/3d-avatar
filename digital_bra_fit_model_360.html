@@ -845,7 +845,9 @@ function saveCurveHandles(){
 function syncCurveState(){
   prototypeState.curves=measuredCurves.map(c=>({id:c.id,kind:c.kind,blocked:c.blocked,
     handles:c.handles?Object.fromEntries(Object.entries(c.handles).map(([end,h])=>[end,{angle_deg:+h.angle_deg.toFixed(1),length_mm:+h.length_mm.toFixed(1)}])):null,
-    length_mm:Object.fromEntries(c.runs.map(r=>[r.side,+(r.length_m*1000).toFixed(1)]))}));
+    length_mm:Object.fromEntries(c.runs.map(r=>[r.side,+(r.length_m*1000).toFixed(1)])),
+    // where each tangent's dot is, for automated checks
+    tips_m:Object.fromEntries(c.runs.filter(r=>r.tangents).map(r=>[r.side,Object.fromEntries(r.tangents.map(t=>[t.end,t.tip.map(v=>+v.toFixed(5))]))]))}));
   prototypeState.points=measuredPoints.map(p=>({id:p.id,blocked:p.blocked,moved:Boolean(p.moved),
     up_in:+(p.up_in??0).toFixed(3),forward_in:+(p.forward_in??0).toFixed(3),
     at_m:Object.fromEntries((p.marks||[]).map(m=>[m.side,m.point.map(v=>+v.toFixed(4))]))}));
