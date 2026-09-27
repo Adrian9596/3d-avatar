@@ -268,7 +268,10 @@ gate.record('every declared tick validates',
   loaded.ticks.length === (contract.ticks || []).length,
   `${loaded.ticks.length} tick(s): ${loaded.ticks.map((t) => `${t.id} on ${t.on}`).join(', ') || 'none'}`);
 const ticks = measureTicks(loaded, measured, tapes, ctx.tri);
+// the torso's middle in z at the tape height: halfway between the section's front and back
+const midZOf = (y) => { const sec = measureSection(ctx.tri, y) || null; const zs = sec ? sec.ring.map((p) => p[1]) : [0]; return (Math.max(...zs) + Math.min(...zs)) / 2; };
 for (const tick of ticks) {
+  const midZ = midZOf(heightOf(tick.on));
   const len = (m) => Math.hypot(...m.points[2].map((v, i) => v - m.points[0][i]));
   const along = (m) => m.points[2].map((v, i) => v - m.points[0][i]);
   const ok = !tick.blocked && tick.marks.length === 2
@@ -276,10 +279,13 @@ for (const tick of ticks) {
       && Math.abs(len(m) - tick.length_mm / 1000) < 1e-9
       && Math.abs(m.point[1] - heightOf(tick.on)) < 1e-12
       && m.points[1].every((v, i) => v === m.point[i]))
-    && Math.abs(tick.marks[0].point[0] + tick.marks[1].point[0]) < 1e-5;
+    && Math.abs(tick.marks[0].point[0] + tick.marks[1].point[0]) < 1e-5
+    // on the side of the body it was anchored to
+    // on the half of the body it is anchored to: in front of the torso's middle, or behind it
+    && tick.marks.every((m) => (tick.anchor === 'centre_front' ? m.point[2] > midZ : m.point[2] < midZ));
   // right angles to the tape: no component along the section's tangent at the mark
   const worst = Math.max(...tick.marks.map((m) => Math.abs(along(m).reduce((sum, v, i) => sum + v * m.tangent[i], 0)) / len(m)));
-  gate.record(`${tick.id}: ${tick.length_mm}mm marks across ${tick.on}, ${tick.offset_in}in from centre back each way along it`,
+  gate.record(`${tick.id}: ${tick.length_mm}mm marks across ${tick.on}, ${tick.offset_in}in from ${tick.anchor.replace('_', ' ')} each way along it`,
     ok && worst < 1e-9,
     tick.blocked || tick.marks.map((m) => `${m.side} at x = ${(m.point[0] * 1000).toFixed(1)}mm, arc ${(m.arc_m * 1000).toFixed(2)}mm, ${(len(m) * 1000).toFixed(2)}mm long`).join('; ') + `; cos to the tape ${worst.toExponential(1)}`);
 }

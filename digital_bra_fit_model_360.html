@@ -645,13 +645,14 @@ function renderReferenceTapeRows(fromId,tbody){
 
 /* Tick marks ("ticks" in contracts/measurement-levels.json): short marks in
    their own colour across a tape, the row giving the distance from centre back
-   each side, measured along the tape. */
+   (or front) each side, measured along the tape. */
 function renderTickRow(tick,tbody){
   const den=registry.reporting.inch_denominator;
   const on=(measuredTapes.find(t=>t.id===tick.on)||{}).label||tick.on;
-  const label=`${on} ticks`;
+  const front=tick.anchor==='centre_front';
+  const label=`${on} ticks ${front?'CF':'CB'}`;
   const tr=document.createElement('tr');
-  tr.title=`${tick.length_mm}mm marks across ${on}, ${tick.offset_in}" from centre back on each side, measured along the tape.`;
+  tr.title=`${tick.length_mm}mm marks across ${on}, ${inchFraction(tick.offset_in*0.0254,den)} from centre ${front?'front':'back'} on each side, measured along the tape.`;
   if(tick.blocked){
     tr.className='landmark';
     tr.innerHTML=`<td>${label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;

@@ -81,9 +81,10 @@
   ],
   "lines_note": "A line straight down the centre back from the Max +2in tape to the -1 1/2in ring (asked for 2026-09-27): the body cut by the centre plane x = 0, followed on the skin between the two centre-back points, so its length is what a tape laid down the spine reads. The straight chord between the ends is reported beside it.",
   "ticks": [
-    { "id": "TICK_MAXP2_CB_4IN", "on": "TAPE_MAXGIRTH_P2", "anchor": "centre_back", "offset_in": 4, "length_mm": 5, "colour": "#1f6fe0" }
+    { "id": "TICK_MAXP2_CB_4IN", "on": "TAPE_MAXGIRTH_P2", "anchor": "centre_back", "offset_in": 4, "length_mm": 5, "colour": "#1f6fe0" },
+    { "id": "TICK_MAXP2_CF_4_3_8IN", "on": "TAPE_MAXGIRTH_P2", "anchor": "centre_front", "offset_in": 4.375, "length_mm": 5, "colour": "#1f6fe0" }
   ],
-  "ticks_note": "Blue marks 5mm long across the Max +2in tape, 4in from its centre back on each side (asked for 2026-09-27). The 4in is walked along the tape's own section on the back; each mark crosses the tape at right angles on the skin and is centred on it.",
+  "ticks_note": "Blue marks 5mm long across the Max +2in tape (asked for 2026-09-27): 4in from its centre back on each side, and 4 3/8in from its centre front on each side. The distance is walked along the tape's own section (on the back, or on the front); each mark crosses the tape at right angles on the skin and is centred on it.",
   "trace": {
     "evidence": "qa/avatar_master/measurement-levels-trace.json",
     "tool": "scripts/trace_measurement_levels.py",

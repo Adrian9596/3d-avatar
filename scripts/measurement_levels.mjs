@@ -131,7 +131,7 @@ export function loadLevels(contract, registry) {
     const problems = [];
     if (!tick.id || heightIds.has(tick.id) || shapeIds.has(tick.id) || lines.some((l) => l.id === tick.id) || ticks.some((t) => t.id === tick.id)) problems.push('missing or duplicate id');
     if (!heightIds.has(tick.on)) problems.push(`on ${tick.on} is not a valid level or reference tape`);
-    if (tick.anchor !== 'centre_back') problems.push(`unknown anchor ${tick.anchor}`);
+    if (!['centre_back', 'centre_front'].includes(tick.anchor)) problems.push(`unknown anchor ${tick.anchor}`);
     if (!(Number.isFinite(tick.offset_in) && tick.offset_in > 0)) problems.push('offset_in must be a positive number');
     if (!(Number.isFinite(tick.length_mm) && tick.length_mm > 0)) problems.push('length_mm must be a positive number');
     if (!/^#[0-9a-f]{6}$/i.test(tick.colour || '')) problems.push('colour must be #rrggbb');
@@ -272,14 +272,15 @@ function verticalSegments(tri, x) {
   return segments;
 }
 
-// Where a contour crosses u = `u` (the back-most crossing: least v), or null.
-function backCrossing(segments, u) {
+// Where a contour crosses u = `u` (the back-most crossing: least v; the
+// front-most with `front`), or null.
+function backCrossing(segments, u, front = false) {
   let best = null;
   for (const [a, b] of segments) {
     if ((a[0] - u > 0) === (b[0] - u > 0) || a[0] === b[0]) continue;
     const s = (u - a[0]) / (b[0] - a[0]);
     const v = a[1] + (b[1] - a[1]) * s;
-    if (!best || v < best[1]) best = [u, v];
+    if (!best || (front ? v > best[1] : v < best[1])) best = [u, v];
   }
   return best;
 }
@@ -506,7 +507,7 @@ export function measureLines(loaded, measured, tapes, tri) {
 
 /* --- tick marks ------------------------------------------------------------------
    A short mark across a level or tape, `offset_in` along it from its centre back
-   on each side (walked on the section, as a tape measures). The mark crosses the
+   (or centre front) on each side (walked on the section, as a tape measures). The mark crosses the
    tape at right angles on the skin: its direction is the surface's own, taken
    from the section's tangent and the vertical cut through the point, and it is
    centred on the tape. ------------------------------------------------------------ */
@@ -519,8 +520,9 @@ export function measureTick(tick, heights, tri) {
   const y = heights[tick.on];
   if (!Number.isFinite(y)) return { ...tick, blocked: `needs ${tick.on}`, marks: [] };
   const section = sectionSegments(tri, y);
-  const cb = backCrossing(section, 0);
-  if (!cb) return { ...tick, blocked: 'no centre back on that section', marks: [] };
+  const front = tick.anchor === 'centre_front';
+  const cb = backCrossing(section, 0, front);
+  if (!cb) return { ...tick, blocked: `no ${front ? 'centre front' : 'centre back'} on that section`, marks: [] };
   const along = tick.offset_in * METRES_PER_INCH;
   const half = tick.length_mm / 2000;
   const marks = [];
@@ -549,7 +551,7 @@ export function measureTick(tick, heights, tri) {
       normal: unit(normal),
     });
   }
-  return { ...tick, blocked: null, y_m: y, centre_back: [0, y, cb[1]], marks };
+  return { ...tick, blocked: null, y_m: y, anchor_point: [0, y, cb[1]], marks };
 }
 
 /** Every declared tick, on the heights of the measured levels and tapes. */
