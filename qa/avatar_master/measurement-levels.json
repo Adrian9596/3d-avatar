@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T14:52:55Z",
+  "generated_at": "2026-09-27T15:17:16Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "5b4790be72e4c6a4d61b573bb5519749d8764bfc2dd8ff72b847f52f776ede92"
+    "sha256": "810604b2d738fa3a1062097f044d4b54ca0dc62f918b46ffb09179d6fc9d222e"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T14:52:31Z"
+    "generated_at": "2026-09-27T15:16:12Z"
   },
   "sheets": [
     {
@@ -467,6 +467,40 @@
       ]
     }
   ],
+  "points": [
+    {
+      "id": "POINT_WING_HIGH_UP_3_8_FWD_1_1_4",
+      "from": {
+        "landmark": "SIDE_WING_HIGH"
+      },
+      "up_in": 0.375,
+      "forward_in": 1.25,
+      "colour": "#e0761f",
+      "blocked": null,
+      "marks": [
+        {
+          "side": "L",
+          "point_m": [
+            -0.15782,
+            1.36447,
+            0.02559
+          ],
+          "up_mm": 9.53,
+          "forward_mm": 31.75
+        },
+        {
+          "side": "R",
+          "point_m": [
+            0.15782,
+            1.36447,
+            0.02559
+          ],
+          "up_mm": 9.53,
+          "forward_mm": 31.75
+        }
+      ]
+    }
+  ],
   "declared_limits": [
     "Reference levels are heights from the underbust line, not a fit recommendation and not a size.",
     "The figure on the source sheets is not this avatar; only the protocol transfers, never a dimension.",
@@ -694,6 +728,21 @@
       "name": "a tangent curve without a sound pair of handles is refused",
       "status": "PASS",
       "detail": "CURVE_CUP_ARMHOLE: handles.from.angle_deg must be a number of degrees; handles.to.length_mm must be a positive number"
+    },
+    {
+      "name": "every declared point validates",
+      "status": "PASS",
+      "detail": "1 point(s): POINT_WING_HIGH_UP_3_8_FWD_1_1_4 0.375in up, 1.25in forward from SIDE_WING_HIGH_L/R"
+    },
+    {
+      "name": "a point from an unknown landmark or with bad offsets is refused",
+      "status": "PASS",
+      "detail": "P: from NOPE_L is not a registry landmark; from NOPE_R is not a registry landmark; up_in must be a number of inches, 0 or more; forward_in must be a number of i"
+    },
+    {
+      "name": "POINT_WING_HIGH_UP_3_8_FWD_1_1_4: 0.375in up the skin from SIDE_WING_HIGH, then 1.25in forward, on each side",
+      "status": "PASS",
+      "detail": "L at (-157.8, 1364.5, 25.6)mm, up 9.53mm, forward 31.75mm; R at (157.8, 1364.5, 25.6)mm, up 9.53mm, forward 31.75mm"
     }
   ],
   "decision": "LEVELS_RESOLVE_ON_THIS_BODY"

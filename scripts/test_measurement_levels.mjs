@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, levelsRecord, outOfRange,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, measurePoints, levelsRecord, outOfRange,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -389,6 +389,33 @@ gate.record('a tangent curve without a sound pair of handles is refused',
   (contract.curves || []).length === 0 || (brokenHandles.curves.length === 0 && brokenHandles.errors.some((e) => /handles\.from\.angle_deg/.test(e) && /handles\.to\.length_mm/.test(e))),
   brokenHandles.errors.join('; ').slice(0, 160));
 
+// ---- 10. points offset from a landmark -------------------------------------------------
+gate.record('every declared point validates',
+  loaded.points.length === (contract.points || []).length,
+  `${loaded.points.length} point(s): ${loaded.points.map((p) => `${p.id} ${p.up_in}in up, ${p.forward_in}in forward from ${p.from.landmark}_L/R`).join(', ') || 'none'}`);
+const brokenPoint = loadLevels({ ...contract, points: [{ id: 'P', kind: 'offset_on_skin', from: { landmark: 'NOPE' }, up_in: -1, forward_in: 'x', colour: '#000000', label: 'p' }] }, ctx.registry);
+gate.record('a point from an unknown landmark or with bad offsets is refused',
+  brokenPoint.points.length === 0 && brokenPoint.errors.some((e) => /NOPE_L/.test(e) && /up_in/.test(e) && /forward_in/.test(e)),
+  brokenPoint.errors.join('; ').slice(0, 160));
+const points = measurePoints(loaded, ctx.landmarks, ctx.tri);
+for (const point of points) {
+  const up = point.up_in * METRES_PER_INCH, forward = point.forward_in * METRES_PER_INCH;
+  const skin = (p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; };
+  const ok = !point.blocked && point.marks.length === 2
+    && point.marks.every((m) => {
+      const base = ctx.landmarks[`${point.from.landmark}_${m.side}`];
+      // up the side in the plane z = the landmark's, then level; both legs on the skin, at their lengths
+      return Math.abs(m.up_m - up) < 1e-6 && Math.abs(m.forward_m - forward) < 1e-6
+        && m.up_path.every((q) => q[2] === base[2]) && m.forward_path.every((q) => q[1] === m.top[1])
+        && m.top[1] > base[1] && m.point[2] > m.top[2]
+        && [...m.up_path, ...m.forward_path].every(skin);
+    })
+    && Math.hypot(point.marks[0].point[0] + point.marks[1].point[0], point.marks[0].point[1] - point.marks[1].point[1], point.marks[0].point[2] - point.marks[1].point[2]) < 1e-4;
+  gate.record(`${point.id}: ${point.up_in}in up the skin from ${point.from.landmark}, then ${point.forward_in}in forward, on each side`,
+    ok,
+    point.blocked || point.marks.map((m) => `${m.side} at (${m.point.map((v) => (v * 1000).toFixed(1)).join(', ')})mm, up ${(m.up_m * 1000).toFixed(2)}mm, forward ${(m.forward_m * 1000).toFixed(2)}mm`).join('; '));
+}
+
 // ---- evidence ---------------------------------------------------------------
 const body = {
   purpose: 'The house "how to measure" level stack, read off the source sheets and resolved on this avatar.',
@@ -455,6 +482,10 @@ const body = {
       from_m: r.from.map((v) => Number(v.toFixed(5))), to_m: r.to.map((v) => Number(v.toFixed(5))),
       ...(r.tangents ? { tips_m: Object.fromEntries(r.tangents.map((t) => [t.end, t.tip.map((v) => Number(v.toFixed(5)))])) } : {}),
     })),
+  })),
+  points: points.map((p) => ({
+    id: p.id, from: p.from, up_in: p.up_in, forward_in: p.forward_in, colour: p.colour, blocked: p.blocked,
+    marks: p.marks.map((m) => ({ side: m.side, point_m: m.point.map((v) => Number(v.toFixed(5))), up_mm: Number((m.up_m * 1000).toFixed(2)), forward_mm: Number((m.forward_m * 1000).toFixed(2)) })),
   })),
   declared_limits: contract.declared_limits,
 };

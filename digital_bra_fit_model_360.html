@@ -277,7 +277,7 @@ import { draftMesh, draftPieces, flattenDraft, draftSummary, draftExport, SEAM_T
    The module resolves and measures them through the SAME section engine the
    POMs use, so a level and a POM can never disagree about the same slice; this
    file only draws what it returns. */
-import { loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, levelLabel } from './scripts/measurement_levels.mjs';
+import { loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, measurePoints, levelLabel } from './scripts/measurement_levels.mjs';
 /* The vertical half of the same frame: centre, side and apex curves plus the
    four lines this mesh is cut on, declared in contracts/body-grid.json. Every
    rule in it is an extreme or an exact feature, never a threshold, and a curve
@@ -410,7 +410,7 @@ const REGISTRY_URL='contracts/measurement-registry.json';
 let registry=null,registrySha=null,torsoTris=null,measureScan=[],tapeGroup=null,templates=[];
 let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
 let sectionOpen=false,sectionGroup=null;
-let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,measuredShapes=[],measuredTapes=[],measuredLines=[],measuredTicks=[],measuredStraps=[],measuredCurves=[],levelLabelEls=[];
+let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,measuredShapes=[],measuredTapes=[],measuredLines=[],measuredTicks=[],measuredStraps=[],measuredCurves=[],measuredPoints=[],levelLabelEls=[];
 let gridContract=null,gridVisible=false,gridGroup=null,gridCurves=null,gridBounds=null,lmLabelEls=[];
 try{gridVisible=localStorage.getItem('gridVisible')==='1'}catch(error){/* private mode */}
 try{levelsVisible=localStorage.getItem('levelsVisible')==='1'}catch(error){/* private mode */}
@@ -568,6 +568,16 @@ function redrawTapes(){
         tapeGroup.add(makeLine(pts,{color,width:1.6,opacity:.25,depthTest:false,order:3}));
       }
     }
+    // a point's dots, a little larger when its row is selected
+    for(const p of row.dots||[]){
+      const at=lift([p])[0];
+      const dot=new THREE.Mesh(new THREE.SphereGeometry(selected?0.0042:0.0032,16,12),new THREE.MeshBasicMaterial({color}));
+      dot.position.copy(at);tapeGroup.add(dot);
+      if(selected){
+        const ghost=new THREE.Mesh(new THREE.SphereGeometry(0.0042,16,12),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.3,depthTest:false}));
+        ghost.position.copy(at);ghost.renderOrder=3;tapeGroup.add(ghost);
+      }
+    }
     // a shaped curve's two tangent handles: a dashed line to a dot you drag
     if(selected&&row.tangents)for(const t of row.tangents){
       const pts=lift(t.points);
@@ -666,7 +676,36 @@ function renderReferenceTapeRows(fromId,tbody){
   for(const strap of measuredStraps.filter(s=>tickIds.has(s.from))){
     renderStrapRow(strap,tbody);
     for(const curve of measuredCurves.filter(c=>c.from.strap===strap.id))renderCurveRows(curve,tbody);
+    // points hung on the landmark the armhole ends at follow it
+    const ends=new Set(measuredCurves.filter(c=>c.from.strap===strap.id).map(c=>c.to.landmark));
+    for(const point of measuredPoints.filter(p=>ends.has(p.from.landmark)))renderPointRow(point,tbody);
   }
+}
+
+/* A point offset from a landmark ("points" in contracts/measurement-levels.json):
+   drawn as a dot on each side; the row gives the two legs, up then forward, and
+   where the point is on hover. */
+function renderPointRow(point,tbody){
+  const den=registry.reporting.inch_denominator;
+  const tr=document.createElement('tr');
+  const inch=v=>inchFraction(v*0.0254,den).replace(/^0 /,'');
+  const legs=`${inch(point.up_in)} up the skin from ${point.from.landmark}_L/R, then ${inch(point.forward_in)} forward along the level section.`;
+  tr.title=`A point ${legs}`;
+  if(point.blocked){
+    tr.className='landmark';
+    tr.innerHTML=`<td>${point.label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;
+    tr.title+=' '+point.blocked;
+    tbody.appendChild(tr);
+    return;
+  }
+  const m=point.marks[0];
+  tr.title+=' '+point.marks.map(k=>`${k.side} at x ${CM(k.point[0])}, y ${CM(k.point[1])}, z ${CM(k.point[2])} cm`).join('; ')
+    +`. On the skin: up ${CM(m.up_m)} cm, forward ${CM(m.forward_m)} cm.`;
+  tr.setAttribute('aria-selected','false');
+  tr.innerHTML=`<td><span style="color:${point.colour}">●</span> ${point.label}</td><td class="val"></td><td class="in"></td>`;
+  selectableTape(tr,tbody);
+  tbody.appendChild(tr);
+  measureRowData.push({label:point.label,paths:[],dots:point.marks.map(k=>k.point),color:parseInt(point.colour.slice(1),16)});
 }
 
 /* A curve from a strap corner to a landmark ("curves" in
@@ -1325,8 +1364,8 @@ function recomputeLevels(){
   measuredStraps=levelContract&&torsoTris?measureStraps(levelContract,measuredLevels,measuredTapes,measuredTicks,torsoTris):[];
   // curves end on a registry landmark on each side (the wing top, say), as the table places it
   const curveMarks={};
-  for(const curve of levelContract?.curves||[])for(const side of ['L','R']){
-    const id=`${curve.to.landmark}_${side}`,p=landmarkValue(id);
+  for(const landmark of [...(levelContract?.curves||[]).map(c=>c.to.landmark),...(levelContract?.points||[]).map(p=>p.from.landmark)])for(const side of ['L','R']){
+    const id=`${landmark}_${side}`,p=landmarkValue(id);
     if(p&&Number.isFinite(p.x))curveMarks[id]=[p.x,p.y,p.z];
   }
   measuredCurves=levelContract&&measureGrid?measureCurves(levelContract,measuredStraps,curveMarks,measureGrid,curveHandles):[];
@@ -1336,6 +1375,7 @@ function recomputeLevels(){
     measuredCurves=measureCurves(levelContract,measuredStraps,curveMarks,measureGrid,curveHandles);
   }
   syncCurveState();
+  measuredPoints=levelContract&&torsoTris?measurePoints(levelContract,curveMarks,torsoTris):[];
   drawLevels();
   renderLevelList();
 }
