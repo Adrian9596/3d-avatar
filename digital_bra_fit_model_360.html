@@ -639,6 +639,7 @@ function renderTapeLevelRows(tbody){
     tbody.appendChild(tr);
     measureRowData.push({label,section:level.section});
     for(const shape of measuredShapes.filter(s=>s.level===level.id))renderShapeRow(shape,tbody);
+    for(const line of measuredLines.filter(l=>l.from===level.id))renderLineRow(line,tbody);
   }
 }
 
@@ -672,9 +673,9 @@ function renderReferenceTapeRows(fromId,tbody){
     tbody.appendChild(tr);
     measureRowData.push(tape.section?{label:tape.label,section:tape.section}:{label:tape.label,paths:tape.chains});
   }
-  // centre-back lines that start on one of these tapes follow them
+  // lines that start on one of these tapes (or on the POM itself) follow them
   const ids=new Set(tapes.map(t=>t.id));
-  for(const line of measuredLines.filter(l=>ids.has(l.from)))renderLineRow(line,tbody);
+  for(const line of measuredLines.filter(l=>ids.has(l.from)||l.from===fromId))renderLineRow(line,tbody);
   for(const tick of measuredTicks.filter(t=>ids.has(t.on)))renderTickRow(tick,tbody);
   const tickIds=new Set(measuredTicks.filter(t=>ids.has(t.on)).map(t=>t.id));
   for(const strap of measuredStraps.filter(s=>tickIds.has(s.from))){
@@ -911,13 +912,15 @@ function renderTickRow(tick,tbody){
   measureRowData.push({label,paths:tick.marks.map(m=>m.points),color:parseInt(tick.colour.slice(1),16)});
 }
 
-/* A centre-back line ("lines" in contracts/measurement-levels.json): its length
-   down the back along the skin; the straight chord is on hover. */
+/* A centre-back or centre-front line ("lines" in contracts/measurement-levels.json):
+   its length down the back (up the front) along the skin; the straight chord is
+   on hover. */
 function renderLineRow(line,tbody){
   const den=registry.reporting.inch_denominator;
   const tr=document.createElement('tr');
-  const label='CB line';
-  tr.title=line.label+': straight down the centre back, measured along the skin.';
+  const front=line.kind==='centre_front';
+  const label=front?'CF line':'CB line';
+  tr.title=line.label+(front?': straight up the centre front':': straight down the centre back')+', measured along the skin.';
   if(line.blocked){
     tr.className='landmark';
     tr.innerHTML=`<td>${label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;
@@ -1412,7 +1415,7 @@ function recomputeLevels(){
   const heights=Object.fromEntries(Object.entries(poms||{}).map(([id,r])=>[id,r.at_y]));
   measuredTapes=levelContract&&torsoTris?measureReferenceTapes(levelContract,heights,torsoTris,{
     scan:registry.scan,maxY:levelContract.max_y_m,inchDenominator:registry.reporting.inch_denominator}):[];
-  measuredLines=levelContract&&torsoTris?measureLines(levelContract,measuredLevels,measuredTapes,torsoTris):[];
+  measuredLines=levelContract&&torsoTris?measureLines(levelContract,measuredLevels,measuredTapes,torsoTris,heights):[];
   measuredTicks=levelContract&&torsoTris?measureTicks(levelContract,measuredLevels,measuredTapes,torsoTris):[];
   measuredStraps=levelContract&&torsoTris?measureStraps(levelContract,measuredLevels,measuredTapes,measuredTicks,torsoTris):[];
   // curves end on a registry landmark on each side (the wing top, say), as the table places it

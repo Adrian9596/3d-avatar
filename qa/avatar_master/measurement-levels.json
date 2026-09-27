@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T15:36:45Z",
+  "generated_at": "2026-09-27T16:43:00Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "fc0a75b7cef3aca2e2451ec1ef3cd02ce75d267c880605c9778c53b50eded091"
+    "sha256": "80286077eaad012fa957a1adbb962f53e1cc6dc09ab0d297858b2b7d7bf70459"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T15:30:15Z"
+    "generated_at": "2026-09-27T16:41:56Z"
   },
   "sheets": [
     {
@@ -235,6 +235,7 @@
   "lines": [
     {
       "id": "LINE_CB_MAXP2_TO_M1_1_2",
+      "kind": "centre_back",
       "from": "TAPE_MAXGIRTH_P2",
       "to": "LVL_M1_1_2",
       "blocked": null,
@@ -249,6 +250,26 @@
         0,
         1.2269,
         -0.09632
+      ]
+    },
+    {
+      "id": "LINE_CF_M1_3_4_TO_MAXGIRTH",
+      "kind": "centre_front",
+      "from": "LVL_M1_3_4",
+      "to": "DIAG_MAX_TORSO_GIRTH",
+      "blocked": null,
+      "length_mm": 135.1,
+      "chord_mm": 134.5,
+      "tape_in_front_mm": 33.3,
+      "top_m": [
+        0,
+        1.355,
+        0.10073
+      ],
+      "bottom_m": [
+        0,
+        1.22055,
+        0.10378
       ]
     }
   ],
@@ -678,12 +699,27 @@
     {
       "name": "every declared line validates",
       "status": "PASS",
-      "detail": "1 line(s): LINE_CB_MAXP2_TO_M1_1_2 TAPE_MAXGIRTH_P2 -> LVL_M1_1_2"
+      "detail": "2 line(s): LINE_CB_MAXP2_TO_M1_1_2 centre_back TAPE_MAXGIRTH_P2 -> LVL_M1_1_2, LINE_CF_M1_3_4_TO_MAXGIRTH centre_front LVL_M1_3_4 -> DIAG_MAX_TORSO_GIRTH"
+    },
+    {
+      "name": "a line of an unknown kind or to an unknown height is refused",
+      "status": "PASS",
+      "detail": "L: unknown kind sideways; to NOPE is not a valid level, reference tape or plane-section POM"
     },
     {
       "name": "LINE_CB_MAXP2_TO_M1_1_2: on the centre back from TAPE_MAXGIRTH_P2 down to LVL_M1_1_2, along the skin",
       "status": "PASS",
       "detail": "y 1.4058 -> 1.2269m, 182.8mm on the skin, chord 181.0mm"
+    },
+    {
+      "name": "LINE_CF_M1_3_4_TO_MAXGIRTH: on the centre front up from LVL_M1_3_4 to DIAG_MAX_TORSO_GIRTH, along the skin",
+      "status": "PASS",
+      "detail": "y 1.3550 -> 1.2205m, 135.1mm on the skin, chord 134.5mm"
+    },
+    {
+      "name": "LINE_CF_M1_3_4_TO_MAXGIRTH: ends on the skin at DIAG_MAX_TORSO_GIRTH's height, behind (never in front of) that tape",
+      "status": "PASS",
+      "detail": "the DIAG_MAX_TORSO_GIRTH tape crosses the centre front 33.3mm in front of the line's end"
     },
     {
       "name": "every declared tick validates",
