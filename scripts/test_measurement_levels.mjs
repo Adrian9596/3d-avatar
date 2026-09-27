@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, levelsRecord, outOfRange,
+  loadLevels, resolveLevels, measureLevels, measureShapes, levelsRecord, outOfRange,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -194,6 +194,36 @@ gate.record('the record of a stack that cannot resolve carries the need and the 
   Array.isArray(record.needs) && record.limit === LEVELS_LIMIT,
   `needs ${record.needs?.join(', ')}`);
 
+// ---- 4. reference shapes ------------------------------------------------------
+// A shape is laid on the skin like a tape: the bottom edge along its level's
+// ring, centred on centre back, the sides up the back for the height. Both are
+// held to the declared inches; the top edge is measured, not forced.
+gate.record('every declared shape validates on a valid level',
+  loaded.shapes.length === (contract.shapes || []).length,
+  `${loaded.shapes.length} shape(s): ${loaded.shapes.map((s) => `${s.id} on ${s.level}`).join(', ') || 'none'}`);
+const brokenShape = loadLevels({ ...contract, shapes: [{ id: 'S', kind: 'rectangle', level: 'NOPE', anchor: 'centre_back', width_in: 0, height_in: 1 }] }, ctx.registry);
+gate.record('a shape on an unknown level or with no width is refused',
+  brokenShape.shapes.length === 0 && brokenShape.errors.some((e) => /level NOPE/.test(e) && /width_in/.test(e)),
+  brokenShape.errors.join('; ').slice(0, 160));
+const shapes = measureShapes(loaded, measured, ctx.tri);
+const SHAPE_TOL_M = 1e-6;
+for (const shape of shapes) {
+  const level = measured.levels.find((l) => l.id === shape.level);
+  const ok = !shape.blocked
+    && Math.abs(shape.corners.bottom_l[1] - level.y_m) < 1e-12 && Math.abs(shape.corners.bottom_r[1] - level.y_m) < 1e-12
+    && Math.abs(shape.bottom_width_m - shape.width_m) < SHAPE_TOL_M
+    && Math.abs(shape.side_height_m.l - shape.height_m) < SHAPE_TOL_M && Math.abs(shape.side_height_m.r - shape.height_m) < SHAPE_TOL_M
+    && shape.centre_back[0] === 0;
+  gate.record(`${shape.id}: stands on ${level.label_in} at centre back, ${shape.width_in}in along the ring and ${shape.height_in}in up the skin`,
+    ok,
+    shape.blocked || `bottom ${(shape.bottom_width_m * 1000).toFixed(2)}mm, sides ${(shape.side_height_m.l * 1000).toFixed(2)}/${(shape.side_height_m.r * 1000).toFixed(2)}mm, top edge ${(shape.top_width_m * 1000).toFixed(2)}mm at y = ${shape.y_top_m.toFixed(4)}m`);
+  // the bottom midpoint is centre back: the two bottom corners mirror through x = 0
+  const [bl, br] = [shape.corners.bottom_l, shape.corners.bottom_r];
+  gate.record(`${shape.id}: the bottom edge is centred on centre back`,
+    !shape.blocked && Math.abs(bl[0] + br[0]) < 1e-5 && Math.abs(bl[2] - br[2]) < 1e-5,
+    `corners at x = ${(bl[0] * 1000).toFixed(2)} / ${(br[0] * 1000).toFixed(2)}mm`);
+}
+
 // ---- evidence ---------------------------------------------------------------
 const body = {
   purpose: 'The house "how to measure" level stack, read off the source sheets and resolved on this avatar.',
@@ -207,6 +237,17 @@ const body = {
   })),
   datum: { landmark: loaded.datum, y_m: Number(resolved.datum_y_m.toFixed(5)), source: 'auto' },
   levels: levelsRecord(measured, loaded).levels,
+  shapes: shapes.map((s) => ({
+    id: s.id, level: s.level, width_in: s.width_in, height_in: s.height_in, blocked: s.blocked,
+    ...(s.blocked ? {} : {
+      bottom_width_mm: Number((s.bottom_width_m * 1000).toFixed(2)),
+      side_height_mm: Number((s.side_height_m.l * 1000).toFixed(2)),
+      top_width_mm: Number((s.top_width_m * 1000).toFixed(2)),
+      y_bottom_m: Number(s.y_bottom_m.toFixed(5)),
+      y_top_m: Number(s.y_top_m.toFixed(5)),
+      corners_m: Object.fromEntries(Object.entries(s.corners).map(([k, p]) => [k, p.map((v) => Number(v.toFixed(5)))])),
+    }),
+  })),
   declared_limits: contract.declared_limits,
 };
 

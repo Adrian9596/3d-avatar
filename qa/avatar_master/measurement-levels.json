@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T12:31:01Z",
+  "generated_at": "2026-09-27T12:44:00Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "1adaa9710ec8264e09ca850bf3b53b931206aa68f6ddada7b9571e14a3dd689f"
+    "sha256": "c5a1f4be538c087d9de0e39cdab79d7b468bfc46aeb5e9e3656e9af6eb44f2a0"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T11:49:57Z"
+    "generated_at": "2026-09-27T12:43:02Z"
   },
   "sheets": [
     {
@@ -170,6 +170,42 @@
       "blocked": null
     }
   ],
+  "shapes": [
+    {
+      "id": "RECT_CB_M1_3_4",
+      "level": "LVL_M1_3_4",
+      "width_in": 1.75,
+      "height_in": 2.875,
+      "blocked": null,
+      "bottom_width_mm": 44.45,
+      "side_height_mm": 73.03,
+      "top_width_mm": 43.55,
+      "y_bottom_m": 1.22055,
+      "y_top_m": 1.29146,
+      "corners_m": {
+        "bottom_l": [
+          -0.02163,
+          1.22055,
+          -0.10003
+        ],
+        "bottom_r": [
+          0.02163,
+          1.22055,
+          -0.10003
+        ],
+        "top_r": [
+          0.02163,
+          1.29146,
+          -0.11746
+        ],
+        "top_l": [
+          -0.02163,
+          1.29146,
+          -0.11746
+        ]
+      }
+    }
+  ],
   "declared_limits": [
     "Reference levels are heights from the underbust line, not a fit recommendation and not a size.",
     "The figure on the source sheets is not this avatar; only the protocol transfers, never a dimension.",
@@ -226,7 +262,7 @@
     {
       "name": "a duplicate id, an off-grid offset or an unknown group is refused",
       "status": "PASS",
-      "detail": "X: 0.3in is not a quarter of an inch; unknown group nope; X: missing or duplicate id; expected exactly one level at 0in, found 0"
+      "detail": "X: 0.3in is not a quarter of an inch; unknown group nope; X: missing or duplicate id; expected exactly one level at 0in, found 0; RECT_CB_M1_3_4: level LVL_M1_3"
     },
     {
       "name": "every level resolves from the detected datum",
@@ -282,6 +318,26 @@
       "name": "the record of a stack that cannot resolve carries the need and the limit",
       "status": "PASS",
       "detail": "needs UNDERBUST_FOLD"
+    },
+    {
+      "name": "every declared shape validates on a valid level",
+      "status": "PASS",
+      "detail": "1 shape(s): RECT_CB_M1_3_4 on LVL_M1_3_4"
+    },
+    {
+      "name": "a shape on an unknown level or with no width is refused",
+      "status": "PASS",
+      "detail": "S: level NOPE is not a valid level; width_in must be a positive number"
+    },
+    {
+      "name": "RECT_CB_M1_3_4: stands on -1 3/4\" at centre back, 1.75in along the ring and 2.875in up the skin",
+      "status": "PASS",
+      "detail": "bottom 44.45mm, sides 73.03/73.03mm, top edge 43.55mm at y = 1.2915m"
+    },
+    {
+      "name": "RECT_CB_M1_3_4: the bottom edge is centred on centre back",
+      "status": "PASS",
+      "detail": "corners at x = -21.63 / 21.63mm"
     }
   ],
   "decision": "LEVELS_RESOLVE_ON_THIS_BODY"

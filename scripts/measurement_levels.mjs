@@ -26,7 +26,7 @@
  * disagree about the same slice of the same body.
  */
 
-import { measureSection, inchFraction } from './measure_core.mjs';
+import { measureSection, sectionSegments, inchFraction } from './measure_core.mjs';
 
 export const METRES_PER_INCH = 0.0254;
 export const LEVELS_LIMIT = 'Reference levels are heights from the underbust line, not a fit recommendation and not a size.';
@@ -77,8 +77,27 @@ export function loadLevels(contract, registry) {
   if (zeros.length !== 1) errors.push(`expected exactly one level at 0in, found ${zeros.length}`);
   else if (zeros[0].label_in !== null) errors.push('the 0 level is the sheets\' unlabelled ring: label_in must be null');
 
+  // Reference shapes hang on a level the way the tapes do; a shape on a level
+  // that did not validate has nothing to stand on and drops out with it.
+  const shapes = [];
+  const shapeIds = new Set();
+  for (const shape of contract?.shapes || []) {
+    const problems = [];
+    if (!shape.id || shapeIds.has(shape.id) || ids.has(shape.id)) problems.push('missing or duplicate id');
+    shapeIds.add(shape.id);
+    if (shape.kind !== 'rectangle') problems.push(`unknown kind ${shape.kind}`);
+    if (!levels.some((l) => l.id === shape.level)) problems.push(`level ${shape.level} is not a valid level`);
+    if (shape.anchor !== 'centre_back') problems.push(`unknown anchor ${shape.anchor}`);
+    for (const key of ['width_in', 'height_in']) {
+      if (!(Number.isFinite(shape[key]) && shape[key] > 0)) problems.push(`${key} must be a positive number`);
+    }
+    if (problems.length) errors.push(`${shape.id || '?'}: ${problems.join('; ')}`);
+    else shapes.push(shape);
+  }
+
   return {
     levels,
+    shapes,
     groups,
     datum,
     errors,
@@ -172,4 +191,161 @@ export function levelsRecord(measured, loaded, provenance = 'auto') {
     })),
     limit: loaded.declared_limit,
   };
+}
+
+/* --- reference shapes --------------------------------------------------------
+   A rectangle laid on the skin the way a tape would lay it: every side is
+   measured along the surface, not across it. The bottom edge runs along the
+   level's own section, half the width each way from the centre-back point;
+   the sides run straight up the back in the vertical planes through those two
+   corners for the height; the top edge follows the section at the height the
+   sides reach. On a mirrored body both sides reach the same height. The top
+   edge is not forced to the width: its measured length is reported, so a back
+   that narrows says so. ------------------------------------------------------ */
+
+// The body cut by the vertical plane x = `x`, as [[y, z], [y, z]] segments.
+function verticalSegments(tri, x) {
+  const segments = [];
+  for (let t = 0; t < tri.length; t += 9) {
+    const ax = tri[t], bx = tri[t + 3], cx = tri[t + 6];
+    if ((ax < x && bx < x && cx < x) || (ax > x && bx > x && cx > x)) continue;
+    const hits = [];
+    for (let e = 0; e < 3; e++) {
+      const i = t + e * 3;
+      const j = t + ((e + 1) % 3) * 3;
+      const d0 = tri[i] - x;
+      const d1 = tri[j] - x;
+      if ((d0 > 0) !== (d1 > 0)) {
+        const s = d0 / (d0 - d1);
+        hits.push([tri[i + 1] + (tri[j + 1] - tri[i + 1]) * s, tri[i + 2] + (tri[j + 2] - tri[i + 2]) * s]);
+      }
+    }
+    if (hits.length === 2) segments.push([hits[0], hits[1]]);
+  }
+  return segments;
+}
+
+// Where a contour crosses u = `u` (the back-most crossing: least v), or null.
+function backCrossing(segments, u) {
+  let best = null;
+  for (const [a, b] of segments) {
+    if ((a[0] - u > 0) === (b[0] - u > 0) || a[0] === b[0]) continue;
+    const s = (u - a[0]) / (b[0] - a[0]);
+    const v = a[1] + (b[1] - a[1]) * s;
+    if (!best || v < best[1]) best = [u, v];
+  }
+  return best;
+}
+
+/* Walk a contour from `from` (a point on it), first toward the end of its
+   segment that `ahead` prefers, until `stop(a, b)` returns where along the step
+   a -> b to end (0..1) or null to keep going. Returns the points walked, or null
+   if the contour ends first. */
+function walkContour(segments, from, ahead, stop) {
+  const key = (p) => `${Math.round(p[0] * 1e6)},${Math.round(p[1] * 1e6)}`;
+  const nodes = new Map();
+  const node = (p) => {
+    const k = key(p);
+    if (!nodes.has(k)) nodes.set(k, { p, next: [] });
+    return nodes.get(k);
+  };
+  let start = null;
+  let startGap = Infinity;
+  for (const [a, b] of segments) {
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) <= 0) continue;
+    const na = node(a), nb = node(b);
+    na.next.push(nb);
+    nb.next.push(na);
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const s = Math.max(0, Math.min(1, ((from[0] - a[0]) * dx + (from[1] - a[1]) * dy) / (dx * dx + dy * dy)));
+    const gap = Math.hypot(a[0] + dx * s - from[0], a[1] + dy * s - from[1]);
+    if (gap < startGap) { startGap = gap; start = [na, nb]; }
+  }
+  if (!start || startGap > 1e-6) return null;
+  let current = ahead(start[0].p, start[1].p) ? start[0] : start[1];
+  let previous = current === start[0] ? start[1] : start[0];
+  const points = [from];
+  let at = from;
+  for (let guard = 0; guard < nodes.size + 2; guard++) {
+    const t = stop(at, current.p);
+    if (t !== null) {
+      points.push([at[0] + (current.p[0] - at[0]) * t, at[1] + (current.p[1] - at[1]) * t]);
+      return points;
+    }
+    points.push(current.p);
+    at = current.p;
+    const options = current.next.filter((n) => n !== previous);
+    if (!options.length) return null;
+    previous = current;
+    current = options[0];
+  }
+  return null;
+}
+
+const byLength = (length) => {
+  let left = length;
+  return (a, b) => {
+    const step = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (step >= left) return left / step;
+    left -= step;
+    return null;
+  };
+};
+const byCoordinate = (index, target) => (a, b) => {
+  if ((a[index] - target) * (b[index] - target) > 0) return null;
+  return a[index] === b[index] ? 1 : (target - a[index]) / (b[index] - a[index]);
+};
+const polylineLength = (pts) => pts.reduce((sum, p, i) => (i ? sum + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1], p[2] - pts[i - 1][2]) : 0), 0);
+
+/** One reference rectangle on this body, from a measured level. Returns
+ *  { outline: closed [x,y,z] polyline, corners, top_width_m, ... } or
+ *  { blocked } with the reason. */
+export function measureShape(shape, level, tri) {
+  const base = { ...shape, width_m: shape.width_in * METRES_PER_INCH, height_m: shape.height_in * METRES_PER_INCH };
+  if (!level || !Number.isFinite(level.y_m)) return { ...base, blocked: `level ${shape.level} is not on this body` };
+  const y0 = level.y_m;
+  const half = base.width_m / 2;
+  const bottom = sectionSegments(tri, y0);
+  const cb = backCrossing(bottom, 0);
+  if (!cb) return { ...base, blocked: 'no centre back on the level section' };
+  // bottom edge: half the width each way along the section from centre back
+  const toR = walkContour(bottom, cb, (a, b) => a[0] > b[0], byLength(half));
+  const toL = walkContour(bottom, cb, (a, b) => a[0] < b[0], byLength(half));
+  if (!toR || !toL) return { ...base, blocked: 'the level section ends before the bottom corners' };
+  const side = (corner) => {
+    const up = walkContour(verticalSegments(tri, corner[0]), [y0, corner[1]], (a, b) => a[0] > b[0], byLength(base.height_m));
+    return up ? up.map(([y, z]) => [corner[0], y, z]) : null;
+  };
+  const sideR = side(toR[toR.length - 1]);
+  const sideL = side(toL[toL.length - 1]);
+  if (!sideR || !sideL) return { ...base, blocked: 'the back ends before the height' };
+  const topR = sideR[sideR.length - 1], topL = sideL[sideL.length - 1];
+  const y1 = (topR[1] + topL[1]) / 2;
+  const top = sectionSegments(tri, y1);
+  const cbTop = backCrossing(top, 0);
+  const topToR = cbTop && walkContour(top, cbTop, (a, b) => a[0] > b[0], byCoordinate(0, topR[0]));
+  const topToL = cbTop && walkContour(top, cbTop, (a, b) => a[0] < b[0], byCoordinate(0, topL[0]));
+  if (!topToR || !topToL) return { ...base, blocked: 'no top edge at the height the sides reach' };
+  const at = (y) => ([x, z]) => [x, y, z];
+  const bottomEdge = [...toL.slice().reverse(), ...toR.slice(1)].map(at(y0));
+  const topEdge = [...topToL.slice().reverse(), ...topToR.slice(1)].map(at(y1));
+  const outline = [...bottomEdge, ...sideR.slice(1), ...topEdge.slice().reverse().slice(1), ...sideL.slice().reverse().slice(1)];
+  return {
+    ...base,
+    blocked: null,
+    y_bottom_m: y0,
+    y_top_m: y1,
+    corners: { bottom_l: bottomEdge[0], bottom_r: bottomEdge[bottomEdge.length - 1], top_r: topEdge[topEdge.length - 1], top_l: topEdge[0] },
+    centre_back: [0, y0, cb[1]],
+    bottom_width_m: polylineLength(bottomEdge),
+    top_width_m: polylineLength(topEdge),
+    side_height_m: { l: polylineLength(sideL), r: polylineLength(sideR) },
+    outline,
+  };
+}
+
+/** Every declared shape on the measured levels. */
+export function measureShapes(loaded, measured, tri) {
+  if (!measured || measured.needs) return [];
+  return (loaded.shapes || []).map((shape) => measureShape(shape, measured.levels.find((l) => l.id === shape.level), tri));
 }

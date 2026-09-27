@@ -59,6 +59,18 @@
   ],
   "levels_note": "Fourteen rings: thirteen printed values and the unlabelled 0. The sheets draw nothing across the bust apex — the gap between +1 1/4in and +3 1/2in is the sheets', not an omission here. The printed values are the authority; the pixel trace is the check on them.",
   "tape_note": "A level with \"tape\": true is also drawn as a red tape, with a row under the underbust in the measurement table, wherever the POM tapes are (asked for 2026-09-27 for -1 1/2in and -1 3/4in). It stays a level, not a POM: the girth is the section at that height, with no house code and no POM-sheet row.",
+  "shapes": [
+    {
+      "id": "RECT_CB_M1_3_4",
+      "kind": "rectangle",
+      "level": "LVL_M1_3_4",
+      "anchor": "centre_back",
+      "width_in": 1.75,
+      "height_in": 2.875,
+      "label_en": "Centre-back rectangle, 1 3/4in wide and 2 7/8in tall, standing on the -1 3/4in level",
+      "comment": "Asked for 2026-09-27: the midpoint of the bottom edge is the centre back of the -1 3/4in ring. Every side is measured along the skin, as a tape would lie: the bottom edge along the ring, the sides straight up the back, the top edge along the section the sides reach (its own length is reported, not forced). Drawn in red with a row under the -1 3/4in tape. A reference shape, not a POM: no house code, no POM-sheet row."
+    }
+  ],
   "trace": {
     "evidence": "qa/avatar_master/measurement-levels-trace.json",
     "tool": "scripts/trace_measurement_levels.py",

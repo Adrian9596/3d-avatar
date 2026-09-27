@@ -274,7 +274,7 @@ import { draftMesh, draftPieces, flattenDraft, draftSummary, draftExport, SEAM_T
    The module resolves and measures them through the SAME section engine the
    POMs use, so a level and a POM can never disagree about the same slice; this
    file only draws what it returns. */
-import { loadLevels, resolveLevels, measureLevels, levelLabel } from './scripts/measurement_levels.mjs';
+import { loadLevels, resolveLevels, measureLevels, measureShapes, levelLabel } from './scripts/measurement_levels.mjs';
 /* The vertical half of the same frame: centre, side and apex curves plus the
    four lines this mesh is cut on, declared in contracts/body-grid.json. Every
    rule in it is an extreme or an exact feature, never a threshold, and a curve
@@ -407,7 +407,7 @@ const REGISTRY_URL='contracts/measurement-registry.json';
 let registry=null,registrySha=null,torsoTris=null,measureScan=[],tapeGroup=null,templates=[];
 let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
 let sectionOpen=false,sectionGroup=null;
-let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,levelLabelEls=[];
+let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,measuredShapes=[],levelLabelEls=[];
 let gridContract=null,gridVisible=false,gridGroup=null,gridCurves=null,gridBounds=null,lmLabelEls=[];
 try{gridVisible=localStorage.getItem('gridVisible')==='1'}catch(error){/* private mode */}
 try{levelsVisible=localStorage.getItem('levelsVisible')==='1'}catch(error){/* private mode */}
@@ -599,7 +599,34 @@ function renderTapeLevelRows(tbody){
     selectableTape(tr,tbody);
     tbody.appendChild(tr);
     measureRowData.push({label,section:level.section});
+    for(const shape of measuredShapes.filter(s=>s.level===level.id))renderShapeRow(shape,tbody);
   }
+}
+
+/* A reference shape declared on a tape level (contracts/measurement-levels.json
+   "shapes"), drawn as its red outline with a row under that level. The row gives
+   the declared size; the top edge is measured along the skin, and its own
+   length is on hover. */
+function renderShapeRow(shape,tbody){
+  const tr=document.createElement('tr');
+  const label='CB rect';
+  const den=registry.reporting.inch_denominator;
+  tr.title=shape.label_en+'.';
+  if(shape.blocked){
+    tr.className='landmark';
+    tr.innerHTML=`<td>${label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;
+    tr.title+=' '+shape.blocked;
+    tbody.appendChild(tr);
+    return;
+  }
+  tr.title+=` Bottom ${CM(shape.bottom_width_m)} cm along the ring, sides ${CM(shape.side_height_m.l)} cm up the back,`
+    +` top edge ${CM(shape.top_width_m)} cm (${inchFraction(shape.top_width_m,den)}) along the section they reach.`;
+  tr.setAttribute('aria-selected','false');
+  tr.innerHTML=`<td>${label}</td><td class="val">${CM(shape.width_m)}×${CM(shape.height_m)}</td>`
+    +`<td class="in">${inchFraction(shape.width_m,den).replace('"','')}×${inchFraction(shape.height_m,den)}</td>`;
+  selectableTape(tr,tbody);
+  tbody.appendChild(tr);
+  measureRowData.push({label,path:shape.outline});
 }
 
 function renderMeasurements(marks,poms,elapsedMs){
@@ -1049,6 +1076,7 @@ function recomputeLevels(){
     measuredLevels=resolved.needs?resolved:measureLevels(resolved,torsoTris,{
       scan:registry.scan,maxY:levelContract.max_y_m,inchDenominator:registry.reporting.inch_denominator});
   }
+  measuredShapes=levelContract&&torsoTris?measureShapes(levelContract,measuredLevels,torsoTris):[];
   drawLevels();
   renderLevelList();
 }
