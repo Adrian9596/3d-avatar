@@ -1,5 +1,7 @@
 # Measurement & Annotation Plan — `avatar_master`
 
+> **2026-09-27:** the avatar was replaced by the refined size-L torso (see `contracts/avatar-asset-contract.md`). Figures quoted here were measured on the previous CLO3D mesh (`0caa604b…`) unless a section says otherwise; the current ones are in `qa/avatar_master/`.
+
 Status: **proposal for review**. Nothing here is an approved measurement record.
 Written 2026-09-04 against `assets/export/avatar_master.glb`
 (SHA-256 `0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4`).

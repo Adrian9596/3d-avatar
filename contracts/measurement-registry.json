@@ -85,13 +85,13 @@
       "id": "HPS_L",
       "label_en": "High point shoulder, left",
       "rule": "manual_only",
-      "comment": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
+      "comment": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 on the previous CLO3D torso (replaced 2026-09-27) 35mm gave x=-37.4mm/y=1593.1mm, 45mm gave -45.2/1589.2, 90mm gave -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
     },
     {
       "id": "HPS_R",
       "label_en": "High point shoulder, right",
       "rule": "manual_only",
-      "comment": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
+      "comment": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 on the previous CLO3D torso (replaced 2026-09-27) 35mm gave x=-37.4mm/y=1593.1mm, 45mm gave -45.2/1589.2, 90mm gave -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced."
     },
     {
       "id": "ROOT_INNER_L",
@@ -180,6 +180,40 @@
       "rule": "armhole_boundary_lowest_point",
       "side": "x_positive",
       "comment": "See UNDERARM_L."
+    },
+    {
+      "id": "SIDE_WING_LOW_L",
+      "label_en": "Wing height, lower point (left): side of the -1 3/4in section, 1/2in forward",
+      "rule": "offset_section_extreme_x",
+      "from": "UNDERBUST_FOLD",
+      "offset_in": -1.75,
+      "side": "x_negative",
+      "comment": "The outermost point in x, on its side, of the section 1 3/4in below the underbust fold (the rule SIDE_UNDERBUST uses on the fold section), then 1/2in toward the front along that section's own contour, as a tape would be moved (house definition, 2026-09-27). Both distances are this rule's own fields; they are not read from the reference levels, which are not measurements.",
+      "forward_in": 0.5
+    },
+    {
+      "id": "SIDE_WING_LOW_R",
+      "label_en": "Wing height, lower point (right): side of the -1 3/4in section, 1/2in forward",
+      "rule": "offset_section_extreme_x",
+      "from": "UNDERBUST_FOLD",
+      "offset_in": -1.75,
+      "side": "x_positive",
+      "comment": "See SIDE_WING_LOW_L.",
+      "forward_in": 0.5
+    },
+    {
+      "id": "SIDE_WING_HIGH_L",
+      "label_en": "Wing height, upper side point (left)",
+      "rule": "max_girth_section_extreme_x",
+      "side": "x_negative",
+      "comment": "The outermost point in x, on its side, of the section of largest girth (the height DIAG_MAX_TORSO_GIRTH is taken at). An extreme of an extreme: no threshold."
+    },
+    {
+      "id": "SIDE_WING_HIGH_R",
+      "label_en": "Wing height, upper side point (right)",
+      "rule": "max_girth_section_extreme_x",
+      "side": "x_positive",
+      "comment": "See SIDE_WING_HIGH_L."
     }
   ],
   "poms": [
@@ -287,8 +321,8 @@
       "comment": "Measured along the underbust section itself, not as a free shortest path: a band follows the underbust line, so the arc of that section is the right model here."
     },
     {
-      "id": "BODY_UNDERARM_TO_FOLD_L",
-      "label_en": "Wing height, underarm to the underbust side point (left)",
+      "id": "BODY_WING_HEIGHT_L",
+      "label_en": "Wing height, from 1 3/4in below the underbust to the max-girth level, at the side (left)",
       "label_vi": "Chi\u1ec1u cao c\u00e1nh, tr\u00e1i",
       "label_short": "Wing height L",
       "standard": "house POM, over the surface",
@@ -296,14 +330,14 @@
       "tape_model": "shortest_surface_path",
       "tape_tension": "loose_body",
       "landmarks": [
-        "UNDERARM_L",
-        "SIDE_UNDERBUST_L"
+        "SIDE_WING_LOW_L",
+        "SIDE_WING_HIGH_L"
       ],
       "surface": "torso",
       "tolerance_mm": 1.0,
       "status": "auto",
       "house_code": null,
-      "comment": "How tall the side wing has to be before it reaches the armhole."
+      "comment": "The shortest surface path from the lower wing point (the side point 1 3/4in below the underbust fold, moved 1/2in forward along that section) to the side point of the max-girth section (house definition, 2026-09-27). It replaced underarm to the underbust side point."
     },
     {
       "id": "BODY_BAND_FRONT_R",
@@ -326,8 +360,8 @@
       "comment": "Measured along the underbust section itself, not as a free shortest path: a band follows the underbust line, so the arc of that section is the right model here."
     },
     {
-      "id": "BODY_UNDERARM_TO_FOLD_R",
-      "label_en": "Wing height, underarm to the underbust side point (right)",
+      "id": "BODY_WING_HEIGHT_R",
+      "label_en": "Wing height, from 1 3/4in below the underbust to the max-girth level, at the side (right)",
       "label_vi": "Chi\u1ec1u cao c\u00e1nh, ph\u1ea3i",
       "label_short": "Wing height R",
       "standard": "house POM, over the surface",
@@ -335,14 +369,14 @@
       "tape_model": "shortest_surface_path",
       "tape_tension": "loose_body",
       "landmarks": [
-        "UNDERARM_R",
-        "SIDE_UNDERBUST_R"
+        "SIDE_WING_LOW_R",
+        "SIDE_WING_HIGH_R"
       ],
       "surface": "torso",
       "tolerance_mm": 1.0,
       "status": "auto",
       "house_code": null,
-      "comment": "How tall the side wing has to be before it reaches the armhole."
+      "comment": "The shortest surface path from the lower wing point (the side point 1 3/4in below the underbust fold, moved 1/2in forward along that section) to the side point of the max-girth section (house definition, 2026-09-27). It replaced underarm to the underbust side point."
     },
     {
       "id": "BODY_UNDERBUST_TO_APEX_L",
@@ -400,7 +434,7 @@
         "HPS_L",
         "BUST_APEX_L"
       ],
-      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced.",
+      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 on the previous CLO3D torso (replaced 2026-09-27) 35mm gave x=-37.4mm/y=1593.1mm, 45mm gave -45.2/1589.2, 90mm gave -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced.",
       "house_code": null
     },
     {
@@ -422,7 +456,7 @@
         "HPS_R",
         "BUST_APEX_R"
       ],
-      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 35mm gives x=-37.4mm/y=1593.1mm, 45mm gives -45.2/1589.2, 90mm gives -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced.",
+      "blocked_reason": "No HPS landmark can be detected on this mesh. The head is cut off at the neck, so there is no neck-base curve to reference. A 'highest point outboard of the neck' rule was tried and rejected: it returns whatever sits on its own inner cutoff \u2014 on the previous CLO3D torso (replaced 2026-09-27) 35mm gave x=-37.4mm/y=1593.1mm, 45mm gave -45.2/1589.2, 90mm gave -95.9/1534.9 \u2014 a 58mm spread in height driven by a parameter with no anatomical basis. That is false precision, so no automatic value is produced.",
       "house_code": null
     },
     {
@@ -544,7 +578,7 @@
       "label_en": "Hip girth",
       "method": "plane_section",
       "status": "blocked",
-      "blocked_reason": "The mesh ends at y=0.995m. There is no hip geometry to measure; this needs an avatar exported with legs.",
+      "blocked_reason": "The mesh ends at y=1.043m. There is no hip geometry to measure; this needs an avatar exported with legs.",
       "house_code": null
     }
   ],

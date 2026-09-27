@@ -1,5 +1,7 @@
 # 2D Pattern Draft & DXF Export — Research Plan
 
+> **2026-09-27:** the avatar was replaced by the refined size-L torso (see `contracts/avatar-asset-contract.md`). Figures quoted here were measured on the previous CLO3D mesh (`0caa604b…`) unless a section says otherwise; the current ones are in `qa/avatar_master/`.
+
 Status: **Phases 1–4 implemented** — engine, loop-as-seam, joint multi-panel solve, ASTM/Gerber DXF export, four gates, and the pen-tool UI in the authoring lane. Ease/grading (§11) remains deliberately out of scope. No
 shape produced here is an approved pattern, and nothing is wired into either viewer lane
 yet. §4–§7 record what a numerical spike found on a real patch of `avatar_master.glb`;

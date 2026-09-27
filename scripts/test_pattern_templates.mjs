@@ -10,8 +10,9 @@
  * (0 fold-overs, converged) with a shared-seam mismatch within the seam
  * tolerance; resolution is deterministic (anchor hash identical run to run); a
  * template missing a requirement reports `needs` and no geometry; the cup
- * numbers AUTHORING_UX_PLAN.md §4.3 measured are reproduced (one piece ~19.5 mm,
- * vertical 7.6/2.5 mm at 1.05 mm mismatch, horizontal 3.9/2.2 mm at 0.59 mm);
+ * numbers AUTHORING_UX_PLAN.md §4.3 measured are reproduced (one piece ~17.7 mm,
+ * vertical 6.7/2.0 mm at 0.61 mm mismatch, horizontal 3.9/3.1 mm at 0.22 mm;
+ * re-measured with scripts/spike_authoring_ux.mjs on the refined size-L body);
  * and the record a drafted piece carries names the template and every
  * landmark's provenance in ASCII.
  *
@@ -86,9 +87,9 @@ const byId = Object.fromEntries(results.map((r) => [r.id, r]));
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 const one = byId.CUP_1PIECE_L, vert = byId.CUP_2PANEL_VERTICAL_L, horiz = byId.CUP_2PANEL_HORIZONTAL_L;
 gate.record('the plan\'s §4.3 cup numbers are reproduced (±0.5 mm)',
-  one && near(one.pieces[0].seam_error_mm, 19.5, 0.5)
-  && vert && near(vert.pieces[0].seam_error_mm, 7.6, 0.5) && near(vert.pieces[1].seam_error_mm, 2.5, 0.5) && near(vert.shared_mismatch_mm, 1.05, 0.5)
-  && horiz && near(horiz.pieces[0].seam_error_mm, 3.9, 0.5) && near(horiz.pieces[1].seam_error_mm, 2.2, 0.5) && near(horiz.shared_mismatch_mm, 0.59, 0.5),
+  one && near(one.pieces[0].seam_error_mm, 17.7, 0.5)
+  && vert && near(vert.pieces[0].seam_error_mm, 6.7, 0.5) && near(vert.pieces[1].seam_error_mm, 2.0, 0.5) && near(vert.shared_mismatch_mm, 0.61, 0.5)
+  && horiz && near(horiz.pieces[0].seam_error_mm, 3.9, 0.5) && near(horiz.pieces[1].seam_error_mm, 3.1, 0.5) && near(horiz.shared_mismatch_mm, 0.22, 0.5),
   `one piece ${one?.pieces[0].seam_error_mm}; vertical ${vert?.pieces.map((p) => p.seam_error_mm).join('/')} @ ${vert?.shared_mismatch_mm}; horizontal ${horiz?.pieces.map((p) => p.seam_error_mm).join('/')} @ ${horiz?.shared_mismatch_mm} mm`);
 const mirrorPairs = templates.filter((t) => t.side === 'L').map((t) => [byId[t.id], byId[t.id.replace(/_L$/, '_R')]]);
 const symmetric = mirrorPairs.every(([l, r]) => l && r && l.pieces.every((p, i) => near(p.seam_error_mm, r.pieces[i].seam_error_mm, 0.05)));

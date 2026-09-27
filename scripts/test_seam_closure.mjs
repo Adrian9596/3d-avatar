@@ -4,7 +4,7 @@
  * length, or they cannot be sewn.
  *
  * The one-cup loop is cut through the apex into two panels (scripts/
- * flatten_cases.json, case apex_panels_80mm) and the two are flattened TOGETHER
+ * flatten_cases.json, case apex_panels_75mm) and the two are flattened TOGETHER
  * (scripts/flatten_core.mjs flattenPieces), with every chord of the shared seam
  * pulled towards a common length in both pieces. This gate then measures the
  * shared seam in each flat piece and budgets the difference against the

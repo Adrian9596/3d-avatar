@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T17:24:04Z",
+  "generated_at": "2026-09-27T12:30:54Z",
   "purpose": "Accuracy of the flattening engine against analytic developable surfaces, and soundness on patches of the avatar.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
-    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+    "sha256": "8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c"
   },
   "cases": {
     "file": "scripts/flatten_cases.json",
-    "sha256": "6c52127a37594b4bcd5312a20d30be3631796cfa4d16327337540418f4366e05"
+    "sha256": "a1a8e4e76738637ed5bc5f53e0fb167387f394816cc17a5ecac43a8451b312a1"
   },
   "engine": "scripts/flatten_core.mjs",
   "solver": {
@@ -33,9 +33,9 @@
     "leak_slack_edges": 3
   },
   "mesh": {
-    "vertices": 5825,
-    "faces": 11288,
-    "max_edge_mm": 24.8577,
+    "vertices": 12874,
+    "faces": 25242,
+    "max_edge_mm": 12.1423,
     "materials": [
       "Mara:body3"
     ]
@@ -105,197 +105,197 @@
     {
       "id": "apex_disc_40mm",
       "type": "avatar_disc",
-      "iterations": 246,
+      "iterations": 247,
       "converged": true,
       "restarts": 0,
-      "vertex_count": 185,
-      "face_count": 322,
+      "vertex_count": 91,
+      "face_count": 147,
       "euler_characteristic": 1,
       "boundary_loop_count": 1,
-      "boundary_length_3d_mm": 239.8011,
-      "boundary_length_flat_mm": 241.8697,
-      "boundary_error_mm": 2.0686,
-      "worst_boundary_edge_error_mm": 0.0806,
-      "interior_rms_error_mm": 0.0573,
-      "interior_rms_pct": 1.283,
-      "interior_max_pct": 7.651,
-      "area_3d_cm2": 35.45,
-      "area_error_pct": -0.3351,
+      "boundary_length_3d_mm": 234.3596,
+      "boundary_length_flat_mm": 236.1257,
+      "boundary_error_mm": 1.7661,
+      "worst_boundary_edge_error_mm": 0.1059,
+      "interior_rms_error_mm": 0.0871,
+      "interior_rms_pct": 1.24,
+      "interior_max_pct": 4.645,
+      "area_3d_cm2": 33.19,
+      "area_error_pct": -0.7851,
       "triangle_flips": 0
     },
     {
       "id": "apex_disc_60mm",
       "type": "avatar_disc",
-      "iterations": 271,
+      "iterations": 267,
       "converged": true,
       "restarts": 0,
-      "vertex_count": 308,
-      "face_count": 568,
+      "vertex_count": 204,
+      "face_count": 356,
       "euler_characteristic": 1,
       "boundary_loop_count": 1,
-      "boundary_length_3d_mm": 332.9848,
-      "boundary_length_flat_mm": 343.0079,
-      "boundary_error_mm": 10.0231,
-      "worst_boundary_edge_error_mm": 0.3415,
-      "interior_rms_error_mm": 0.1826,
-      "interior_rms_pct": 2.964,
-      "interior_max_pct": 14.278,
-      "area_3d_cm2": 84.96,
-      "area_error_pct": -1.8445,
+      "boundary_length_3d_mm": 360.4304,
+      "boundary_length_flat_mm": 366.492,
+      "boundary_error_mm": 6.0616,
+      "worst_boundary_edge_error_mm": 0.2409,
+      "interior_rms_error_mm": 0.1866,
+      "interior_rms_pct": 2.523,
+      "interior_max_pct": 9.445,
+      "area_3d_cm2": 81.25,
+      "area_error_pct": -0.9708,
       "triangle_flips": 0
     },
     {
       "id": "apex_disc_80mm",
       "type": "avatar_disc",
-      "iterations": 297,
+      "iterations": 288,
       "converged": true,
       "restarts": 0,
-      "vertex_count": 428,
-      "face_count": 807,
+      "vertex_count": 345,
+      "face_count": 627,
       "euler_characteristic": 1,
       "boundary_loop_count": 1,
-      "boundary_length_3d_mm": 422.6079,
-      "boundary_length_flat_mm": 444.7194,
-      "boundary_error_mm": 22.1115,
-      "worst_boundary_edge_error_mm": 0.7877,
-      "interior_rms_error_mm": 0.3556,
-      "interior_rms_pct": 5.138,
-      "interior_max_pct": 27.022,
-      "area_3d_cm2": 152.79,
-      "area_error_pct": -4.3146,
+      "boundary_length_3d_mm": 454.5162,
+      "boundary_length_flat_mm": 470.7132,
+      "boundary_error_mm": 16.197,
+      "worst_boundary_edge_error_mm": 0.5904,
+      "interior_rms_error_mm": 0.3227,
+      "interior_rms_pct": 4.387,
+      "interior_max_pct": 18.287,
+      "area_3d_cm2": 144.04,
+      "area_error_pct": -1.9605,
       "triangle_flips": 0
     },
     {
       "id": "apex_disc_80mm_upper",
       "type": "avatar_disc",
-      "iterations": 276,
+      "iterations": 265,
       "converged": true,
       "restarts": 0,
-      "vertex_count": 252,
-      "face_count": 446,
+      "vertex_count": 188,
+      "face_count": 321,
       "euler_characteristic": 1,
       "boundary_loop_count": 1,
-      "boundary_length_3d_mm": 418.0644,
-      "boundary_length_flat_mm": 420.2703,
-      "boundary_error_mm": 2.2058,
-      "worst_boundary_edge_error_mm": 0.0964,
-      "interior_rms_error_mm": 0.075,
-      "interior_rms_pct": 1.48,
-      "interior_max_pct": 4.987,
-      "area_3d_cm2": 77.47,
-      "area_error_pct": -1.0148,
+      "boundary_length_3d_mm": 385.098,
+      "boundary_length_flat_mm": 388.1676,
+      "boundary_error_mm": 3.0696,
+      "worst_boundary_edge_error_mm": 0.1547,
+      "interior_rms_error_mm": 0.0914,
+      "interior_rms_pct": 1.247,
+      "interior_max_pct": 3.786,
+      "area_3d_cm2": 74.87,
+      "area_error_pct": -0.8635,
       "triangle_flips": 0
     },
     {
       "id": "apex_disc_80mm_lower",
       "type": "avatar_disc",
-      "iterations": 541,
+      "iterations": 265,
       "converged": true,
       "restarts": 0,
-      "vertex_count": 207,
-      "face_count": 361,
+      "vertex_count": 179,
+      "face_count": 306,
       "euler_characteristic": 1,
       "boundary_loop_count": 1,
-      "boundary_length_3d_mm": 413.5121,
-      "boundary_length_flat_mm": 415.8502,
-      "boundary_error_mm": 2.3382,
-      "worst_boundary_edge_error_mm": 0.1415,
-      "interior_rms_error_mm": 0.1187,
-      "interior_rms_pct": 1.991,
-      "interior_max_pct": 9.319,
-      "area_3d_cm2": 75.32,
-      "area_error_pct": -1.6163,
+      "boundary_length_3d_mm": 378.3092,
+      "boundary_length_flat_mm": 383.7217,
+      "boundary_error_mm": 5.4126,
+      "worst_boundary_edge_error_mm": 0.252,
+      "interior_rms_error_mm": 0.1444,
+      "interior_rms_pct": 1.972,
+      "interior_max_pct": 5.829,
+      "area_3d_cm2": 69.17,
+      "area_error_pct": -0.9436,
       "triangle_flips": 0
     },
     {
       "id": "apex_loop_60mm",
       "type": "avatar_loop",
-      "iterations": 362,
+      "iterations": 420,
       "converged": true,
       "restarts": 0,
-      "vertex_count": 308,
-      "face_count": 560,
+      "vertex_count": 220,
+      "face_count": 380,
       "euler_characteristic": 1,
       "boundary_loop_count": 1,
-      "boundary_length_3d_mm": 393.6401,
-      "boundary_length_flat_mm": 405.9873,
-      "boundary_error_mm": 12.3472,
-      "worst_boundary_edge_error_mm": 0.4669,
-      "interior_rms_error_mm": 0.133,
-      "interior_rms_pct": 2.257,
-      "interior_max_pct": 9.926,
-      "area_3d_cm2": 82.74,
-      "area_error_pct": -0.6462,
+      "boundary_length_3d_mm": 426.3511,
+      "boundary_length_flat_mm": 435.2952,
+      "boundary_error_mm": 8.9441,
+      "worst_boundary_edge_error_mm": 0.4746,
+      "interior_rms_error_mm": 0.1634,
+      "interior_rms_pct": 2.276,
+      "interior_max_pct": 6.949,
+      "area_3d_cm2": 85.46,
+      "area_error_pct": -1.3101,
       "triangle_flips": 0,
       "extraction": {
-        "flooded_faces": 482,
-        "barrier_faces": 78,
-        "flood_reach_mm": 48.0916,
-        "leak_limit_mm": 134.5732
+        "flooded_faces": 295,
+        "barrier_faces": 85,
+        "flood_reach_mm": 48.9356,
+        "leak_limit_mm": 96.4268
       },
       "seam": {
-        "chord_count": 168,
-        "length_3d_mm": 289.3691,
-        "length_flat_mm": 305.8555,
-        "error_mm": 16.4864,
-        "worst_chord_error_mm": 0.326
+        "chord_count": 170,
+        "length_3d_mm": 289.3887,
+        "length_flat_mm": 303.8099,
+        "error_mm": 14.4212,
+        "worst_chord_error_mm": 0.2081
       },
-      "scaffold_boundary_error_mm": 12.3472
+      "scaffold_boundary_error_mm": 8.9441
     },
     {
-      "id": "apex_panels_80mm",
+      "id": "apex_panels_75mm",
       "type": "avatar_panels",
-      "iterations": 2416,
+      "iterations": 985,
       "converged": true,
       "restarts": 0,
-      "shared_chords": 65,
+      "shared_chords": 61,
       "pieces": [
         {
           "name": "panel_a",
-          "vertex_count": 262,
-          "face_count": 462,
+          "vertex_count": 149,
+          "face_count": 246,
           "euler_characteristic": 1,
           "boundary_loop_count": 1,
-          "boundary_length_3d_mm": 430.5718,
-          "boundary_length_flat_mm": 434.7593,
-          "boundary_error_mm": 4.1875,
-          "worst_boundary_edge_error_mm": 0.2349,
-          "interior_rms_error_mm": 0.0755,
-          "interior_rms_pct": 1.513,
-          "interior_max_pct": 5.238,
-          "area_3d_cm2": 59.68,
-          "area_error_pct": -0.5427,
+          "boundary_length_3d_mm": 378.9527,
+          "boundary_length_flat_mm": 383.5016,
+          "boundary_error_mm": 4.5489,
+          "worst_boundary_edge_error_mm": 0.277,
+          "interior_rms_error_mm": 0.1021,
+          "interior_rms_pct": 1.472,
+          "interior_max_pct": 4.376,
+          "area_3d_cm2": 57.08,
+          "area_error_pct": -1.0699,
           "triangle_flips": 0,
           "seam": {
-            "chord_count": 161,
-            "length_3d_mm": 283.506,
-            "length_flat_mm": 290.6754,
-            "error_mm": 7.1694,
-            "worst_chord_error_mm": 0.2231
+            "chord_count": 153,
+            "length_3d_mm": 268.7207,
+            "length_flat_mm": 273.0813,
+            "error_mm": 4.3606,
+            "worst_chord_error_mm": 0.094
           }
         },
         {
           "name": "panel_b",
-          "vertex_count": 174,
-          "face_count": 287,
+          "vertex_count": 171,
+          "face_count": 290,
           "euler_characteristic": 1,
           "boundary_loop_count": 1,
-          "boundary_length_3d_mm": 432.5383,
-          "boundary_length_flat_mm": 435.9282,
-          "boundary_error_mm": 3.3899,
-          "worst_boundary_edge_error_mm": 0.2392,
-          "interior_rms_error_mm": 0.0784,
-          "interior_rms_pct": 1.066,
-          "interior_max_pct": 3.315,
-          "area_3d_cm2": 67.13,
-          "area_error_pct": -0.7915,
+          "boundary_length_3d_mm": 363.2112,
+          "boundary_length_flat_mm": 367.275,
+          "boundary_error_mm": 4.0638,
+          "worst_boundary_edge_error_mm": 0.2117,
+          "interior_rms_error_mm": 0.0721,
+          "interior_rms_pct": 0.987,
+          "interior_max_pct": 2.481,
+          "area_3d_cm2": 64.28,
+          "area_error_pct": -0.6651,
           "triangle_flips": 0,
           "seam": {
-            "chord_count": 167,
-            "length_3d_mm": 293.5842,
-            "length_flat_mm": 298.4849,
-            "error_mm": 4.9007,
-            "worst_chord_error_mm": 0.0918
+            "chord_count": 161,
+            "length_3d_mm": 288.3118,
+            "length_flat_mm": 292.7412,
+            "error_mm": 4.4294,
+            "worst_chord_error_mm": 0.0592
           }
         }
       ]
@@ -355,7 +355,7 @@
     {
       "name": "apex_disc_40mm: the relaxation converged",
       "status": "PASS",
-      "detail": "246 iterations"
+      "detail": "247 iterations"
     },
     {
       "name": "apex_disc_60mm: no triangle folds over",
@@ -370,7 +370,7 @@
     {
       "name": "apex_disc_60mm: the relaxation converged",
       "status": "PASS",
-      "detail": "271 iterations"
+      "detail": "267 iterations"
     },
     {
       "name": "apex_disc_80mm: no triangle folds over",
@@ -385,7 +385,7 @@
     {
       "name": "apex_disc_80mm: the relaxation converged",
       "status": "PASS",
-      "detail": "297 iterations"
+      "detail": "288 iterations"
     },
     {
       "name": "apex_disc_80mm_upper: no triangle folds over",
@@ -400,7 +400,7 @@
     {
       "name": "apex_disc_80mm_upper: the relaxation converged",
       "status": "PASS",
-      "detail": "276 iterations"
+      "detail": "265 iterations"
     },
     {
       "name": "apex_disc_80mm_lower: no triangle folds over",
@@ -415,7 +415,7 @@
     {
       "name": "apex_disc_80mm_lower: the relaxation converged",
       "status": "PASS",
-      "detail": "541 iterations"
+      "detail": "265 iterations"
     },
     {
       "name": "apex_loop_60mm: no triangle folds over",
@@ -430,57 +430,57 @@
     {
       "name": "apex_loop_60mm: the relaxation converged",
       "status": "PASS",
-      "detail": "362 iterations"
+      "detail": "420 iterations"
     },
     {
       "name": "apex_loop_60mm: the flood fill did not leak past the loop",
       "status": "PASS",
-      "detail": "reached 48.0916mm from the seed (limit 134.5732mm)"
+      "detail": "reached 48.9356mm from the seed (limit 96.4268mm)"
     },
     {
       "name": "apex_loop_60mm: every loop sample maps into the flat piece",
       "status": "PASS",
-      "detail": "168 samples"
+      "detail": "170 samples"
     },
     {
-      "name": "apex_panels_80mm: the joint relaxation converged",
+      "name": "apex_panels_75mm: the joint relaxation converged",
       "status": "PASS",
-      "detail": "2416 iterations"
+      "detail": "985 iterations"
     },
     {
-      "name": "apex_panels_80mm/panel_a: no triangle folds over",
-      "status": "PASS",
-      "detail": "0 flips"
-    },
-    {
-      "name": "apex_panels_80mm/panel_a: the piece is a disc",
-      "status": "PASS",
-      "detail": "χ=1, 1 boundary loop(s)"
-    },
-    {
-      "name": "apex_panels_80mm/panel_a: the flood fill did not leak past the loop",
-      "status": "PASS",
-      "detail": "reached 56.3929mm from the seed (limit 154.5732mm)"
-    },
-    {
-      "name": "apex_panels_80mm/panel_b: no triangle folds over",
+      "name": "apex_panels_75mm/panel_a: no triangle folds over",
       "status": "PASS",
       "detail": "0 flips"
     },
     {
-      "name": "apex_panels_80mm/panel_b: the piece is a disc",
+      "name": "apex_panels_75mm/panel_a: the piece is a disc",
       "status": "PASS",
       "detail": "χ=1, 1 boundary loop(s)"
     },
     {
-      "name": "apex_panels_80mm/panel_b: the flood fill did not leak past the loop",
+      "name": "apex_panels_75mm/panel_a: the flood fill did not leak past the loop",
       "status": "PASS",
-      "detail": "reached 58.3302mm from the seed (limit 154.5732mm)"
+      "detail": "reached 51.3826mm from the seed (limit 111.4268mm)"
+    },
+    {
+      "name": "apex_panels_75mm/panel_b: no triangle folds over",
+      "status": "PASS",
+      "detail": "0 flips"
+    },
+    {
+      "name": "apex_panels_75mm/panel_b: the piece is a disc",
+      "status": "PASS",
+      "detail": "χ=1, 1 boundary loop(s)"
+    },
+    {
+      "name": "apex_panels_75mm/panel_b: the flood fill did not leak past the loop",
+      "status": "PASS",
+      "detail": "reached 54.594mm from the seed (limit 111.4268mm)"
     },
     {
       "name": "cutting the cup into two panels reduces the seam error",
       "status": "PASS",
-      "detail": "one piece 22.1115mm; panels 2.2058mm / 2.3382mm"
+      "detail": "one piece 16.197mm; panels 3.0696mm / 5.4126mm"
     }
   ],
   "decision": "FLATTEN_OK"

@@ -96,7 +96,8 @@ const { triangles } = trianglesByMaterial(assetPath);
 const surface = [];
 for (const name of registry.measurement_surface) {
   const bucket = triangles.get(name);
-  if (bucket) surface.push(...bucket);
+  // no spread: a torso of ~40k triangles is more arguments than a call may take
+  if (bucket) for (const value of bucket) surface.push(value);
 }
 const bodyGrid = buildGrid(new Float32Array(surface), 0.02);
 

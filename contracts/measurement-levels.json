@@ -15,7 +15,7 @@
   },
   "reliability": {
     "max_y_m": 1.39,
-    "comment": "The torso surface is open at the armhole, so sections above y = 1.39m are unreliable (MEASUREMENT_PLAN.md section 4.3, and the registry's scan note). A level above it must report that it is out of range rather than a girth. On this asset the top level (+4 1/4in above a fold at y = 1.27m) lands at y = 1.378m, 11mm clear."
+    "comment": "The torso surface is open at the armhole, so sections above y = 1.39m are unreliable (MEASUREMENT_PLAN.md section 4.3, and the registry's scan note). A level above it must report that it is out of range rather than a girth. On this asset the top level (+4 1/4in above a fold at y = 1.265m) lands at y = 1.373m, 14mm clear of the armhole's lowest point (y = 1.387m)."
   },
   "source_sheets": [
     {
@@ -51,13 +51,48 @@
     { "id": "LVL_ZERO", "offset_in": 0, "label_in": null, "group": "datum" },
     { "id": "LVL_M1", "offset_in": -1, "label_in": "-1\"", "group": "lower" },
     { "id": "LVL_M1_1_4", "offset_in": -1.25, "label_in": "-1 1/4\"", "group": "lower" },
-    { "id": "LVL_M1_1_2", "offset_in": -1.5, "label_in": "-1 1/2\"", "group": "lower" },
-    { "id": "LVL_M1_3_4", "offset_in": -1.75, "label_in": "-1 3/4\"", "group": "lower" },
+    { "id": "LVL_M1_1_2", "offset_in": -1.5, "label_in": "-1 1/2\"", "group": "lower", "tape": true },
+    { "id": "LVL_M1_3_4", "offset_in": -1.75, "label_in": "-1 3/4\"", "group": "lower", "tape": true },
     { "id": "LVL_M2", "offset_in": -2, "label_in": "-2\"", "group": "lower" },
     { "id": "LVL_M2_1_4", "offset_in": -2.25, "label_in": "-2 1/4\"", "group": "lower" },
     { "id": "LVL_M2_1_2", "offset_in": -2.5, "label_in": "-2 1/2\"", "group": "lower" }
   ],
   "levels_note": "Fourteen rings: thirteen printed values and the unlabelled 0. The sheets draw nothing across the bust apex — the gap between +1 1/4in and +3 1/2in is the sheets', not an omission here. The printed values are the authority; the pixel trace is the check on them.",
+  "tape_note": "A level with \"tape\": true is also drawn as a red tape, with a row under the underbust in the measurement table, wherever the POM tapes are (asked for 2026-09-27 for -1 1/2in and -1 3/4in). It stays a level, not a POM: the girth is the section at that height, with no house code and no POM-sheet row.",
+  "shapes": [
+    {
+      "id": "RECT_CB_M1_3_4",
+      "kind": "rectangle",
+      "level": "LVL_M1_3_4",
+      "anchor": "centre_back",
+      "width_in": 1.75,
+      "height_in": 2.875,
+      "label_en": "Centre-back rectangle, 1 3/4in wide and 2 7/8in tall, standing on the -1 3/4in level",
+      "comment": "Asked for 2026-09-27: the midpoint of the bottom edge is the centre back of the -1 3/4in ring. Every side is measured along the skin, as a tape would lie: the bottom edge along the ring, the sides straight up the back, the top edge along the section the sides reach (its own length is reported, not forced). Drawn in red with a row under the -1 3/4in tape. A reference shape, not a POM: no house code, no POM-sheet row."
+    }
+  ],
+  "reference_tapes": [
+    { "id": "TAPE_MAXGIRTH_P2", "from": "DIAG_MAX_TORSO_GIRTH", "offset_in": 2, "label": "Max +2\"" },
+    { "id": "TAPE_MAXGIRTH_P3", "from": "DIAG_MAX_TORSO_GIRTH", "offset_in": 3, "label": "Max +3\"" }
+  ],
+  "reference_tapes_note": "Tapes parallel to the largest girth, 2in and 3in above it (asked for 2026-09-27). They hang on that POM's own height, found by the scan, not on the underbust datum, and they are not part of the sheets' stack. On this asset both land above the armhole (max girth at y = 1.355m, so y = 1.406m and 1.431m; the armhole's lowest point is 1.387m): the torso is open there, so each is drawn as the front and back pieces of the section on the skin, with their lengths, and no girth.",
+  "lines": [
+    { "id": "LINE_CB_MAXP2_TO_M1_1_2", "kind": "centre_back", "from": "TAPE_MAXGIRTH_P2", "to": "LVL_M1_1_2", "label": "CB Max +2\" → Fold -1 1/2\"" }
+  ],
+  "lines_note": "A line straight down the centre back from the Max +2in tape to the -1 1/2in ring (asked for 2026-09-27): the body cut by the centre plane x = 0, followed on the skin between the two centre-back points, so its length is what a tape laid down the spine reads. The straight chord between the ends is reported beside it.",
+  "ticks": [
+    { "id": "TICK_MAXP2_CB_4IN", "on": "TAPE_MAXGIRTH_P2", "anchor": "centre_back", "offset_in": 4, "length_mm": 5, "colour": "#1f6fe0" },
+    { "id": "TICK_MAXP2_CF_4_3_8IN", "on": "TAPE_MAXGIRTH_P2", "anchor": "centre_front", "offset_in": 4.375, "length_mm": 5, "colour": "#1f6fe0" }
+  ],
+  "ticks_note": "Blue marks 5mm long across the Max +2in tape (asked for 2026-09-27): 4in from its centre back on each side, and 4 3/8in from its centre front on each side. The distance is walked along the tape's own section (on the back, or on the front); each mark stands upright across the tape (the vertical cut through its point, followed on the skin 2.5mm up and 2.5mm down), so it reads square to the tape from the front or the back.",
+  "straps": [
+    { "id": "STRAP_MAXP2_CF_TO_CB", "kind": "over_shoulder", "from": "TICK_MAXP2_CF_4_3_8IN", "to": "TICK_MAXP2_CB_4IN", "front_on": "TAPE_MAXGIRTH_P3", "width_mm": 20, "colour": "#1f6fe0", "label": "Strap CF → CB" }
+  ],
+  "straps_note": "A band 2cm wide from each front tick over the shoulder to the back tick on the same side (asked for 2026-09-27), as a strap would lie. Its two ends are on the Max +2in tape, 1cm each way along it from the tick, so each end is centred on its tick and exactly 2cm wide. Each long edge is the body cut by the upright plane through its front and back corner, followed on the skin over the shoulder; it must arrive at its back corner or the strap is not drawn. The strap's length is its middle, from tick to tick over the shoulder in the upright plane through the two ticks (asked for 2026-09-27), with its own row; the two edges' lengths are reported beside it. The width over the shoulder is what the two edges leave there, reported, not forced. On the front the strap now starts at the Max +3in tape instead (front_on, asked for 2026-09-27), in the same place: its middle stays the upright plane through the two ticks, and the front end is centred where that middle crosses Max +3in, 1cm each way along it, so both ends are still exactly 2cm. The length runs along the middle from there. A reference shape, not a POM.",
+  "curves": [
+    { "id": "CURVE_CUP_ARMHOLE", "kind": "shortest_surface_path", "from": { "strap": "STRAP_MAXP2_CF_TO_CB", "corner": "front_outer" }, "to": { "landmark": "SIDE_WING_HIGH" }, "colour": "#1f6fe0", "label": "Cup armhole" }
+  ],
+  "curves_note": "The cup armhole (asked for 2026-09-27): a curve on the skin from the outer front corner of the shoulder strap (on the Max +3in tape) to the top of the wing height on the same side (SIDE_WING_HIGH_L / _R, the side point of the max-girth section). It is the shortest path over the skin, the model the pen and the wing height itself use, so its length is what a tape laid between those two points reads. A reference line, not a POM.",
   "trace": {
     "evidence": "qa/avatar_master/measurement-levels-trace.json",
     "tool": "scripts/trace_measurement_levels.py",

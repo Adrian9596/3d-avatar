@@ -13,6 +13,7 @@ from flatten_mesh import edge_face_map
 
 
 DEFAULT_LOOP_SPACING = 0.002
+ON_EDGE_BARY = 1e-9   # a sample this close to an edge lies on it
 
 
 # ------------------------------------------------------------------ mesh build
@@ -34,6 +35,14 @@ def _barycentric(P, F, face: int, q):
     return (1.0 - b1 - b2, b1, b2)
 
 
+def _vertex_face_map(F):
+    out: dict[int, list[int]] = {}
+    for f in range(len(F) // 3):
+        for k in range(3):
+            out.setdefault(F[f * 3 + k], []).append(f)
+    return out
+
+
 def point_key(p) -> str:
     """Identity of a sample for matching across pieces (same floats -> same key)."""
     return f"{math.floor(p[0] * 1e9 + 0.5)},{math.floor(p[1] * 1e9 + 0.5)},{math.floor(p[2] * 1e9 + 0.5)}"
@@ -51,9 +60,13 @@ def extract_patch(mesh, closest, loop_points, seed, spacing: float = DEFAULT_LOO
     """Closed loop on the skin -> faces inside it (flood fill bounded by the faces
     the resampled loop lands on, plus those barrier faces themselves). Segments
     are resampled in a canonical direction so a run two loops share yields
-    bit-identical samples in both."""
+    bit-identical samples in both. A sample exactly on an edge (or vertex) makes
+    every face of it barrier, so the patch does not depend on which one the
+    closest-point query happened to name."""
     P, F = mesh["positions"], mesh["faces"]
     nf = len(F) // 3
+    edge_faces = edge_face_map(F)
+    vertex_faces = None
     samples = []
     barrier: set[int] = set()
     n = len(loop_points)
@@ -74,9 +87,20 @@ def extract_patch(mesh, closest, loop_points, seed, spacing: float = DEFAULT_LOO
             if hit is None:
                 return {"error": "loop sample found no surface"}
             face = hit["triangle"] // 9
-            barrier.add(face)
             pt = tuple(hit["point"])
-            samples.append({"point": pt, "key": point_key(pt), "face": face, "bary": _barycentric(P, F, face, pt)})
+            bary = _barycentric(P, F, face, pt)
+            barrier.add(face)
+            zero = [k for k in range(3) if abs(bary[k]) < ON_EDGE_BARY]
+            if len(zero) == 1:
+                i, j = F[face * 3 + (zero[0] + 1) % 3], F[face * 3 + (zero[0] + 2) % 3]
+                for g in edge_faces[(i if i < j else j) * 16777216 + (j if i < j else i)]:
+                    barrier.add(g)
+            elif len(zero) == 2:
+                if vertex_faces is None:
+                    vertex_faces = _vertex_face_map(F)
+                for g in vertex_faces[F[face * 3 + next(k for k in range(3) if k not in zero)]]:
+                    barrier.add(g)
+            samples.append({"point": pt, "key": point_key(pt), "face": face, "bary": bary})
     seed_hit = closest(seed)
     if seed_hit is None:
         return {"error": "seed found no surface"}
@@ -84,7 +108,6 @@ def extract_patch(mesh, closest, loop_points, seed, spacing: float = DEFAULT_LOO
     if seed_face in barrier:
         return {"error": "the loop passes through the seed face"}
 
-    edge_faces = edge_face_map(F)
     flooded = {seed_face}
     queue = [seed_face]
     q = 0

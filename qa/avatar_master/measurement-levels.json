@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T17:24:16Z",
+  "generated_at": "2026-09-27T14:24:20Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
-    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+    "sha256": "8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c"
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "836bc7f5647a12deac6650b281b12756243bedd62155ef928d80aa0d57328c7f"
+    "sha256": "0128ad5a74dc51672c6a731726fb44df3236c43aa8b2dcbb268d6773fec3f427"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-05T11:47:09Z"
+    "generated_at": "2026-09-27T14:23:55Z"
   },
   "sheets": [
     {
@@ -39,7 +39,7 @@
   ],
   "datum": {
     "landmark": "UNDERBUST_FOLD",
-    "y_m": 1.27,
+    "y_m": 1.265,
     "source": "auto"
   },
   "levels": [
@@ -47,113 +47,387 @@
       "id": "LVL_P4_1_4",
       "offset_in": 4.25,
       "label": "+4 1/4\"",
-      "y_m": 1.37795,
-      "girth_mm": 1014.9,
+      "tape": false,
+      "y_m": 1.37295,
+      "girth_mm": 1015.6,
       "blocked": null
     },
     {
       "id": "LVL_P3_3_4",
       "offset_in": 3.75,
       "label": "+3 3/4\"",
-      "y_m": 1.36525,
-      "girth_mm": 1022,
+      "tape": false,
+      "y_m": 1.36025,
+      "girth_mm": 1020.9,
       "blocked": null
     },
     {
       "id": "LVL_P3_1_2",
       "offset_in": 3.5,
       "label": "+3 1/2\"",
-      "y_m": 1.3589,
-      "girth_mm": 1023.8,
+      "tape": false,
+      "y_m": 1.3539,
+      "girth_mm": 1021.9,
       "blocked": null
     },
     {
       "id": "LVL_P1_1_4",
       "offset_in": 1.25,
       "label": "+1 1/4\"",
-      "y_m": 1.30175,
-      "girth_mm": 961.8,
+      "tape": false,
+      "y_m": 1.29675,
+      "girth_mm": 943.6,
       "blocked": null
     },
     {
       "id": "LVL_P0_3_4",
       "offset_in": 0.75,
       "label": "+3/4\"",
-      "y_m": 1.28905,
-      "girth_mm": 918.9,
+      "tape": false,
+      "y_m": 1.28405,
+      "girth_mm": 894.1,
       "blocked": null
     },
     {
       "id": "LVL_P0_1_2",
       "offset_in": 0.5,
       "label": "+1/2\"",
-      "y_m": 1.2827,
-      "girth_mm": 890.7,
+      "tape": false,
+      "y_m": 1.2777,
+      "girth_mm": 862.8,
       "blocked": null
     },
     {
       "id": "LVL_ZERO",
       "offset_in": 0,
       "label": null,
-      "y_m": 1.27,
-      "girth_mm": 830.9,
+      "tape": false,
+      "y_m": 1.265,
+      "girth_mm": 818.5,
       "blocked": null
     },
     {
       "id": "LVL_M1",
       "offset_in": -1,
       "label": "-1\"",
-      "y_m": 1.2446,
-      "girth_mm": 792.6,
+      "tape": false,
+      "y_m": 1.2396,
+      "girth_mm": 787.4,
       "blocked": null
     },
     {
       "id": "LVL_M1_1_4",
       "offset_in": -1.25,
       "label": "-1 1/4\"",
-      "y_m": 1.23825,
-      "girth_mm": 787.5,
+      "tape": false,
+      "y_m": 1.23325,
+      "girth_mm": 782.8,
       "blocked": null
     },
     {
       "id": "LVL_M1_1_2",
       "offset_in": -1.5,
       "label": "-1 1/2\"",
-      "y_m": 1.2319,
-      "girth_mm": 783.1,
+      "tape": true,
+      "y_m": 1.2269,
+      "girth_mm": 778.8,
       "blocked": null
     },
     {
       "id": "LVL_M1_3_4",
       "offset_in": -1.75,
       "label": "-1 3/4\"",
-      "y_m": 1.22555,
-      "girth_mm": 778.9,
+      "tape": true,
+      "y_m": 1.22055,
+      "girth_mm": 775.2,
       "blocked": null
     },
     {
       "id": "LVL_M2",
       "offset_in": -2,
       "label": "-2\"",
-      "y_m": 1.2192,
-      "girth_mm": 775.3,
+      "tape": false,
+      "y_m": 1.2142,
+      "girth_mm": 772.1,
       "blocked": null
     },
     {
       "id": "LVL_M2_1_4",
       "offset_in": -2.25,
       "label": "-2 1/4\"",
-      "y_m": 1.21285,
-      "girth_mm": 772.2,
+      "tape": false,
+      "y_m": 1.20785,
+      "girth_mm": 769.8,
       "blocked": null
     },
     {
       "id": "LVL_M2_1_2",
       "offset_in": -2.5,
       "label": "-2 1/2\"",
-      "y_m": 1.2065,
-      "girth_mm": 769.9,
+      "tape": false,
+      "y_m": 1.2015,
+      "girth_mm": 768.3,
       "blocked": null
+    }
+  ],
+  "shapes": [
+    {
+      "id": "RECT_CB_M1_3_4",
+      "level": "LVL_M1_3_4",
+      "width_in": 1.75,
+      "height_in": 2.875,
+      "blocked": null,
+      "bottom_width_mm": 44.45,
+      "side_height_mm": 73.03,
+      "top_width_mm": 43.55,
+      "y_bottom_m": 1.22055,
+      "y_top_m": 1.29146,
+      "corners_m": {
+        "bottom_l": [
+          -0.02163,
+          1.22055,
+          -0.10003
+        ],
+        "bottom_r": [
+          0.02163,
+          1.22055,
+          -0.10003
+        ],
+        "top_r": [
+          0.02163,
+          1.29146,
+          -0.11746
+        ],
+        "top_l": [
+          -0.02163,
+          1.29146,
+          -0.11746
+        ]
+      }
+    }
+  ],
+  "reference_tapes": [
+    {
+      "id": "TAPE_MAXGIRTH_P2",
+      "from": "DIAG_MAX_TORSO_GIRTH",
+      "offset_in": 2,
+      "y_m": 1.4058,
+      "girth_mm": null,
+      "pieces_mm": [
+        403.4,
+        334.8
+      ],
+      "blocked": "above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring"
+    },
+    {
+      "id": "TAPE_MAXGIRTH_P3",
+      "from": "DIAG_MAX_TORSO_GIRTH",
+      "offset_in": 3,
+      "y_m": 1.4312,
+      "girth_mm": null,
+      "pieces_mm": [
+        312.3,
+        332.4
+      ],
+      "blocked": "above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring"
+    }
+  ],
+  "lines": [
+    {
+      "id": "LINE_CB_MAXP2_TO_M1_1_2",
+      "from": "TAPE_MAXGIRTH_P2",
+      "to": "LVL_M1_1_2",
+      "blocked": null,
+      "length_mm": 182.8,
+      "chord_mm": 181,
+      "top_m": [
+        0,
+        1.4058,
+        -0.12375
+      ],
+      "bottom_m": [
+        0,
+        1.2269,
+        -0.09632
+      ]
+    }
+  ],
+  "ticks": [
+    {
+      "id": "TICK_MAXP2_CB_4IN",
+      "on": "TAPE_MAXGIRTH_P2",
+      "offset_in": 4,
+      "length_mm": 5,
+      "colour": "#1f6fe0",
+      "blocked": null,
+      "marks": [
+        {
+          "side": "L",
+          "point_m": [
+            -0.10012,
+            1.4058,
+            -0.1347
+          ],
+          "arc_mm": 101.6
+        },
+        {
+          "side": "R",
+          "point_m": [
+            0.10012,
+            1.4058,
+            -0.1347
+          ],
+          "arc_mm": 101.6
+        }
+      ]
+    },
+    {
+      "id": "TICK_MAXP2_CF_4_3_8IN",
+      "on": "TAPE_MAXGIRTH_P2",
+      "offset_in": 4.375,
+      "length_mm": 5,
+      "colour": "#1f6fe0",
+      "blocked": null,
+      "marks": [
+        {
+          "side": "L",
+          "point_m": [
+            -0.1074,
+            1.4058,
+            0.08411
+          ],
+          "arc_mm": 111.13
+        },
+        {
+          "side": "R",
+          "point_m": [
+            0.1074,
+            1.4058,
+            0.08411
+          ],
+          "arc_mm": 111.13
+        }
+      ]
+    }
+  ],
+  "straps": [
+    {
+      "id": "STRAP_MAXP2_CF_TO_CB",
+      "from": "TICK_MAXP2_CF_4_3_8IN",
+      "to": "TICK_MAXP2_CB_4IN",
+      "width_mm": 20,
+      "colour": "#1f6fe0",
+      "blocked": null,
+      "bands": [
+        {
+          "side": "L",
+          "front_width_mm": 20,
+          "back_width_mm": 20,
+          "length_mm": 324.6,
+          "inner_length_mm": 331.8,
+          "outer_length_mm": 317.3,
+          "top_width_mm": 20.68,
+          "top_y_m": 1.53598,
+          "corners_m": {
+            "front_inner": [
+              -0.09696,
+              1.4312,
+              0.06474
+            ],
+            "front_outer": [
+              -0.11614,
+              1.4312,
+              0.05919
+            ],
+            "back_inner": [
+              -0.09023,
+              1.4058,
+              -0.13616
+            ],
+            "back_outer": [
+              -0.10987,
+              1.4058,
+              -0.13247
+            ]
+          }
+        },
+        {
+          "side": "R",
+          "front_width_mm": 20,
+          "back_width_mm": 20,
+          "length_mm": 324.6,
+          "inner_length_mm": 331.8,
+          "outer_length_mm": 317.3,
+          "top_width_mm": 20.68,
+          "top_y_m": 1.53598,
+          "corners_m": {
+            "front_inner": [
+              0.09696,
+              1.4312,
+              0.06474
+            ],
+            "front_outer": [
+              0.11614,
+              1.4312,
+              0.05919
+            ],
+            "back_inner": [
+              0.09023,
+              1.4058,
+              -0.13616
+            ],
+            "back_outer": [
+              0.10987,
+              1.4058,
+              -0.13247
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "curves": [
+    {
+      "id": "CURVE_CUP_ARMHOLE",
+      "from": {
+        "strap": "STRAP_MAXP2_CF_TO_CB",
+        "corner": "front_outer"
+      },
+      "to": {
+        "landmark": "SIDE_WING_HIGH"
+      },
+      "colour": "#1f6fe0",
+      "blocked": null,
+      "runs": [
+        {
+          "side": "L",
+          "length_mm": 119,
+          "from_m": [
+            -0.11614,
+            1.4312,
+            0.05919
+          ],
+          "to_m": [
+            -0.1604,
+            1.355,
+            -0.0059
+          ]
+        },
+        {
+          "side": "R",
+          "length_mm": 119,
+          "from_m": [
+            0.11614,
+            1.4312,
+            0.05919
+          ],
+          "to_m": [
+            0.1604,
+            1.355,
+            -0.0059
+          ]
+        }
+      ]
     }
   ],
   "declared_limits": [
@@ -212,12 +486,12 @@
     {
       "name": "a duplicate id, an off-grid offset or an unknown group is refused",
       "status": "PASS",
-      "detail": "X: 0.3in is not a quarter of an inch; unknown group nope; X: missing or duplicate id; expected exactly one level at 0in, found 0"
+      "detail": "X: 0.3in is not a quarter of an inch; unknown group nope; X: missing or duplicate id; expected exactly one level at 0in, found 0; RECT_CB_M1_3_4: level LVL_M1_3"
     },
     {
       "name": "every level resolves from the detected datum",
       "status": "PASS",
-      "detail": "UNDERBUST_FOLD at y = 1.2700m, 14 heights"
+      "detail": "UNDERBUST_FOLD at y = 1.2650m, 14 heights"
     },
     {
       "name": "a level height is the datum plus its offset in inches, exactly",
@@ -247,12 +521,17 @@
     {
       "name": "a level blocked by the range ceiling still carries its ring, only the girth withheld",
       "status": "PASS",
-      "detail": "y = 1.4200m, above the 1.39m ceiling — blocked: above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring, section: 52 pts"
+      "detail": "y = 1.4200m, above the 1.39m ceiling — blocked: above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring, section: 86 pts"
+    },
+    {
+      "name": "a level drawn as a tape is one of the printed rings, and measurable here",
+      "status": "PASS",
+      "detail": "-1 1/2\" 778.8mm, -1 3/4\" 775.2mm"
     },
     {
       "name": "the whole stack lands on the reliable part of this torso",
       "status": "PASS",
-      "detail": "+4.25in at y = 1.3780m (12mm below the armhole ceiling), -2.5in at y = 1.2065m"
+      "detail": "+4.25in at y = 1.3729m (17mm below the armhole ceiling), -2.5in at y = 1.2015m"
     },
     {
       "name": "without the datum landmark the stack reads needs …, never a number",
@@ -263,6 +542,101 @@
       "name": "the record of a stack that cannot resolve carries the need and the limit",
       "status": "PASS",
       "detail": "needs UNDERBUST_FOLD"
+    },
+    {
+      "name": "every declared shape validates on a valid level",
+      "status": "PASS",
+      "detail": "1 shape(s): RECT_CB_M1_3_4 on LVL_M1_3_4"
+    },
+    {
+      "name": "a shape on an unknown level or with no width is refused",
+      "status": "PASS",
+      "detail": "S: level NOPE is not a valid level; width_in must be a positive number"
+    },
+    {
+      "name": "RECT_CB_M1_3_4: stands on -1 3/4\" at centre back, 1.75in along the ring and 2.875in up the skin",
+      "status": "PASS",
+      "detail": "bottom 44.45mm, sides 73.03/73.03mm, top edge 43.55mm at y = 1.2915m"
+    },
+    {
+      "name": "RECT_CB_M1_3_4: the bottom edge is centred on centre back",
+      "status": "PASS",
+      "detail": "corners at x = -21.63 / 21.63mm"
+    },
+    {
+      "name": "every declared reference tape validates",
+      "status": "PASS",
+      "detail": "2 tape(s): TAPE_MAXGIRTH_P2 +2in from DIAG_MAX_TORSO_GIRTH, TAPE_MAXGIRTH_P3 +3in from DIAG_MAX_TORSO_GIRTH"
+    },
+    {
+      "name": "TAPE_MAXGIRTH_P2: 2in from DIAG_MAX_TORSO_GIRTH, drawn in pieces with no girth",
+      "status": "PASS",
+      "detail": "y = 1.4058m; above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring; pieces 403.4 + 334.8mm"
+    },
+    {
+      "name": "TAPE_MAXGIRTH_P3: 3in from DIAG_MAX_TORSO_GIRTH, drawn in pieces with no girth",
+      "status": "PASS",
+      "detail": "y = 1.4312m; above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring; pieces 312.3 + 332.4mm"
+    },
+    {
+      "name": "a reference tape without its height reads needs …, never a line",
+      "status": "PASS",
+      "detail": "needs DIAG_MAX_TORSO_GIRTH; needs DIAG_MAX_TORSO_GIRTH"
+    },
+    {
+      "name": "every declared line validates",
+      "status": "PASS",
+      "detail": "1 line(s): LINE_CB_MAXP2_TO_M1_1_2 TAPE_MAXGIRTH_P2 -> LVL_M1_1_2"
+    },
+    {
+      "name": "LINE_CB_MAXP2_TO_M1_1_2: on the centre back from TAPE_MAXGIRTH_P2 down to LVL_M1_1_2, along the skin",
+      "status": "PASS",
+      "detail": "y 1.4058 -> 1.2269m, 182.8mm on the skin, chord 181.0mm"
+    },
+    {
+      "name": "every declared tick validates",
+      "status": "PASS",
+      "detail": "2 tick(s): TICK_MAXP2_CB_4IN on TAPE_MAXGIRTH_P2, TICK_MAXP2_CF_4_3_8IN on TAPE_MAXGIRTH_P2"
+    },
+    {
+      "name": "TICK_MAXP2_CB_4IN: 5mm marks across TAPE_MAXGIRTH_P2, 4in from centre back each way along it",
+      "status": "PASS",
+      "detail": "L at x = -100.1mm, arc 101.60mm, 5.00mm long on the skin, upright; R at x = 100.1mm, arc 101.60mm, 5.00mm long on the skin, upright"
+    },
+    {
+      "name": "TICK_MAXP2_CF_4_3_8IN: 5mm marks across TAPE_MAXGIRTH_P2, 4.375in from centre front each way along it",
+      "status": "PASS",
+      "detail": "L at x = -107.4mm, arc 111.13mm, 5.00mm long on the skin, upright; R at x = 107.4mm, arc 111.13mm, 5.00mm long on the skin, upright"
+    },
+    {
+      "name": "every declared strap validates",
+      "status": "PASS",
+      "detail": "1 strap(s): STRAP_MAXP2_CF_TO_CB TICK_MAXP2_CF_4_3_8IN -> TICK_MAXP2_CB_4IN"
+    },
+    {
+      "name": "a strap that does not run from a centre-front tick to a centre-back tick is refused",
+      "status": "PASS",
+      "detail": "X: from TICK_MAXP2_CB_4IN is not a valid centre-front tick; CURVE_CUP_ARMHOLE: from strap STRAP_MAXP2_CF_TO_CB is not a valid strap"
+    },
+    {
+      "name": "STRAP_MAXP2_CF_TO_CB: 20mm band from TICK_MAXP2_CF_4_3_8IN (front end moved up to TAPE_MAXGIRTH_P3) over the shoulder to TICK_MAXP2_CB_4IN on each side",
+      "status": "PASS",
+      "detail": "L 324.6mm long along the middle, ends 20.00/20.00mm, edges 331.8/317.3mm, 20.68mm wide at the shoulder top y = 1.5360m; R 324.6mm long along the middle, ends 20.00/20.00mm, edges 331.8/317.3mm, 20.68mm wide at the shoulder top y = 1.5360m"
+    },
+    {
+      "name": "every declared curve validates",
+      "status": "PASS",
+      "detail": "1 curve(s): CURVE_CUP_ARMHOLE STRAP_MAXP2_CF_TO_CB.front_outer -> SIDE_WING_HIGH_L/R"
+    },
+    {
+      "name": "a curve from an unknown strap, corner or landmark is refused",
+      "status": "PASS",
+      "detail": "C: from strap NOPE is not a valid strap; from corner middle is not one of front_inner, front_outer, back_inner, back_outer; to NOPE_L is not a registry landmark"
+    },
+    {
+      "name": "CURVE_CUP_ARMHOLE: from STRAP_MAXP2_CF_TO_CB front_outer to SIDE_WING_HIGH on each side, over the skin",
+      "status": "PASS",
+      "detail": "L 119.0mm; R 119.0mm"
     }
   ],
   "decision": "LEVELS_RESOLVE_ON_THIS_BODY"

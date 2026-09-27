@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, levelsRecord, outOfRange,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, levelsRecord, outOfRange,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -175,6 +175,10 @@ gate.record('a level blocked by the range ceiling still carries its ring, only t
 
 // The contract claims the stack fits between the waist and the armhole on this
 // body. That is a property of THIS avatar, so it is measured, not asserted.
+const taped = measured.levels.filter((l) => l.tape);
+gate.record('a level drawn as a tape is one of the printed rings, and measurable here',
+  taped.every((l) => l.label_in !== null && l.girth_m !== null),
+  taped.map((l) => `${l.label_in} ${(l.girth_m * 1000).toFixed(1)}mm`).join(', ') || 'none drawn as tapes');
 const top = measured.levels[0], bottom = measured.levels[measured.levels.length - 1];
 gate.record('the whole stack lands on the reliable part of this torso',
   top.y_m <= maxY && bottom.y_m >= scan.from_m,
@@ -190,6 +194,168 @@ gate.record('the record of a stack that cannot resolve carries the need and the 
   Array.isArray(record.needs) && record.limit === LEVELS_LIMIT,
   `needs ${record.needs?.join(', ')}`);
 
+// ---- 4. reference shapes ------------------------------------------------------
+// A shape is laid on the skin like a tape: the bottom edge along its level's
+// ring, centred on centre back, the sides up the back for the height. Both are
+// held to the declared inches; the top edge is measured, not forced.
+gate.record('every declared shape validates on a valid level',
+  loaded.shapes.length === (contract.shapes || []).length,
+  `${loaded.shapes.length} shape(s): ${loaded.shapes.map((s) => `${s.id} on ${s.level}`).join(', ') || 'none'}`);
+const brokenShape = loadLevels({ ...contract, shapes: [{ id: 'S', kind: 'rectangle', level: 'NOPE', anchor: 'centre_back', width_in: 0, height_in: 1 }] }, ctx.registry);
+gate.record('a shape on an unknown level or with no width is refused',
+  brokenShape.shapes.length === 0 && brokenShape.errors.some((e) => /level NOPE/.test(e) && /width_in/.test(e)),
+  brokenShape.errors.join('; ').slice(0, 160));
+const shapes = measureShapes(loaded, measured, ctx.tri);
+const SHAPE_TOL_M = 1e-6;
+for (const shape of shapes) {
+  const level = measured.levels.find((l) => l.id === shape.level);
+  const ok = !shape.blocked
+    && Math.abs(shape.corners.bottom_l[1] - level.y_m) < 1e-12 && Math.abs(shape.corners.bottom_r[1] - level.y_m) < 1e-12
+    && Math.abs(shape.bottom_width_m - shape.width_m) < SHAPE_TOL_M
+    && Math.abs(shape.side_height_m.l - shape.height_m) < SHAPE_TOL_M && Math.abs(shape.side_height_m.r - shape.height_m) < SHAPE_TOL_M
+    && shape.centre_back[0] === 0;
+  gate.record(`${shape.id}: stands on ${level.label_in} at centre back, ${shape.width_in}in along the ring and ${shape.height_in}in up the skin`,
+    ok,
+    shape.blocked || `bottom ${(shape.bottom_width_m * 1000).toFixed(2)}mm, sides ${(shape.side_height_m.l * 1000).toFixed(2)}/${(shape.side_height_m.r * 1000).toFixed(2)}mm, top edge ${(shape.top_width_m * 1000).toFixed(2)}mm at y = ${shape.y_top_m.toFixed(4)}m`);
+  // the bottom midpoint is centre back: the two bottom corners mirror through x = 0
+  const [bl, br] = [shape.corners.bottom_l, shape.corners.bottom_r];
+  gate.record(`${shape.id}: the bottom edge is centred on centre back`,
+    !shape.blocked && Math.abs(bl[0] + br[0]) < 1e-5 && Math.abs(bl[2] - br[2]) < 1e-5,
+    `corners at x = ${(bl[0] * 1000).toFixed(2)} / ${(br[0] * 1000).toFixed(2)}mm`);
+}
+
+// ---- 5. reference tapes from another height ------------------------------------
+// Hung on a plane-section POM's own height, read back from the authority pass.
+gate.record('every declared reference tape validates',
+  loaded.tapes.length === (contract.reference_tapes || []).length,
+  `${loaded.tapes.length} tape(s): ${loaded.tapes.map((t) => `${t.id} ${t.offset_in > 0 ? '+' : ''}${t.offset_in}in from ${t.from}`).join(', ') || 'none'}`);
+const pomHeights = Object.fromEntries((evidence.poms || []).filter((p) => Number.isFinite(p.at_y_m)).map((p) => [p.id, p.at_y_m]));
+const tapes = measureReferenceTapes(loaded, pomHeights, ctx.tri, { scan, maxY, inchDenominator: ctx.registry.reporting.inch_denominator });
+for (const tape of tapes) {
+  const exact = Number.isFinite(tape.y_m) && Math.abs(tape.y_m - (pomHeights[tape.from] + tape.offset_in * METRES_PER_INCH)) < 1e-12;
+  // above the ceiling: no girth, the reason, and the pieces on the skin; below it: the engine's own girth
+  const honest = tape.blocked
+    ? tape.girth_m === null && tape.chains.length > 0 && tape.pieces_m.every((v) => v > 0.05)
+    : Math.abs(tape.girth_m - measureSection(ctx.tri, tape.y_m).girth) === 0;
+  gate.record(`${tape.id}: ${tape.offset_in}in from ${tape.from}, ${tape.blocked ? 'drawn in pieces with no girth' : 'girth from the shared engine'}`,
+    exact && honest,
+    `y = ${tape.y_m?.toFixed(4)}m; ${tape.blocked ? `${tape.blocked}; pieces ${tape.pieces_m.map((v) => (v * 1000).toFixed(1)).join(' + ')}mm` : `${(tape.girth_m * 1000).toFixed(1)}mm`}`);
+}
+const unhung = measureReferenceTapes(loaded, {}, ctx.tri, { scan, maxY });
+gate.record('a reference tape without its height reads needs …, never a line',
+  unhung.every((t) => t.blocked === `needs ${t.from}` && !t.chains.length), unhung.map((t) => t.blocked).join('; '));
+
+// ---- 6. centre-back lines ---------------------------------------------------------
+gate.record('every declared line validates',
+  loaded.lines.length === (contract.lines || []).length,
+  `${loaded.lines.length} line(s): ${loaded.lines.map((l) => `${l.id} ${l.from} -> ${l.to}`).join(', ') || 'none'}`);
+const lines = measureLines(loaded, measured, tapes, ctx.tri);
+const heightOf = (id) => measured.levels.find((l) => l.id === id)?.y_m ?? tapes.find((t) => t.id === id)?.y_m;
+for (const line of lines) {
+  const ends = [heightOf(line.from), heightOf(line.to)].sort((a, b) => b - a);
+  const ok = !line.blocked
+    && line.points.every((p) => p[0] === 0)
+    && Math.abs(line.top[1] - ends[0]) < 1e-9 && Math.abs(line.bottom[1] - ends[1]) < 1e-9
+    && line.points.every((p, i) => i === 0 || p[1] <= line.points[i - 1][1])
+    && line.length_m >= line.chord_m;
+  gate.record(`${line.id}: on the centre back from ${line.from} down to ${line.to}, along the skin`,
+    ok,
+    line.blocked || `y ${line.top[1].toFixed(4)} -> ${line.bottom[1].toFixed(4)}m, ${(line.length_m * 1000).toFixed(1)}mm on the skin, chord ${(line.chord_m * 1000).toFixed(1)}mm`);
+}
+
+// ---- 7. tick marks -------------------------------------------------------------------
+gate.record('every declared tick validates',
+  loaded.ticks.length === (contract.ticks || []).length,
+  `${loaded.ticks.length} tick(s): ${loaded.ticks.map((t) => `${t.id} on ${t.on}`).join(', ') || 'none'}`);
+const ticks = measureTicks(loaded, measured, tapes, ctx.tri);
+// the torso's middle in z at the tape height: halfway between the section's front and back
+const midZOf = (y) => { const sec = measureSection(ctx.tri, y) || null; const zs = sec ? sec.ring.map((p) => p[1]) : [0]; return (Math.max(...zs) + Math.min(...zs)) / 2; };
+for (const tick of ticks) {
+  const midZ = midZOf(heightOf(tick.on));
+  const ok = !tick.blocked && tick.marks.length === 2
+    && tick.marks.every((m) => Math.abs(m.arc_m - tick.offset_in * METRES_PER_INCH) < 1e-9
+      && Math.abs(m.length_m - tick.length_mm / 1000) < 1e-9
+      && Math.abs(m.point[1] - heightOf(tick.on)) < 1e-12
+      // centred on the tape: the point is on the mark, with half the length each side
+      && m.points.some((p) => p.every((v, i) => Math.abs(v - m.point[i]) < 1e-12)))
+    && Math.abs(tick.marks[0].point[0] + tick.marks[1].point[0]) < 1e-5
+    // on the side of the body it was anchored to
+    // on the half of the body it is anchored to: in front of the torso's middle, or behind it
+    && tick.marks.every((m) => (tick.anchor === 'centre_front' ? m.point[2] > midZ : m.point[2] < midZ));
+  // upright: the whole mark stays in the vertical plane through its point, square to the horizontal tape
+  const worst = Math.max(...tick.marks.map((m) => Math.max(...m.points.map((p) => Math.abs(p[0] - m.point[0])))));
+  gate.record(`${tick.id}: ${tick.length_mm}mm marks across ${tick.on}, ${tick.offset_in}in from ${tick.anchor.replace('_', ' ')} each way along it`,
+    ok && worst === 0,
+    tick.blocked || tick.marks.map((m) => `${m.side} at x = ${(m.point[0] * 1000).toFixed(1)}mm, arc ${(m.arc_m * 1000).toFixed(2)}mm, ${(m.length_m * 1000).toFixed(2)}mm long on the skin, upright`).join('; '));
+}
+
+// ---- 8. straps over the shoulder -------------------------------------------------------
+gate.record('every declared strap validates',
+  loaded.straps.length === (contract.straps || []).length,
+  `${loaded.straps.length} strap(s): ${loaded.straps.map((s) => `${s.id} ${s.from} -> ${s.to}`).join(', ') || 'none'}`);
+const brokenStrap = loadLevels({ ...contract, straps: [{ id: 'X', kind: 'over_shoulder', from: 'TICK_MAXP2_CB_4IN', to: 'TICK_MAXP2_CB_4IN', width_mm: 20, colour: '#000000', label: 'x' }] }, ctx.registry);
+gate.record('a strap that does not run from a centre-front tick to a centre-back tick is refused',
+  brokenStrap.straps.length === 0 && brokenStrap.errors.some((e) => /not a valid centre-front tick/.test(e)),
+  brokenStrap.errors.join('; ').slice(0, 160));
+const straps = measureStraps(loaded, measured, tapes, ticks, ctx.tri);
+for (const strap of straps) {
+  const [from, to] = [strap.from, strap.to].map((id) => ticks.find((t) => t.id === id));
+  const width = strap.width_mm / 1000;
+  const y = heightOf(from.on);
+  // with front_on the front end is moved up to that tape, the edges unchanged
+  const yFront = strap.front_on ? heightOf(strap.front_on) : y;
+  const same = (p, q) => p.every((v, i) => Math.abs(v - q[i]) < 1e-6);
+  const ok = !strap.blocked && strap.bands.length === 2
+    && strap.bands.every((b) => Math.abs(b.front_width_m - width) < 1e-6 && Math.abs(b.back_width_m - width) < 1e-6
+      // the corners are on their tapes; the outline is closed and goes over the shoulder
+      && [b.corners.back_inner, b.corners.back_outer].every((c) => c[1] === y)
+      && [b.corners.front_inner, b.corners.front_outer, b.centre[0]].every((c) => Math.abs(c[1] - yFront) < 1e-12)
+      && same(b.outline[0], b.outline[b.outline.length - 1])
+      && b.top_y_m > y + 0.05
+      // the length runs tick to tick, between the two edges' lengths
+      && [...(strap.front_on ? [] : [[b.centre[0], from]]), [b.centre[b.centre.length - 1], to]].every(([p, t]) => same(p, t.marks.find((m) => m.side === b.side).point))
+      && b.length_m > Math.min(b.inner_length_m, b.outer_length_m) && b.length_m < Math.max(b.inner_length_m, b.outer_length_m)
+      // each end is centred on its tick: the tick's point lies on the end, between the two corners
+      && [...(strap.front_on ? [] : [[from, 'front']]), [to, 'back']].every(([t, end]) => {
+        const p = t.marks.find((m) => m.side === b.side).point;
+        const [i, o] = [b.corners[`${end}_inner`], b.corners[`${end}_outer`]];
+        return (p[0] - i[0]) * (p[0] - o[0]) < 0;
+      }))
+    // L and R mirror
+    && same(strap.bands[0].corners.front_inner.map((v, i) => (i ? v : -v)), strap.bands[1].corners.front_inner);
+  gate.record(`${strap.id}: ${strap.width_mm}mm band from ${strap.from}${strap.front_on ? ` (front end moved up to ${strap.front_on})` : ''} over the shoulder to ${strap.to} on each side`,
+    ok,
+    strap.blocked || strap.bands.map((b) => `${b.side} ${(b.length_m * 1000).toFixed(1)}mm long along the middle, ends ${(b.front_width_m * 1000).toFixed(2)}/${(b.back_width_m * 1000).toFixed(2)}mm, edges ${(b.inner_length_m * 1000).toFixed(1)}/${(b.outer_length_m * 1000).toFixed(1)}mm, ${(b.top_width_m * 1000).toFixed(2)}mm wide at the shoulder top y = ${b.top_y_m.toFixed(4)}m`).join('; '));
+}
+
+// ---- 9. curves from a strap to a landmark ---------------------------------------------
+gate.record('every declared curve validates',
+  loaded.curves.length === (contract.curves || []).length,
+  `${loaded.curves.length} curve(s): ${loaded.curves.map((c) => `${c.id} ${c.from.strap}.${c.from.corner} -> ${c.to.landmark}_L/R`).join(', ') || 'none'}`);
+const brokenCurve = loadLevels({ ...contract, curves: [{ id: 'C', kind: 'shortest_surface_path', from: { strap: 'NOPE', corner: 'middle' }, to: { landmark: 'NOPE' }, colour: '#000000', label: 'c' }] }, ctx.registry);
+gate.record('a curve from an unknown strap, corner or landmark is refused',
+  brokenCurve.curves.length === 0 && brokenCurve.errors.some((e) => /strap NOPE/.test(e) && /corner middle/.test(e) && /NOPE_L/.test(e)),
+  brokenCurve.errors.join('; ').slice(0, 160));
+const curves = measureCurves(loaded, straps, ctx.landmarks, ctx.grid);
+for (const curve of curves) {
+  const strap = straps.find((s) => s.id === curve.from.strap);
+  const ok = !curve.blocked && curve.runs.length === 2
+    && curve.runs.every((r) => {
+      const [a, z] = [r.points[0], r.points[r.points.length - 1]];
+      const corner = strap.bands.find((b) => b.side === r.side).corners[curve.from.corner];
+      const mark = ctx.landmarks[`${curve.to.landmark}_${r.side}`];
+      const chord = Math.hypot(...a.map((v, i) => v - z[i]));
+      // from the strap corner to the landmark, on the skin, no shorter than the chord
+      return a.every((v, i) => v === corner[i]) && z.every((v, i) => v === mark[i])
+        && r.points.every((p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; })
+        && r.length_m >= chord;
+    })
+    && Math.abs(curve.runs[0].length_m - curve.runs[1].length_m) < 1e-4;
+  gate.record(`${curve.id}: from ${curve.from.strap} ${curve.from.corner} to ${curve.to.landmark} on each side, over the skin`,
+    ok,
+    curve.blocked || curve.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm`).join('; '));
+}
+
 // ---- evidence ---------------------------------------------------------------
 const body = {
   purpose: 'The house "how to measure" level stack, read off the source sheets and resolved on this avatar.',
@@ -203,6 +369,54 @@ const body = {
   })),
   datum: { landmark: loaded.datum, y_m: Number(resolved.datum_y_m.toFixed(5)), source: 'auto' },
   levels: levelsRecord(measured, loaded).levels,
+  shapes: shapes.map((s) => ({
+    id: s.id, level: s.level, width_in: s.width_in, height_in: s.height_in, blocked: s.blocked,
+    ...(s.blocked ? {} : {
+      bottom_width_mm: Number((s.bottom_width_m * 1000).toFixed(2)),
+      side_height_mm: Number((s.side_height_m.l * 1000).toFixed(2)),
+      top_width_mm: Number((s.top_width_m * 1000).toFixed(2)),
+      y_bottom_m: Number(s.y_bottom_m.toFixed(5)),
+      y_top_m: Number(s.y_top_m.toFixed(5)),
+      corners_m: Object.fromEntries(Object.entries(s.corners).map(([k, p]) => [k, p.map((v) => Number(v.toFixed(5)))])),
+    }),
+  })),
+  reference_tapes: tapes.map((t) => ({
+    id: t.id, from: t.from, offset_in: t.offset_in, y_m: Number(t.y_m.toFixed(5)),
+    girth_mm: t.girth_m === null ? null : Number((t.girth_m * 1000).toFixed(1)),
+    pieces_mm: t.pieces_m ? t.pieces_m.map((v) => Number((v * 1000).toFixed(1))) : null,
+    blocked: t.blocked,
+  })),
+  lines: lines.map((l) => ({
+    id: l.id, from: l.from, to: l.to, blocked: l.blocked,
+    ...(l.blocked ? {} : {
+      length_mm: Number((l.length_m * 1000).toFixed(1)),
+      chord_mm: Number((l.chord_m * 1000).toFixed(1)),
+      top_m: l.top.map((v) => Number(v.toFixed(5))),
+      bottom_m: l.bottom.map((v) => Number(v.toFixed(5))),
+    }),
+  })),
+  ticks: ticks.map((t) => ({
+    id: t.id, on: t.on, offset_in: t.offset_in, length_mm: t.length_mm, colour: t.colour, blocked: t.blocked,
+    marks: t.marks.map((m) => ({ side: m.side, point_m: m.point.map((v) => Number(v.toFixed(5))), arc_mm: Number((m.arc_m * 1000).toFixed(2)) })),
+  })),
+  straps: straps.map((s) => ({
+    id: s.id, from: s.from, to: s.to, width_mm: s.width_mm, colour: s.colour, blocked: s.blocked,
+    bands: s.bands.map((b) => ({
+      side: b.side,
+      front_width_mm: Number((b.front_width_m * 1000).toFixed(2)),
+      back_width_mm: Number((b.back_width_m * 1000).toFixed(2)),
+      length_mm: Number((b.length_m * 1000).toFixed(1)),
+      inner_length_mm: Number((b.inner_length_m * 1000).toFixed(1)),
+      outer_length_mm: Number((b.outer_length_m * 1000).toFixed(1)),
+      top_width_mm: Number((b.top_width_m * 1000).toFixed(2)),
+      top_y_m: Number(b.top_y_m.toFixed(5)),
+      corners_m: Object.fromEntries(Object.entries(b.corners).map(([k, p]) => [k, p.map((v) => Number(v.toFixed(5)))])),
+    })),
+  })),
+  curves: curves.map((c) => ({
+    id: c.id, from: c.from, to: c.to, colour: c.colour, blocked: c.blocked,
+    runs: c.runs.map((r) => ({ side: r.side, length_mm: Number((r.length_m * 1000).toFixed(1)), from_m: r.from.map((v) => Number(v.toFixed(5))), to_m: r.to.map((v) => Number(v.toFixed(5))) })),
+  })),
   declared_limits: contract.declared_limits,
 };
 

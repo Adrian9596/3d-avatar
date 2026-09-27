@@ -25,7 +25,7 @@
     { "id": "apex_disc_80mm_lower", "type": "avatar_disc", "seed_landmark": "BUST_APEX_L", "radius_m": 0.08, "half": "below_seed" },
     { "id": "apex_loop_60mm", "type": "avatar_loop", "seed_landmark": "BUST_APEX_L", "radius_m": 0.06, "loop_points": 48,
       "note": "A closed loop on the skin, the shape the pen tool produces, filled by flood-fill and held to length by chord constraints. Exercises patch extraction rather than a face set handed in." },
-    { "id": "apex_panels_80mm", "type": "avatar_panels", "seed_landmark": "BUST_APEX_L", "radius_m": 0.08, "loop_points": 48,
-      "note": "The one-cup loop cut through the apex into two panels that share the seam. Solved together so the shared chords agree in length in both pieces; scripts/test_seam_closure.mjs gates the mismatch." }
+    { "id": "apex_panels_75mm", "type": "avatar_panels", "seed_landmark": "BUST_APEX_L", "radius_m": 0.075, "loop_points": 48,
+      "note": "The one-cup loop cut through the apex into two panels that share the seam. Solved together so the shared chords agree in length in both pieces; scripts/test_seam_closure.mjs gates the mismatch. 75 mm, not 80: on this body the apex is 76 mm from the centre front, so an 80 mm loop in the apex's tangent plane reaches the sternum and the closest-point snap jumps between the two breasts; the outline stops being one cup and its flood fill leaks. 75 mm keeps every loop point on its own cup (innermost x = -18 mm)." }
   ]
 }

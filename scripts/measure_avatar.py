@@ -307,8 +307,8 @@ POM_LANDMARKS = {
     "BREAST_ROOT_ARC_R": ["ROOT_INNER_R", "ROOT_OUTER_R", "UNDERBUST_FOLD"],
     "BODY_BAND_FRONT_L": ["UNDERBUST_FOLD", "CF_UNDERBUST", "SIDE_UNDERBUST_L"],
     "BODY_BAND_FRONT_R": ["UNDERBUST_FOLD", "CF_UNDERBUST", "SIDE_UNDERBUST_R"],
-    "BODY_UNDERARM_TO_FOLD_L": ["UNDERARM_L", "SIDE_UNDERBUST_L"],
-    "BODY_UNDERARM_TO_FOLD_R": ["UNDERARM_R", "SIDE_UNDERBUST_R"],
+    "BODY_WING_HEIGHT_L": ["UNDERBUST_FOLD", "SIDE_WING_LOW_L", "SIDE_WING_HIGH_L"],
+    "BODY_WING_HEIGHT_R": ["UNDERBUST_FOLD", "SIDE_WING_LOW_R", "SIDE_WING_HIGH_R"],
 }
 
 
@@ -539,6 +539,78 @@ def find_fold_landmarks(tri: list[float], fold_y: float) -> dict:
             "side_l": make(side_l), "side_r": make(side_r)}
 
 
+def section_side_points(tri: list[float], y: float) -> dict:
+    """The outermost point in x on each side of one horizontal section -- the
+    rule SIDE_UNDERBUST uses on the fold section, at any height."""
+    side_l = side_r = None
+    for x, z in (p for seg in section_segments(tri, y) for p in seg):
+        if x < 0 and (side_l is None or x < side_l[0]):
+            side_l = (x, z)
+        if x >= 0 and (side_r is None or x > side_r[0]):
+            side_r = (x, z)
+    make = lambda p: ({"x": p[0], "y": y, "z": p[1]} if p else None)  # noqa: E731
+    return {"side_l": make(side_l), "side_r": make(side_r)}
+
+
+def section_walk_forward(tri: list[float], y: float, start, distance: float):
+    """The point `distance` metres along a section's own contour from `start`,
+    walking toward the front (+z), as a tape slid forward along it. None if the
+    contour ends first."""
+    if not start or not distance > 0:
+        return start
+    key = lambda p: (round(p[0] * 1e5), round(p[1] * 1e5))  # noqa: E731
+    coords: dict[tuple, tuple] = {}
+    nxt: dict[tuple, list[tuple]] = {}
+    for a, b in section_segments(tri, y):
+        if math.hypot(b[0] - a[0], b[1] - a[1]) <= 0:
+            continue
+        ka, kb = key(a), key(b)
+        coords.setdefault(ka, a)
+        coords.setdefault(kb, b)
+        nxt.setdefault(ka, []).append(kb)
+        nxt.setdefault(kb, []).append(ka)
+    current = key((start["x"], start["z"]))
+    if current not in coords:
+        return None
+    previous = None
+    left = distance
+    for _ in range(len(coords) + 1):
+        options = [n for n in nxt[current] if n != previous]
+        if not options:
+            return None
+        if previous is None:
+            step = options[0]
+            for n in options[1:]:
+                if coords[n][1] > coords[step][1]:
+                    step = n
+        else:
+            step = options[0]
+        p, q = coords[current], coords[step]
+        length = math.hypot(q[0] - p[0], q[1] - p[1])
+        if length >= left:
+            t = left / length
+            return {"x": p[0] + (q[0] - p[0]) * t, "y": y, "z": p[1] + (q[1] - p[1]) * t}
+        left -= length
+        previous, current = current, step
+    return None
+
+
+def find_wing_landmarks(tri: list[float], marks: dict | None, offset_in, forward_in=0) -> dict:
+    """Ends of the wing height: the side points of the section offset_in inches
+    from the underbust fold (below it when negative), moved forward_in inches
+    toward the front along that section, and the side points of the max-girth
+    section."""
+    if not marks or not marks.get("fold") or not marks.get("max_girth") or offset_in is None:
+        return {}
+    low_y = marks["fold"]["y"] + offset_in * 0.0254
+    low = section_side_points(tri, low_y)
+    high = section_side_points(tri, marks["max_girth"]["y"])
+    forward = (forward_in or 0) * 0.0254
+    return {"low_l": section_walk_forward(tri, low_y, low["side_l"], forward),
+            "low_r": section_walk_forward(tri, low_y, low["side_r"], forward),
+            "high_l": high["side_l"], "high_r": high["side_r"]}
+
+
 def section_arc(tri, y, start, goal):
     """Arc length along a horizontal section between two points on it.
 
@@ -615,13 +687,13 @@ def section_point_near_x(tri, y, target_x, band=0.01):
     return best
 
 
-def compute_surface_poms(grid, tri, marks, hps, manual=None, fold_marks=None, armholes=None) -> dict[str, dict]:
+def compute_surface_poms(grid, tri, marks, hps, manual=None, fold_marks=None, wing=None) -> dict[str, dict]:
     """POMs measured along the surface rather than around a section, using the
     one path model so they stay comparable with a line drafted by the pen."""
     out: dict[str, dict] = {}
     manual = manual or {}
     fold_marks = fold_marks or {}
-    armholes = armholes or {}
+    wing = wing or {}
     if not marks:
         return out
 
@@ -641,7 +713,7 @@ def compute_surface_poms(grid, tri, marks, hps, manual=None, fold_marks=None, ar
                 result["at_y"] = (marks["fold"]["y"] + apex["y"]) / 2
                 out[pom_id] = result
 
-    # band front along the underbust line, and wing height up to the armhole
+    # band front along the underbust line, and wing height up the side
     if marks.get("fold"):
         for side in ("L", "R"):
             side_point = fold_marks.get("side_l" if side == "L" else "side_r")
@@ -651,12 +723,13 @@ def compute_surface_poms(grid, tri, marks, hps, manual=None, fold_marks=None, ar
                 if arc:
                     out[f"BODY_BAND_FRONT_{side}"] = {"value": arc["value"], "on_surface": True,
                                                       "points": arc["points"], "at_y": marks["fold"]["y"]}
-            armpit = armholes.get("armhole_l" if side == "L" else "armhole_r")
-            if armpit and side_point:
-                result = run(armpit, side_point)
+            low = wing.get("low_l" if side == "L" else "low_r")
+            high = wing.get("high_l" if side == "L" else "high_r")
+            if low and high:
+                result = run(low, high)
                 if result:
-                    result["at_y"] = (armpit["y"] + side_point["y"]) / 2
-                    out[f"BODY_UNDERARM_TO_FOLD_{side}"] = result
+                    result["at_y"] = (low["y"] + high["y"]) / 2
+                    out[f"BODY_WING_HEIGHT_{side}"] = result
 
     # Breast root arc: inner end -> bottom -> outer end. Bottom is derived; the
     # two ends are hand-placed, because where a wire sits there is a TD decision.
@@ -910,9 +983,12 @@ def main() -> int:
     if armholes.get("loops") not in (None, 4):
         failures.append(f"the torso surface has {armholes['loops']} boundary loops, not the 4 expected "
                         "(neck, waist, two armholes), so the underarm landmarks cannot be identified")
+    wing_rule = landmark_rules.get("SIDE_WING_LOW_L", {})
+    wing_marks = (find_wing_landmarks(tri, marks, wing_rule.get("offset_in"), wing_rule.get("forward_in", 0))
+                  if (marks and tri) else {})
     if marks and tri:
         grid = sp.build_grid(tri)
-        computed.update(compute_surface_poms(grid, tri, marks, hps, manual_points, fold_marks, armholes))
+        computed.update(compute_surface_poms(grid, tri, marks, hps, manual_points, fold_marks, wing_marks))
 
     poms = []
     for spec in registry["poms"]:
@@ -1041,6 +1117,14 @@ def main() -> int:
                                      "rule": "fold_section_extreme_x"},
                 "SIDE_UNDERBUST_R": {"xyz_m": _xyz(fold_marks.get("side_r")), "source": "auto",
                                      "rule": "fold_section_extreme_x"},
+                "SIDE_WING_LOW_L": {"xyz_m": _xyz(wing_marks.get("low_l")), "source": "auto",
+                                    "rule": "offset_section_extreme_x"},
+                "SIDE_WING_LOW_R": {"xyz_m": _xyz(wing_marks.get("low_r")), "source": "auto",
+                                    "rule": "offset_section_extreme_x"},
+                "SIDE_WING_HIGH_L": {"xyz_m": _xyz(wing_marks.get("high_l")), "source": "auto",
+                                     "rule": "max_girth_section_extreme_x"},
+                "SIDE_WING_HIGH_R": {"xyz_m": _xyz(wing_marks.get("high_r")), "source": "auto",
+                                     "rule": "max_girth_section_extreme_x"},
                 "UNDERARM_L": {"xyz_m": _xyz(armholes.get("armhole_l")), "source": "auto",
                                "rule": "armhole_boundary_lowest_point"},
                 "UNDERARM_R": {"xyz_m": _xyz(armholes.get("armhole_r")), "source": "auto",

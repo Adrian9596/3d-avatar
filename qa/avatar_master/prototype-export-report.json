@@ -1,9 +1,359 @@
 {
   "asset": "avatar_master.glb",
-  "sha256": "3f8e01884a0a8ac1f8320b555c7a493698d77f3171a4bb45841d62340dc50afb",
-  "generated_at": "2026-09-04T15:24:00Z",
-  "note": "No shape keys/rig were authored for this CLO3D-derived torso avatar; empty arrays reflect that, not an export failure.",
+  "sha256": "8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c",
+  "generated_at": "2026-09-27T11:06:09+00:00",
+  "note": "Refined size-L torso (CLO3D AVT L, smoothed outside this repo, re-meshed evenly here), flat skin material, no textures. No shape keys or rig exist for it; the empty arrays reflect that, not an export failure.",
   "morph_names": [],
   "animation_names": [],
-  "armature_exported": false
+  "armature_exported": false,
+  "source": {
+    "file": "Avatar_CLO3D_ready.blend",
+    "object": "Avatar_Torso_sim",
+    "sha256": "42f49f7610528763a34280a4bd6cdfe02ef3feae2589b9a54e30143db8345d27",
+    "offset_to_avt_l_frame_m_blender_xyz": [
+      1.704692840576172e-05,
+      -0.001275770366191864,
+      1.0429999828338623
+    ]
+  },
+  "armhole_seam": {
+    "file": "assets/source/clo3d-armhole-seam.json",
+    "sha256": "9e70b43c9fbf8ca509219f5407187e2af33386b74ee0194ae52169d0c4affb1a",
+    "taken_from": {
+      "file": "assets/export/avatar_master.glb",
+      "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4",
+      "material": "Mara:body3",
+      "weld": "vertex positions rounded to 1e-5 m, as scripts/measure_core.mjs findArmholes welds them"
+    }
+  },
+  "editable_source": {
+    "file": "assets/source/avatar_master.blend",
+    "sha256": "759069fe9e3d72e01435ac0e324b719e0a40ce9a47fbb5d470ccd08b14eb0928"
+  },
+  "symmetry": {
+    "kept_half": "-X",
+    "snapped_to_plane": 51,
+    "snap_m": 0.0003
+  },
+  "remesh": {
+    "method": "QuadriFlow (Blender), mesh symmetry X, sharp rims preserved, seed 0",
+    "target_faces": 16000,
+    "quads": 16416,
+    "tangential_relaxation": {
+      "iterations": 8,
+      "factor": 0.5
+    },
+    "short_edges_collapsed": 12,
+    "min_edge_m": 0.0025,
+    "folded_triangles_collapsed": 2,
+    "rim_edges_merged": 4,
+    "cap_triangles": 4414,
+    "cap_spacing_m": 0.006,
+    "vertex_to_refined_surface_mm": {
+      "median": 0.0,
+      "max": 1.3999
+    },
+    "refined_surface_to_remesh_mm": {
+      "median": 0.0518,
+      "p95": 0.6575,
+      "p99": 2.5515,
+      "max": 5.3123,
+      "max_at_gltf_m": [
+        -0.2298,
+        1.4066,
+        -0.0516
+      ]
+    },
+    "volume_change_pct": -0.0523
+  },
+  "split": {
+    "cap_faces": 4414,
+    "armholes": [
+      {
+        "side": "L",
+        "seam_points": 42,
+        "plane_centroid_m": [
+          -0.15989,
+          1.45718,
+          -0.05016
+        ],
+        "plane_normal": [
+          -0.99921,
+          0.03859,
+          -0.00986
+        ],
+        "seam_out_of_plane_mm": [
+          -8.94,
+          8.23
+        ],
+        "vertices_on_cut_snapped": 8,
+        "vertices_inserted": 139
+      },
+      {
+        "side": "R",
+        "seam_points": 42,
+        "plane_centroid_m": [
+          0.15989,
+          1.45718,
+          -0.05016
+        ],
+        "plane_normal": [
+          0.99921,
+          0.03859,
+          -0.00987
+        ],
+        "seam_out_of_plane_mm": [
+          -8.94,
+          8.23
+        ],
+        "vertices_on_cut_snapped": 8,
+        "vertices_inserted": 139
+      }
+    ]
+  },
+  "arm_stubs": {
+    "edges_split": 838,
+    "inward_edges_left": 736,
+    "arm_triangles": [
+      2766,
+      4442
+    ],
+    "deviation_threshold_m": 0.0002,
+    "stub_surface_to_mesh_mm_outboard": {
+      "p95": 0.1724,
+      "max": 0.219
+    }
+  },
+  "mesh": {
+    "vertices": 17051,
+    "triangles": 34098,
+    "closed": true,
+    "min_triangle_altitude_mm": 0.2596,
+    "surfaces": {
+      "Mara:body3": {
+        "triangles": 25242,
+        "triangle_altitude_mm": {
+          "min": 0.272,
+          "median": 4.353,
+          "narrower_than_2mm": 268
+        },
+        "boundary_loops": [
+          {
+            "vertices": 154,
+            "centroid_m": [
+              0.0,
+              1.043,
+              -0.00975
+            ],
+            "y_range_m": [
+              1.043,
+              1.043
+            ],
+            "lowest_m": [
+              0.03645,
+              1.043,
+              -0.13234
+            ]
+          },
+          {
+            "vertices": 147,
+            "centroid_m": [
+              0.16034,
+              1.4454,
+              -0.04786
+            ],
+            "y_range_m": [
+              1.38738,
+              1.51367
+            ],
+            "lowest_m": [
+              0.16961,
+              1.38738,
+              -0.08313
+            ]
+          },
+          {
+            "vertices": 147,
+            "centroid_m": [
+              -0.16034,
+              1.4454,
+              -0.04786
+            ],
+            "y_range_m": [
+              1.38738,
+              1.51367
+            ],
+            "lowest_m": [
+              -0.16961,
+              1.38738,
+              -0.08313
+            ]
+          },
+          {
+            "vertices": 62,
+            "centroid_m": [
+              0.0,
+              1.557,
+              -0.03717
+            ],
+            "y_range_m": [
+              1.557,
+              1.557
+            ],
+            "lowest_m": [
+              0.05835,
+              1.557,
+              -0.05068
+            ]
+          }
+        ]
+      },
+      "Mara:arm2": {
+        "triangles": 4442,
+        "triangle_altitude_mm": {
+          "min": 0.2596,
+          "median": 3.348,
+          "narrower_than_2mm": 1484
+        },
+        "boundary_loops": [
+          {
+            "vertices": 147,
+            "centroid_m": [
+              0.16034,
+              1.4454,
+              -0.04786
+            ],
+            "y_range_m": [
+              1.38738,
+              1.51367
+            ],
+            "lowest_m": [
+              0.16961,
+              1.38738,
+              -0.08313
+            ]
+          },
+          {
+            "vertices": 147,
+            "centroid_m": [
+              -0.16034,
+              1.4454,
+              -0.04786
+            ],
+            "y_range_m": [
+              1.38738,
+              1.51367
+            ],
+            "lowest_m": [
+              -0.16961,
+              1.38738,
+              -0.08313
+            ]
+          }
+        ]
+      },
+      "Skin_Cut": {
+        "triangles": 4414,
+        "triangle_altitude_mm": {
+          "min": 1.5537,
+          "median": 4.2426,
+          "narrower_than_2mm": 4
+        },
+        "boundary_loops": [
+          {
+            "vertices": 154,
+            "centroid_m": [
+              0.0,
+              1.043,
+              -0.00975
+            ],
+            "y_range_m": [
+              1.043,
+              1.043
+            ],
+            "lowest_m": [
+              0.01866,
+              1.043,
+              0.12646
+            ]
+          },
+          {
+            "vertices": 62,
+            "centroid_m": [
+              0.0,
+              1.557,
+              -0.03717
+            ],
+            "y_range_m": [
+              1.557,
+              1.557
+            ],
+            "lowest_m": [
+              0.02855,
+              1.557,
+              -0.08422
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "material": {
+    "base_color_linear": [
+      0.7379,
+      0.5271,
+      0.4287
+    ],
+    "roughness": {
+      "Mara:body3": 0.455,
+      "Mara:arm2": 0.455,
+      "Skin_Cut": 0.62
+    },
+    "metallic": 0.0,
+    "textures": "none",
+    "from": "median of the previous baked Mara_body3_BaseColor / Roughness maps"
+  },
+  "glb": {
+    "nodes": [
+      "AVT_L_refined"
+    ],
+    "materials": [
+      "Mara:body3",
+      "Mara:arm2",
+      "Skin_Cut"
+    ],
+    "primitives": [
+      {
+        "material": "Mara:body3",
+        "attributes": [
+          "NORMAL",
+          "POSITION"
+        ],
+        "vertices": 12874,
+        "triangles": 25242
+      },
+      {
+        "material": "Mara:arm2",
+        "attributes": [
+          "NORMAL",
+          "POSITION"
+        ],
+        "vertices": 2370,
+        "triangles": 4442
+      },
+      {
+        "material": "Skin_Cut",
+        "attributes": [
+          "NORMAL",
+          "POSITION"
+        ],
+        "vertices": 2335,
+        "triangles": 4414
+      }
+    ],
+    "images": 0,
+    "textures": 0,
+    "extensions_used": []
+  },
+  "blender": "5.2.0 LTS"
 }

@@ -15,7 +15,7 @@
  * Girth is the perimeter of the CONVEX HULL of a section, not of the raw
  * contour: a tape bridges concavities (the cleavage gap, the spinal groove)
  * instead of sinking into them. On this body the raw contour over-reports the
- * bust by ~20mm.
+ * bust by ~18mm.
  */
 
 import { surfaceRun } from './surface_path.mjs';
@@ -264,8 +264,8 @@ export const POM_LANDMARKS = {
   BREAST_ROOT_ARC_R: ['ROOT_INNER_R', 'ROOT_OUTER_R', 'UNDERBUST_FOLD'],
   BODY_BAND_FRONT_L: ['UNDERBUST_FOLD', 'CF_UNDERBUST', 'SIDE_UNDERBUST_L'],
   BODY_BAND_FRONT_R: ['UNDERBUST_FOLD', 'CF_UNDERBUST', 'SIDE_UNDERBUST_R'],
-  BODY_UNDERARM_TO_FOLD_L: ['UNDERARM_L', 'SIDE_UNDERBUST_L'],
-  BODY_UNDERARM_TO_FOLD_R: ['UNDERARM_R', 'SIDE_UNDERBUST_R'],
+  BODY_WING_HEIGHT_L: ['UNDERBUST_FOLD', 'SIDE_WING_LOW_L', 'SIDE_WING_HIGH_L'],
+  BODY_WING_HEIGHT_R: ['UNDERBUST_FOLD', 'SIDE_WING_LOW_R', 'SIDE_WING_HIGH_R'],
 };
 
 export function pomProvenance(pomId, source) {
@@ -319,7 +319,7 @@ export function computePoms(tri, scan, landmarks) {
  *
  * An automatic rule was written and then removed. "Highest surface point
  * outboard of the neck" returns whatever sits on its own inner cutoff: 35mm
- * gives y=1593.1mm, 45mm gives 1589.2mm, 90mm gives 1534.9mm. The answer was
+ * gave y=1593.1mm, 45mm gave 1589.2mm, 90mm gave 1534.9mm on the previous CLO3D torso. The answer was
  * set by a parameter with no anatomical basis, not by the body, and a number
  * like that is worse than no number. The head is cut off at the neck, so there
  * is no neck-base curve to detect against.
@@ -436,6 +436,76 @@ export function findFoldLandmarks(tri, foldY) {
     cbUnderbust: make(centreBack),
     sideL: make(sideL),
     sideR: make(sideR),
+  };
+}
+
+/** The outermost point in x on each side of one horizontal section — the rule
+ *  SIDE_UNDERBUST uses on the fold section, at any height. */
+export function sectionSidePoints(tri, y) {
+  let sideL = null;
+  let sideR = null;
+  for (const [x, z] of segmentPoints(sectionSegments(tri, y))) {
+    if (x < 0 && (!sideL || x < sideL[0])) sideL = [x, z];
+    if (x >= 0 && (!sideR || x > sideR[0])) sideR = [x, z];
+  }
+  const make = (p) => (p ? { x: p[0], y, z: p[1] } : null);
+  return { sideL: make(sideL), sideR: make(sideR) };
+}
+
+/** The point `distance` metres along a section's own contour from `from` (a
+ *  point on it), walking toward the front (+z) — where a tape laid on that
+ *  section and slid forward would be. Null if the contour ends first. */
+export function sectionWalkForward(tri, y, from, distance) {
+  if (!from || !(distance > 0)) return from || null;
+  const key = (p) => `${Math.round(p[0] * 1e5)},${Math.round(p[1] * 1e5)}`;
+  const nodes = new Map();
+  const node = (p) => {
+    const k = key(p);
+    if (!nodes.has(k)) nodes.set(k, { p, next: [] });
+    return nodes.get(k);
+  };
+  for (const [a, b] of sectionSegments(tri, y)) {
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) <= 0) continue;
+    const na = node(a), nb = node(b);
+    na.next.push(nb);
+    nb.next.push(na);
+  }
+  let current = nodes.get(key([from.x, from.z]));
+  if (!current) return null;
+  let previous = null;
+  let left = distance;
+  for (let guard = 0; guard < nodes.size + 1; guard++) {
+    const options = current.next.filter((n) => n !== previous);
+    if (!options.length) return null;
+    // first step: the neighbour further front; after that, onward along the chain
+    const step = previous ? options[0] : options.reduce((best, n) => (n.p[1] > best.p[1] ? n : best));
+    const length = Math.hypot(step.p[0] - current.p[0], step.p[1] - current.p[1]);
+    if (length >= left) {
+      const t = left / length;
+      return { x: current.p[0] + (step.p[0] - current.p[0]) * t, y, z: current.p[1] + (step.p[1] - current.p[1]) * t };
+    }
+    left -= length;
+    previous = current;
+    current = step;
+  }
+  return null;
+}
+
+/** Ends of the wing height: the side points of the section `offsetIn` inches
+ *  from the underbust fold (below it when negative), moved `forwardIn` inches
+ *  toward the front along that section, and the side points of the max-girth
+ *  section. Both inch values are the registry's SIDE_WING_LOW rule fields. */
+export function findWingLandmarks(tri, marks, offsetIn, forwardIn = 0) {
+  if (!marks || !marks.fold || !marks.maxGirth || !Number.isFinite(offsetIn)) return {};
+  const lowY = marks.fold.y + offsetIn * 0.0254;
+  const low = sectionSidePoints(tri, lowY);
+  const high = sectionSidePoints(tri, marks.maxGirth.y);
+  const forward = (Number.isFinite(forwardIn) ? forwardIn : 0) * 0.0254;
+  return {
+    lowL: sectionWalkForward(tri, lowY, low.sideL, forward),
+    lowR: sectionWalkForward(tri, lowY, low.sideR, forward),
+    highL: high.sideL,
+    highR: high.sideR,
   };
 }
 
@@ -564,9 +634,9 @@ export function computeSurfacePoms(grid, tri, marks, options = {}) {
     }
   }
 
-  // band front along the underbust line, and wing height up to the armhole
+  // band front along the underbust line, and wing height up the side
   const fold = options.foldLandmarks || {};
-  const armholes = options.armholes || {};
+  const wing = options.wing || {};
   if (marks.fold) {
     for (const side of ['L', 'R']) {
       const sidePoint = side === 'L' ? fold.sideL : fold.sideR;
@@ -574,12 +644,11 @@ export function computeSurfacePoms(grid, tri, marks, options = {}) {
         const arc = sectionArc(tri, marks.fold.y, fold.cfUnderbust, sidePoint);
         if (arc) out[`BODY_BAND_FRONT_${side}`] = { ...arc, at_y: marks.fold.y, onSurface: true };
       }
-      const armpit = side === 'L' ? armholes.armholeL : armholes.armholeR;
-      if (armpit && sidePoint) {
-        const result = run(armpit, sidePoint);
-        if (result) out[`BODY_UNDERARM_TO_FOLD_${side}`] = {
-          ...result, at_y: (armpit.y + sidePoint.y) / 2,
-        };
+      const low = side === 'L' ? wing.lowL : wing.lowR;
+      const high = side === 'L' ? wing.highL : wing.highR;
+      if (low && high) {
+        const result = run(low, high);
+        if (result) out[`BODY_WING_HEIGHT_${side}`] = { ...result, at_y: (low.y + high.y) / 2 };
       }
     }
   }

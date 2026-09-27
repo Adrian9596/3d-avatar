@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T17:24:01Z",
+  "generated_at": "2026-09-27T12:30:51Z",
   "purpose": "Accuracy of the surface-path routine against an analytic geodesic, and the continuity property the control points depend on.",
   "settings": {
     "schedule": [
@@ -23,7 +23,7 @@
     "continuity_mm": 0.2
   },
   "worst_accuracy_error_mm": 0.057,
-  "worst_continuity_jump_mm": 0.1166,
+  "worst_continuity_jump_mm": 0.1097,
   "cylinder_accuracy": [
     {
       "theta": 0.8,
@@ -59,34 +59,34 @@
   "avatar_continuity": [
     {
       "case": "across the chest",
-      "single_mm": 200.8068,
-      "piecewise_mm": 200.7771,
-      "jump_mm": -0.0296,
-      "jump_pct": -0.0148,
+      "single_mm": 197.9152,
+      "piecewise_mm": 198.0249,
+      "jump_mm": 0.1097,
+      "jump_pct": 0.0554,
       "on_surface": true
     },
     {
       "case": "apex down to the fold",
-      "single_mm": 74.0492,
-      "piecewise_mm": 74.0493,
-      "jump_mm": 0.0001,
-      "jump_pct": 0.0001,
+      "single_mm": 73.5872,
+      "piecewise_mm": 73.5865,
+      "jump_mm": -0.0008,
+      "jump_pct": -0.0011,
       "on_surface": true
     },
     {
       "case": "shoulder to waist, front",
-      "single_mm": 228.611,
-      "piecewise_mm": 228.4944,
-      "jump_mm": -0.1166,
-      "jump_pct": -0.051,
+      "single_mm": 227.7186,
+      "piecewise_mm": 227.6384,
+      "jump_mm": -0.0802,
+      "jump_pct": -0.0352,
       "on_surface": true
     },
     {
       "case": "front to side",
-      "single_mm": 214.7083,
-      "piecewise_mm": 214.71,
-      "jump_mm": 0.0018,
-      "jump_pct": 0.0008,
+      "single_mm": 210.5915,
+      "piecewise_mm": 210.6087,
+      "jump_mm": 0.0171,
+      "jump_pct": 0.0081,
       "on_surface": true
     }
   ],
@@ -109,27 +109,27 @@
     {
       "name": "adding control points does not move the reading — across the chest",
       "status": "PASS",
-      "detail": "A→B 200.8068mm vs A→h1→h2→B 200.7771mm — jump -0.0296mm"
+      "detail": "A→B 197.9152mm vs A→h1→h2→B 198.0249mm — jump 0.1097mm"
     },
     {
       "name": "adding control points does not move the reading — apex down to the fold",
       "status": "PASS",
-      "detail": "A→B 74.0492mm vs A→h1→h2→B 74.0493mm — jump 0.0001mm"
+      "detail": "A→B 73.5872mm vs A→h1→h2→B 73.5865mm — jump -0.0008mm"
     },
     {
       "name": "adding control points does not move the reading — shoulder to waist, front",
       "status": "PASS",
-      "detail": "A→B 228.611mm vs A→h1→h2→B 228.4944mm — jump -0.1166mm"
+      "detail": "A→B 227.7186mm vs A→h1→h2→B 227.6384mm — jump -0.0802mm"
     },
     {
       "name": "adding control points does not move the reading — front to side",
       "status": "PASS",
-      "detail": "A→B 214.7083mm vs A→h1→h2→B 214.71mm — jump 0.0018mm"
+      "detail": "A→B 210.5915mm vs A→h1→h2→B 210.6087mm — jump 0.0171mm"
     },
     {
       "name": "the same run measured twice is identical",
       "status": "PASS",
-      "detail": "200.8068mm"
+      "detail": "197.9152mm"
     }
   ],
   "decision": "SURFACE_PATH_OK"

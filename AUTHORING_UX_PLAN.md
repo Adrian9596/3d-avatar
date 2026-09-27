@@ -1,5 +1,7 @@
 # Authoring-lane usability & accuracy — Research Plan
 
+> **2026-09-27:** the avatar was replaced by the refined size-L torso (see `contracts/avatar-asset-contract.md`). Figures quoted here were measured on the previous CLO3D mesh (`0caa604b…`) unless a section says otherwise; the current ones are in `qa/avatar_master/`.
+
 Orbit while drafting · a pen that snaps · landmark placement that says how well it was placed ·
 template drafts from landmarks.
 
@@ -110,13 +112,16 @@ threshold the authority pass already uses.
 Cup outline built the way the pen builds a line — four anchors, each leg the shortest path with its
 two control points parked at ⅓ and ⅔ — through the left apex's ROOT_TOP, ROOT_OUTER, ROOT_BOTTOM,
 ROOT_INNER (**the three manual-only roots were synthesised for the spike**; on the real body a
-person places them). Outline 329.6 mm, 12 legs, 36 ms to build. Then `draftPieces` + `flattenDraft`:
+person places them). Outline 329.3 mm, 12 legs, 39 ms to build. Then `draftPieces` + `flattenDraft`:
 
 | Template | Pieces | Seam error per piece (mm) | Shared-seam mismatch (mm) | Sweeps | Time |
 |---|---|---|---|---|---|
-| One piece | 1 | 19.5 | — | 602 | 21 ms |
-| Vertical seam through the apex | 2 | 7.6 / 2.5 | 1.05 | 1 578 | 49 ms |
-| Horizontal seam through the apex | 2 | 3.9 / 2.2 | 0.59 | 2 615 | 62 ms |
+| One piece | 1 | 17.7 | — | 376 | 20 ms |
+| Vertical seam through the apex | 2 | 6.7 / 2.0 | 0.61 | 1 588 | 54 ms |
+| Horizontal seam through the apex | 2 | 3.9 / 3.1 | 0.22 | 1 890 | 52 ms |
+
+Re-measured 2026-09-27 on the refined size-L torso that replaced the CLO3D mesh; on that mesh the
+same spike gave 19.5; 7.6 / 2.5 at 1.05; 3.9 / 2.2 at 0.59 mm (outline 329.6 mm).
 
 All sound (0 fold-overs, converged, no restarts). Three things follow. A template needs nothing the
 pen and flatten engines do not already have. Its result is a *comparison* — here the horizontal
@@ -284,8 +289,8 @@ while adding templates, because the two are different things. A template does no
 where the geometry says it should go; it places the seam where **bra construction conventionally
 puts it** — through the apex, vertically or horizontally — and reports what that costs on this
 body. The choice among them, and every anchor's position afterwards, is the person's. The spike
-(§4.3) shows why the report is worth having: on this body the horizontal cut halves the seam
-error of the vertical one, which nobody would guess by eye.
+(§4.3) shows why the report is worth having: on this body the horizontal cut's worst seam error
+(3.9 mm) is well under the vertical one's (6.7 mm), which nobody would guess by eye.
 
 ### 8.2 Contract-declared templates
 
@@ -744,9 +749,10 @@ cut (`CUP_2PANEL_HORIZON_A/_B`) — the writer had refused the collision, and th
 exports such a template. ROOT_BOTTOM_L/R (derived) joined the landmark panel as auto rows so
 templates can reference them.
 
-Verified: the gate reproduces §4.3 on the fixture (one piece 19.54; vertical 7.64/2.45 at
-1.08; horizontal 3.90/2.15 at 0.59; cradle −2.44 mm, all sound, 46–113 ms each) and left/right
-agree to 0.05 mm on this mirrored body. In the browser (synthetic events, pane hidden): with no
+Verified: the gate reproduces §4.3 on the fixture (one piece 17.72; vertical 6.67/2.02 at
+0.61; horizontal 3.94/3.11 at 0.23; cradle −4.04 mm, all sound; on the previous CLO3D mesh
+19.54; 7.64/2.45 at 1.08; 3.90/2.15 at 0.59; cradle −2.44) and left/right agree to 0.05 mm on
+this mirrored body. In the browser (synthetic events, pane hidden): with no
 roots placed every template read `needs …` and Draft was disabled; after three left roots were
 placed the four left templates became available; Compare listed them in 401 ms (the cradle
 unsound for those roots, shown ⚠); Draft produced two pen lines and a result within 0.02 mm of

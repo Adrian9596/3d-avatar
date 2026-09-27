@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-05T17:24:13Z",
+  "generated_at": "2026-09-27T12:30:59Z",
   "purpose": "Two pattern pieces flattened together must agree on the length of the seam they share.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
-    "sha256": "0caa604bab3510e6c40ed699185832b55d68b87668336a53d385a5345ddd71a4"
+    "sha256": "8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c"
   },
   "cases": {
     "file": "scripts/flatten_cases.json",
-    "sha256": "6c52127a37594b4bcd5312a20d30be3631796cfa4d16327337540418f4366e05"
+    "sha256": "a1a8e4e76738637ed5bc5f53e0fb167387f394816cc17a5ecac43a8451b312a1"
   },
   "engine": "scripts/flatten_core.mjs",
   "solver": {
@@ -36,90 +36,90 @@
   ],
   "results": [
     {
-      "id": "apex_panels_80mm",
+      "id": "apex_panels_75mm",
       "shared_seam": {
-        "chord_count": 65,
-        "length_3d_mm": 116.4655,
+        "chord_count": 61,
+        "length_3d_mm": 111.2639,
         "coupled": {
-          "panel_a": 119.459,
-          "panel_b": 118.9092,
-          "mismatch_mm": 0.5498,
-          "iterations": 2416,
+          "panel_a": 113.0206,
+          "panel_b": 113.0469,
+          "mismatch_mm": 0.0263,
+          "iterations": 985,
           "restarts": 0
         },
         "independent": {
-          "panel_a": 119.6497,
-          "panel_b": 118.6355,
-          "mismatch_mm": 1.0142,
-          "iterations": 6365
+          "panel_a": 112.9789,
+          "panel_b": 113.095,
+          "mismatch_mm": 0.1161,
+          "iterations": 504
         }
       },
       "pieces": [
         {
           "name": "panel_a",
-          "vertex_count": 262,
-          "face_count": 462,
+          "vertex_count": 149,
+          "face_count": 246,
           "triangle_flips": 0,
-          "seam_length_3d_mm": 283.506,
-          "seam_length_flat_mm": 290.6754,
-          "seam_error_mm": 7.1694,
-          "worst_chord_error_mm": 0.2231,
-          "interior_rms_pct": 1.513
+          "seam_length_3d_mm": 268.7207,
+          "seam_length_flat_mm": 273.0813,
+          "seam_error_mm": 4.3606,
+          "worst_chord_error_mm": 0.094,
+          "interior_rms_pct": 1.472
         },
         {
           "name": "panel_b",
-          "vertex_count": 174,
-          "face_count": 287,
+          "vertex_count": 171,
+          "face_count": 290,
           "triangle_flips": 0,
-          "seam_length_3d_mm": 293.5842,
-          "seam_length_flat_mm": 298.4849,
-          "seam_error_mm": 4.9007,
-          "worst_chord_error_mm": 0.0918,
-          "interior_rms_pct": 1.066
+          "seam_length_3d_mm": 288.3118,
+          "seam_length_flat_mm": 292.7412,
+          "seam_error_mm": 4.4294,
+          "worst_chord_error_mm": 0.0592,
+          "interior_rms_pct": 0.987
         }
       ]
     }
   ],
   "checks": [
     {
-      "name": "apex_panels_80mm: the two panels see the same shared seam",
+      "name": "apex_panels_75mm: the two panels see the same shared seam",
       "status": "PASS",
-      "detail": "65 shared chords, 116.4655mm on the body in both"
+      "detail": "61 shared chords, 111.2639mm on the body in both"
     },
     {
-      "name": "apex_panels_80mm: the joint solve converged",
+      "name": "apex_panels_75mm: the joint solve converged",
       "status": "PASS",
-      "detail": "2416 sweeps"
+      "detail": "985 sweeps"
     },
     {
-      "name": "apex_panels_80mm/panel_a: no triangle folds over",
+      "name": "apex_panels_75mm/panel_a: no triangle folds over",
       "status": "PASS",
       "detail": "0 flips"
     },
     {
-      "name": "apex_panels_80mm/panel_a: the piece is a disc",
+      "name": "apex_panels_75mm/panel_a: the piece is a disc",
       "status": "PASS",
       "detail": "χ=1, 1 boundary loop(s)"
     },
     {
-      "name": "apex_panels_80mm/panel_b: no triangle folds over",
+      "name": "apex_panels_75mm/panel_b: no triangle folds over",
       "status": "PASS",
       "detail": "0 flips"
     },
     {
-      "name": "apex_panels_80mm/panel_b: the piece is a disc",
+      "name": "apex_panels_75mm/panel_b: the piece is a disc",
       "status": "PASS",
       "detail": "χ=1, 1 boundary loop(s)"
     },
     {
-      "name": "apex_panels_80mm: the shared seam agrees between the pieces to 1/8in",
+      "name": "apex_panels_75mm: the shared seam agrees between the pieces to 1/8in",
       "status": "PASS",
-      "detail": "119.459mm vs 118.9092mm — mismatch 0.5498mm (tolerance 3.175mm)"
+      "detail": "113.0206mm vs 113.0469mm — mismatch 0.0263mm (tolerance 3.175mm)"
     },
     {
-      "name": "apex_panels_80mm: solving the panels together beats solving them apart",
+      "name": "apex_panels_75mm: solving the panels together beats solving them apart",
       "status": "PASS",
-      "detail": "together 0.5498mm · apart 1.0142mm"
+      "detail": "together 0.0263mm · apart 0.1161mm"
     }
   ],
   "decision": "SEAMS_CLOSE"

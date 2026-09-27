@@ -29,6 +29,7 @@ import {
   computePoms,
   computeSurfacePoms,
   findArmholes,
+  findWingLandmarks,
   findFoldLandmarks,
   applyLandmarkOverrides,
 } from './measure_core.mjs';
@@ -101,7 +102,8 @@ for (const [role, name] of Object.entries(registry.expected_materials)) {
 const surface = [];
 for (const name of registry.measurement_surface) {
   const bucket = triangles.get(name);
-  if (bucket) surface.push(...bucket);
+  // no spread: a torso of ~40k triangles is more arguments than a call may take
+  if (bucket) for (const value of bucket) surface.push(value);
 }
 const tri = new Float32Array(surface);
 if (!tri.length) blocked(`measurement surface ${registry.measurement_surface} produced no geometry`);
@@ -143,8 +145,10 @@ const foldLandmarks = marks?.fold ? findFoldLandmarks(tri, marks.fold.y) : {};
 const armholes = findArmholes(tri);
 record('the torso surface has the four boundary loops the underarm rule needs',
   armholes.loops === 4, `${armholes.loops} loop(s): neck, waist, two armholes`);
+const wingRule = (registry.landmarks || []).find((l) => l.id === 'SIDE_WING_LOW_L') || {};
+const wing = findWingLandmarks(tri, marks, wingRule.offset_in, wingRule.forward_in);
 Object.assign(poms, computeSurfacePoms(buildGrid(tri), tri, marks,
-  { hps, manualPoints, foldLandmarks, armholes }));
+  { hps, manualPoints, foldLandmarks, wing }));
 record(
   'both sides applied the same landmark overrides',
   Boolean(evidence.landmark_overrides?.applied) === Boolean(overrides),

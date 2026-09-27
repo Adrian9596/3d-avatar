@@ -9,6 +9,7 @@
 import { edgeFaceMap } from './flatten_mesh.mjs';
 
 export const DEFAULT_LOOP_SPACING = 0.002;   // barrier samples 2mm apart, < any edge
+export const ON_EDGE_BARY = 1e-9;            // a sample this close to an edge lies on it
 
 // ------------------------------------------------------------------ mesh build
 
@@ -23,6 +24,18 @@ function barycentric(P, F, face, q) {
   const den = d00 * d11 - d01 * d01;
   const b1 = (d11 * d20 - d01 * d21) / den, b2 = (d00 * d21 - d01 * d20) / den;
   return [1 - b1 - b2, b1, b2];
+}
+
+function vertexFaceMap(F) {
+  const out = new Map();
+  for (let f = 0; f < F.length / 3; f++) {
+    for (let k = 0; k < 3; k++) {
+      const v = F[f * 3 + k];
+      if (!out.has(v)) out.set(v, []);
+      out.get(v).push(f);
+    }
+  }
+  return out;
 }
 
 /** A point's identity for matching the same loop sample across pieces: the
@@ -53,6 +66,13 @@ function lexLess(A, B) {
  * line produce bit-identical samples along it — that is how a shared seam is
  * recognised.
  *
+ * A sample that lands exactly on an edge lies on both faces of it, and on a
+ * vertex on every face round it, so all of them become barrier. Which one the
+ * closest-point query names there is floating-point noise -- the loop's own
+ * vertices sit on edges, and a 1-ulp difference in cos between this engine and
+ * its Python port flipped five of 170 samples to the other face -- and a
+ * barrier that depended on it made the two engines cut different patches.
+ *
  * `closest` is a function p -> {point, normal, triangle} over the SAME soup the
  * mesh was welded from (scripts/surface_path.mjs closestOnMesh with its grid).
  * Declared limit: the ring of barrier faces is scaffolding that overshoots the
@@ -62,6 +82,8 @@ function lexLess(A, B) {
 export function extractPatch(mesh, closest, loopPoints, seed, spacing = DEFAULT_LOOP_SPACING) {
   const P = mesh.positions, F = mesh.faces;
   const nf = F.length / 3;
+  const edgeFaces = edgeFaceMap(F);
+  let vertexFaces = null;                     // built only if a sample lands on a vertex
   const samples = [];
   const barrier = new Set();
   const n = loopPoints.length;
@@ -83,8 +105,17 @@ export function extractPatch(mesh, closest, loopPoints, seed, spacing = DEFAULT_
       const hit = closest(q);
       if (!hit) return { error: 'loop sample found no surface' };
       const face = hit.triangle / 9;
+      const bary = barycentric(P, F, face, hit.point);
       barrier.add(face);
-      samples.push({ point: hit.point, key: pointKey(hit.point), face, bary: barycentric(P, F, face, hit.point) });
+      const zero = [0, 1, 2].filter((k) => Math.abs(bary[k]) < ON_EDGE_BARY);
+      if (zero.length === 1) {                  // on the edge opposite that corner
+        const i = F[face * 3 + (zero[0] + 1) % 3], j = F[face * 3 + (zero[0] + 2) % 3];
+        for (const g of edgeFaces.get((i < j ? i : j) * 16777216 + (i < j ? j : i))) barrier.add(g);
+      } else if (zero.length === 2) {           // on the remaining corner
+        if (!vertexFaces) vertexFaces = vertexFaceMap(F);
+        for (const g of vertexFaces.get(F[face * 3 + [0, 1, 2].find((k) => !zero.includes(k))])) barrier.add(g);
+      }
+      samples.push({ point: hit.point, key: pointKey(hit.point), face, bary });
     }
   }
   const seedHit = closest(seed);
@@ -92,7 +123,6 @@ export function extractPatch(mesh, closest, loopPoints, seed, spacing = DEFAULT_
   const seedFace = seedHit.triangle / 9;
   if (barrier.has(seedFace)) return { error: 'the loop passes through the seed face' };
 
-  const edgeFaces = edgeFaceMap(F);
   const flooded = new Set([seedFace]);
   const queue = [seedFace];
   for (let q = 0; q < queue.length; q++) {
