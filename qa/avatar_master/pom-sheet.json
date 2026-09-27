@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T11:08:24+00:00",
+  "generated_at": "2026-09-27T11:36:58+00:00",
   "source": "scripts/export_pom_sheet.py from qa/avatar_master/measurements.json",
   "asset": {
     "file": "assets/export/avatar_master.glb",
@@ -15,7 +15,7 @@
     "sha256": "0eeb33d1adddcce728e6f67903e801f4661bfafa54acb6268a2238427ebd098a",
     "schema_version": 1
   },
-  "measured_at": "2026-09-27T11:08:12+00:00",
+  "measured_at": "2026-09-27T11:36:46+00:00",
   "provisional_codes": true,
   "landmark_overrides": {
     "file": null,
