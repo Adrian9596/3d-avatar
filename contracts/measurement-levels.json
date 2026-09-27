@@ -71,6 +71,11 @@
       "comment": "Asked for 2026-09-27: the midpoint of the bottom edge is the centre back of the -1 3/4in ring. Every side is measured along the skin, as a tape would lie: the bottom edge along the ring, the sides straight up the back, the top edge along the section the sides reach (its own length is reported, not forced). Drawn in red with a row under the -1 3/4in tape. A reference shape, not a POM: no house code, no POM-sheet row."
     }
   ],
+  "reference_tapes": [
+    { "id": "TAPE_MAXGIRTH_P2", "from": "DIAG_MAX_TORSO_GIRTH", "offset_in": 2, "label": "Max +2\"" },
+    { "id": "TAPE_MAXGIRTH_P3", "from": "DIAG_MAX_TORSO_GIRTH", "offset_in": 3, "label": "Max +3\"" }
+  ],
+  "reference_tapes_note": "Tapes parallel to the largest girth, 2in and 3in above it (asked for 2026-09-27). They hang on that POM's own height, found by the scan, not on the underbust datum, and they are not part of the sheets' stack. On this asset both land above the armhole (max girth at y = 1.355m, so y = 1.406m and 1.431m; the armhole's lowest point is 1.387m): the torso is open there, so each is drawn as the front and back pieces of the section on the skin, with their lengths, and no girth.",
   "trace": {
     "evidence": "qa/avatar_master/measurement-levels-trace.json",
     "tool": "scripts/trace_measurement_levels.py",

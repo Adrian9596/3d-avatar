@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T12:44:00Z",
+  "generated_at": "2026-09-27T12:54:54Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "c5a1f4be538c087d9de0e39cdab79d7b468bfc46aeb5e9e3656e9af6eb44f2a0"
+    "sha256": "ba9a5a8c35ec642454e68e85e8b7718ce1b4b5182ffa579cfb0cb36679662a52"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T12:43:02Z"
+    "generated_at": "2026-09-27T12:54:34Z"
   },
   "sheets": [
     {
@@ -206,6 +206,32 @@
       }
     }
   ],
+  "reference_tapes": [
+    {
+      "id": "TAPE_MAXGIRTH_P2",
+      "from": "DIAG_MAX_TORSO_GIRTH",
+      "offset_in": 2,
+      "y_m": 1.4058,
+      "girth_mm": null,
+      "pieces_mm": [
+        403.4,
+        334.8
+      ],
+      "blocked": "above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring"
+    },
+    {
+      "id": "TAPE_MAXGIRTH_P3",
+      "from": "DIAG_MAX_TORSO_GIRTH",
+      "offset_in": 3,
+      "y_m": 1.4312,
+      "girth_mm": null,
+      "pieces_mm": [
+        312.3,
+        332.4
+      ],
+      "blocked": "above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring"
+    }
+  ],
   "declared_limits": [
     "Reference levels are heights from the underbust line, not a fit recommendation and not a size.",
     "The figure on the source sheets is not this avatar; only the protocol transfers, never a dimension.",
@@ -338,6 +364,26 @@
       "name": "RECT_CB_M1_3_4: the bottom edge is centred on centre back",
       "status": "PASS",
       "detail": "corners at x = -21.63 / 21.63mm"
+    },
+    {
+      "name": "every declared reference tape validates",
+      "status": "PASS",
+      "detail": "2 tape(s): TAPE_MAXGIRTH_P2 +2in from DIAG_MAX_TORSO_GIRTH, TAPE_MAXGIRTH_P3 +3in from DIAG_MAX_TORSO_GIRTH"
+    },
+    {
+      "name": "TAPE_MAXGIRTH_P2: 2in from DIAG_MAX_TORSO_GIRTH, drawn in pieces with no girth",
+      "status": "PASS",
+      "detail": "y = 1.4058m; above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring; pieces 403.4 + 334.8mm"
+    },
+    {
+      "name": "TAPE_MAXGIRTH_P3: 3in from DIAG_MAX_TORSO_GIRTH, drawn in pieces with no girth",
+      "status": "PASS",
+      "detail": "y = 1.4312m; above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring; pieces 312.3 + 332.4mm"
+    },
+    {
+      "name": "a reference tape without its height reads needs …, never a line",
+      "status": "PASS",
+      "detail": "needs DIAG_MAX_TORSO_GIRTH; needs DIAG_MAX_TORSO_GIRTH"
     }
   ],
   "decision": "LEVELS_RESOLVE_ON_THIS_BODY"

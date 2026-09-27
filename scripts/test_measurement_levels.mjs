@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, levelsRecord, outOfRange,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, levelsRecord, outOfRange,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -224,6 +224,27 @@ for (const shape of shapes) {
     `corners at x = ${(bl[0] * 1000).toFixed(2)} / ${(br[0] * 1000).toFixed(2)}mm`);
 }
 
+// ---- 5. reference tapes from another height ------------------------------------
+// Hung on a plane-section POM's own height, read back from the authority pass.
+gate.record('every declared reference tape validates',
+  loaded.tapes.length === (contract.reference_tapes || []).length,
+  `${loaded.tapes.length} tape(s): ${loaded.tapes.map((t) => `${t.id} ${t.offset_in > 0 ? '+' : ''}${t.offset_in}in from ${t.from}`).join(', ') || 'none'}`);
+const pomHeights = Object.fromEntries((evidence.poms || []).filter((p) => Number.isFinite(p.at_y_m)).map((p) => [p.id, p.at_y_m]));
+const tapes = measureReferenceTapes(loaded, pomHeights, ctx.tri, { scan, maxY, inchDenominator: ctx.registry.reporting.inch_denominator });
+for (const tape of tapes) {
+  const exact = Number.isFinite(tape.y_m) && Math.abs(tape.y_m - (pomHeights[tape.from] + tape.offset_in * METRES_PER_INCH)) < 1e-12;
+  // above the ceiling: no girth, the reason, and the pieces on the skin; below it: the engine's own girth
+  const honest = tape.blocked
+    ? tape.girth_m === null && tape.chains.length > 0 && tape.pieces_m.every((v) => v > 0.05)
+    : Math.abs(tape.girth_m - measureSection(ctx.tri, tape.y_m).girth) === 0;
+  gate.record(`${tape.id}: ${tape.offset_in}in from ${tape.from}, ${tape.blocked ? 'drawn in pieces with no girth' : 'girth from the shared engine'}`,
+    exact && honest,
+    `y = ${tape.y_m?.toFixed(4)}m; ${tape.blocked ? `${tape.blocked}; pieces ${tape.pieces_m.map((v) => (v * 1000).toFixed(1)).join(' + ')}mm` : `${(tape.girth_m * 1000).toFixed(1)}mm`}`);
+}
+const unhung = measureReferenceTapes(loaded, {}, ctx.tri, { scan, maxY });
+gate.record('a reference tape without its height reads needs …, never a line',
+  unhung.every((t) => t.blocked === `needs ${t.from}` && !t.chains.length), unhung.map((t) => t.blocked).join('; '));
+
 // ---- evidence ---------------------------------------------------------------
 const body = {
   purpose: 'The house "how to measure" level stack, read off the source sheets and resolved on this avatar.',
@@ -247,6 +268,12 @@ const body = {
       y_top_m: Number(s.y_top_m.toFixed(5)),
       corners_m: Object.fromEntries(Object.entries(s.corners).map(([k, p]) => [k, p.map((v) => Number(v.toFixed(5)))])),
     }),
+  })),
+  reference_tapes: tapes.map((t) => ({
+    id: t.id, from: t.from, offset_in: t.offset_in, y_m: Number(t.y_m.toFixed(5)),
+    girth_mm: t.girth_m === null ? null : Number((t.girth_m * 1000).toFixed(1)),
+    pieces_mm: t.pieces_m ? t.pieces_m.map((v) => Number((v * 1000).toFixed(1))) : null,
+    blocked: t.blocked,
   })),
   declared_limits: contract.declared_limits,
 };

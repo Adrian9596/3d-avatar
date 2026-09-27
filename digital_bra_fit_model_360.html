@@ -274,7 +274,7 @@ import { draftMesh, draftPieces, flattenDraft, draftSummary, draftExport, SEAM_T
    The module resolves and measures them through the SAME section engine the
    POMs use, so a level and a POM can never disagree about the same slice; this
    file only draws what it returns. */
-import { loadLevels, resolveLevels, measureLevels, measureShapes, levelLabel } from './scripts/measurement_levels.mjs';
+import { loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, levelLabel } from './scripts/measurement_levels.mjs';
 /* The vertical half of the same frame: centre, side and apex curves plus the
    four lines this mesh is cut on, declared in contracts/body-grid.json. Every
    rule in it is an extreme or an exact feature, never a threshold, and a curve
@@ -407,7 +407,7 @@ const REGISTRY_URL='contracts/measurement-registry.json';
 let registry=null,registrySha=null,torsoTris=null,measureScan=[],tapeGroup=null,templates=[];
 let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
 let sectionOpen=false,sectionGroup=null;
-let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,measuredShapes=[],levelLabelEls=[];
+let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,measuredShapes=[],measuredTapes=[],levelLabelEls=[];
 let gridContract=null,gridVisible=false,gridGroup=null,gridCurves=null,gridBounds=null,lmLabelEls=[];
 try{gridVisible=localStorage.getItem('gridVisible')==='1'}catch(error){/* private mode */}
 try{levelsVisible=localStorage.getItem('levelsVisible')==='1'}catch(error){/* private mode */}
@@ -543,15 +543,17 @@ function redrawTapes(){
   measureRowData.forEach((row,index)=>{
     const selected=index===selectedTapeIndex;
     if(!tapesVisible&&!selected)return;
-    const pts=row.path
-      ? row.path.map(a=>{
-          const radial=Math.hypot(a[0],a[2])||1;
-          return new THREE.Vector3(a[0]*(1+0.0015/radial),a[1],a[2]*(1+0.0015/radial));
-        })
-      : ringPoints(row.section);
-    tapeGroup.add(makeLine(pts,{color:TAPE_COLOR,width:selected?3.2:2,opacity:selected?1:.6}));
-    if(selected){
-      tapeGroup.add(makeLine(pts,{color:TAPE_COLOR,width:1.6,opacity:.25,depthTest:false,order:3}));
+    const lift=path=>path.map(a=>{
+      const radial=Math.hypot(a[0],a[2])||1;
+      return new THREE.Vector3(a[0]*(1+0.0015/radial),a[1],a[2]*(1+0.0015/radial));
+    });
+    // an open section (above the armhole) is drawn as its pieces on the skin
+    const pieces=row.paths?row.paths.map(lift):[row.path?lift(row.path):ringPoints(row.section)];
+    for(const pts of pieces){
+      tapeGroup.add(makeLine(pts,{color:TAPE_COLOR,width:selected?3.2:2,opacity:selected?1:.6}));
+      if(selected){
+        tapeGroup.add(makeLine(pts,{color:TAPE_COLOR,width:1.6,opacity:.25,depthTest:false,order:3}));
+      }
     }
   });
   scene.add(tapeGroup);
@@ -600,6 +602,38 @@ function renderTapeLevelRows(tbody){
     tbody.appendChild(tr);
     measureRowData.push({label,section:level.section});
     for(const shape of measuredShapes.filter(s=>s.level===level.id))renderShapeRow(shape,tbody);
+  }
+}
+
+/* Reference tapes hung on a POM's height (contracts/measurement-levels.json
+   "reference_tapes"), listed under that POM. Above the armhole the torso is
+   open, so such a tape has no girth: the row says why and gives the front and
+   back pieces' lengths on hover, and the pieces are drawn on the skin. */
+function renderReferenceTapeRows(fromId,tbody){
+  const den=registry.reporting.inch_denominator;
+  const tapes=measuredTapes.filter(t=>t.from===fromId).sort((a,b)=>Math.abs(a.offset_in)-Math.abs(b.offset_in));
+  for(const tape of tapes){
+    const tr=document.createElement('tr');
+    tr.title=`Reference tape ${Math.abs(tape.offset_in)}" ${tape.offset_in>0?'above':'below'} ${fromId}`
+      +(tape.y_m!==null?` (y = ${tape.y_m.toFixed(3)} m)`:'')+'. A reference, not a POM.';
+    if(tape.blocked){
+      tr.className='landmark';
+      tr.innerHTML=`<td>${tape.label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;
+      tr.title+=` No girth: ${tape.blocked}.`;
+      if(tape.pieces_m?.length){
+        tr.title+=' On the skin: '+tape.chains.map((c,i)=>{
+          const z=c.reduce((sum,p)=>sum+p[2],0)/c.length;
+          return `${z>0?'front':'back'} ${CM(tape.pieces_m[i])} cm (${inchFraction(tape.pieces_m[i],den)})`;
+        }).join(', ')+'.';
+      }
+    }else{
+      tr.innerHTML=`<td>${tape.label}</td><td class="val">${CM(tape.girth_m)}</td><td class="in">${tape.girth_in}</td>`;
+    }
+    if(!tape.chains.length&&!tape.section){tbody.appendChild(tr);continue}
+    tr.setAttribute('aria-selected','false');
+    selectableTape(tr,tbody);
+    tbody.appendChild(tr);
+    measureRowData.push(tape.section?{label:tape.label,section:tape.section}:{label:tape.label,paths:tape.chains});
   }
 }
 
@@ -675,6 +709,7 @@ function renderMeasurements(marks,poms,elapsedMs){
     if(isPath&&result.points)measureRowData.push({label:spec.label_short,path:result.points});
     else if(section)measureRowData.push({label:spec.label_short,section});
     if(spec.id==='BODY_UNDERBUST_GIRTH')renderTapeLevelRows(tbody);
+    renderReferenceTapeRows(spec.id,tbody);
   });
   redrawTapes();
 
@@ -1077,6 +1112,10 @@ function recomputeLevels(){
       scan:registry.scan,maxY:levelContract.max_y_m,inchDenominator:registry.reporting.inch_denominator});
   }
   measuredShapes=levelContract&&torsoTris?measureShapes(levelContract,measuredLevels,torsoTris):[];
+  // tapes hung on a POM's own height (the largest girth), not on the datum
+  const heights=Object.fromEntries(Object.entries(poms||{}).map(([id,r])=>[id,r.at_y]));
+  measuredTapes=levelContract&&torsoTris?measureReferenceTapes(levelContract,heights,torsoTris,{
+    scan:registry.scan,maxY:levelContract.max_y_m,inchDenominator:registry.reporting.inch_denominator}):[];
   drawLevels();
   renderLevelList();
 }
