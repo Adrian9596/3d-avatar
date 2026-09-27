@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, levelsRecord, outOfRange,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, levelsRecord, outOfRange,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -328,6 +328,34 @@ for (const strap of straps) {
     strap.blocked || strap.bands.map((b) => `${b.side} ${(b.length_m * 1000).toFixed(1)}mm long along the middle, ends ${(b.front_width_m * 1000).toFixed(2)}/${(b.back_width_m * 1000).toFixed(2)}mm, edges ${(b.inner_length_m * 1000).toFixed(1)}/${(b.outer_length_m * 1000).toFixed(1)}mm, ${(b.top_width_m * 1000).toFixed(2)}mm wide at the shoulder top y = ${b.top_y_m.toFixed(4)}m`).join('; '));
 }
 
+// ---- 9. curves from a strap to a landmark ---------------------------------------------
+gate.record('every declared curve validates',
+  loaded.curves.length === (contract.curves || []).length,
+  `${loaded.curves.length} curve(s): ${loaded.curves.map((c) => `${c.id} ${c.from.strap}.${c.from.corner} -> ${c.to.landmark}_L/R`).join(', ') || 'none'}`);
+const brokenCurve = loadLevels({ ...contract, curves: [{ id: 'C', kind: 'shortest_surface_path', from: { strap: 'NOPE', corner: 'middle' }, to: { landmark: 'NOPE' }, colour: '#000000', label: 'c' }] }, ctx.registry);
+gate.record('a curve from an unknown strap, corner or landmark is refused',
+  brokenCurve.curves.length === 0 && brokenCurve.errors.some((e) => /strap NOPE/.test(e) && /corner middle/.test(e) && /NOPE_L/.test(e)),
+  brokenCurve.errors.join('; ').slice(0, 160));
+const curves = measureCurves(loaded, straps, ctx.landmarks, ctx.grid);
+for (const curve of curves) {
+  const strap = straps.find((s) => s.id === curve.from.strap);
+  const ok = !curve.blocked && curve.runs.length === 2
+    && curve.runs.every((r) => {
+      const [a, z] = [r.points[0], r.points[r.points.length - 1]];
+      const corner = strap.bands.find((b) => b.side === r.side).corners[curve.from.corner];
+      const mark = ctx.landmarks[`${curve.to.landmark}_${r.side}`];
+      const chord = Math.hypot(...a.map((v, i) => v - z[i]));
+      // from the strap corner to the landmark, on the skin, no shorter than the chord
+      return a.every((v, i) => v === corner[i]) && z.every((v, i) => v === mark[i])
+        && r.points.every((p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; })
+        && r.length_m >= chord;
+    })
+    && Math.abs(curve.runs[0].length_m - curve.runs[1].length_m) < 1e-4;
+  gate.record(`${curve.id}: from ${curve.from.strap} ${curve.from.corner} to ${curve.to.landmark} on each side, over the skin`,
+    ok,
+    curve.blocked || curve.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm`).join('; '));
+}
+
 // ---- evidence ---------------------------------------------------------------
 const body = {
   purpose: 'The house "how to measure" level stack, read off the source sheets and resolved on this avatar.',
@@ -384,6 +412,10 @@ const body = {
       top_y_m: Number(b.top_y_m.toFixed(5)),
       corners_m: Object.fromEntries(Object.entries(b.corners).map(([k, p]) => [k, p.map((v) => Number(v.toFixed(5)))])),
     })),
+  })),
+  curves: curves.map((c) => ({
+    id: c.id, from: c.from, to: c.to, colour: c.colour, blocked: c.blocked,
+    runs: c.runs.map((r) => ({ side: r.side, length_mm: Number((r.length_m * 1000).toFixed(1)), from_m: r.from.map((v) => Number(v.toFixed(5))), to_m: r.to.map((v) => Number(v.toFixed(5))) })),
   })),
   declared_limits: contract.declared_limits,
 };

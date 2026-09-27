@@ -274,7 +274,7 @@ import { draftMesh, draftPieces, flattenDraft, draftSummary, draftExport, SEAM_T
    The module resolves and measures them through the SAME section engine the
    POMs use, so a level and a POM can never disagree about the same slice; this
    file only draws what it returns. */
-import { loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, levelLabel } from './scripts/measurement_levels.mjs';
+import { loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, levelLabel } from './scripts/measurement_levels.mjs';
 /* The vertical half of the same frame: centre, side and apex curves plus the
    four lines this mesh is cut on, declared in contracts/body-grid.json. Every
    rule in it is an extreme or an exact feature, never a threshold, and a curve
@@ -407,7 +407,7 @@ const REGISTRY_URL='contracts/measurement-registry.json';
 let registry=null,registrySha=null,torsoTris=null,measureScan=[],tapeGroup=null,templates=[];
 let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
 let sectionOpen=false,sectionGroup=null;
-let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,measuredShapes=[],measuredTapes=[],measuredLines=[],measuredTicks=[],measuredStraps=[],levelLabelEls=[];
+let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,measuredShapes=[],measuredTapes=[],measuredLines=[],measuredTicks=[],measuredStraps=[],measuredCurves=[],levelLabelEls=[];
 let gridContract=null,gridVisible=false,gridGroup=null,gridCurves=null,gridBounds=null,lmLabelEls=[];
 try{gridVisible=localStorage.getItem('gridVisible')==='1'}catch(error){/* private mode */}
 try{levelsVisible=localStorage.getItem('levelsVisible')==='1'}catch(error){/* private mode */}
@@ -642,7 +642,36 @@ function renderReferenceTapeRows(fromId,tbody){
   for(const line of measuredLines.filter(l=>ids.has(l.from)))renderLineRow(line,tbody);
   for(const tick of measuredTicks.filter(t=>ids.has(t.on)))renderTickRow(tick,tbody);
   const tickIds=new Set(measuredTicks.filter(t=>ids.has(t.on)).map(t=>t.id));
-  for(const strap of measuredStraps.filter(s=>tickIds.has(s.from)))renderStrapRow(strap,tbody);
+  for(const strap of measuredStraps.filter(s=>tickIds.has(s.from))){
+    renderStrapRow(strap,tbody);
+    for(const curve of measuredCurves.filter(c=>c.from.strap===strap.id))renderCurveRows(curve,tbody);
+  }
+}
+
+/* A curve from a strap corner to a landmark ("curves" in
+   contracts/measurement-levels.json), such as the cup armhole: one row per
+   side, its length the shortest path over the skin. */
+function renderCurveRows(curve,tbody){
+  const den=registry.reporting.inch_denominator;
+  const corner=curve.from.corner.replace('_',' ');
+  for(const side of ['L','R']){
+    const label=`${curve.label} ${side}`;
+    const tr=document.createElement('tr');
+    tr.title=`From the strap's ${corner} corner to ${curve.to.landmark}_${side}, the shortest path over the skin.`;
+    const run=curve.runs.find(r=>r.side===side);
+    if(curve.blocked||!run){
+      tr.className='landmark';
+      tr.innerHTML=`<td>${label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;
+      tr.title+=' '+(curve.blocked||'');
+      tbody.appendChild(tr);
+      continue;
+    }
+    tr.setAttribute('aria-selected','false');
+    tr.innerHTML=`<td><span style="color:${curve.colour}">▮</span> ${label}</td><td class="val">${CM(run.length_m)}</td><td class="in">${inchFraction(run.length_m,den)}</td>`;
+    selectableTape(tr,tbody);
+    tbody.appendChild(tr);
+    measureRowData.push({label,paths:[run.points],color:parseInt(curve.colour.slice(1),16)});
+  }
 }
 
 /* A strap over the shoulder ("straps" in contracts/measurement-levels.json): a
@@ -1206,6 +1235,13 @@ function recomputeLevels(){
   measuredLines=levelContract&&torsoTris?measureLines(levelContract,measuredLevels,measuredTapes,torsoTris):[];
   measuredTicks=levelContract&&torsoTris?measureTicks(levelContract,measuredLevels,measuredTapes,torsoTris):[];
   measuredStraps=levelContract&&torsoTris?measureStraps(levelContract,measuredLevels,measuredTapes,measuredTicks,torsoTris):[];
+  // curves end on a registry landmark on each side (the wing top, say), as the table places it
+  const curveMarks={};
+  for(const curve of levelContract?.curves||[])for(const side of ['L','R']){
+    const id=`${curve.to.landmark}_${side}`,p=landmarkValue(id);
+    if(p&&Number.isFinite(p.x))curveMarks[id]=[p.x,p.y,p.z];
+  }
+  measuredCurves=levelContract&&measureGrid?measureCurves(levelContract,measuredStraps,curveMarks,measureGrid):[];
   drawLevels();
   renderLevelList();
 }

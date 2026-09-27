@@ -27,6 +27,7 @@
  */
 
 import { measureSection, sectionSegments, inchFraction } from './measure_core.mjs';
+import { surfaceRun } from './surface_path.mjs';
 
 export const METRES_PER_INCH = 0.0254;
 export const LEVELS_LIMIT = 'Reference levels are heights from the underbust line, not a fit recommendation and not a size.';
@@ -157,6 +158,22 @@ export function loadLevels(contract, registry) {
     else straps.push(strap);
   }
 
+  // Curves on the skin from a strap corner to a registry landmark, one per side.
+  const CORNERS = ['front_inner', 'front_outer', 'back_inner', 'back_outer'];
+  const curves = [];
+  for (const curve of contract?.curves || []) {
+    const problems = [];
+    if (!curve.id || heightIds.has(curve.id) || shapeIds.has(curve.id) || lines.some((l) => l.id === curve.id) || ticks.some((t) => t.id === curve.id) || straps.some((t) => t.id === curve.id) || curves.some((c) => c.id === curve.id)) problems.push('missing or duplicate id');
+    if (curve.kind !== 'shortest_surface_path') problems.push(`unknown kind ${curve.kind}`);
+    if (!straps.some((s) => s.id === curve.from?.strap)) problems.push(`from strap ${curve.from?.strap} is not a valid strap`);
+    if (!CORNERS.includes(curve.from?.corner)) problems.push(`from corner ${curve.from?.corner} is not one of ${CORNERS.join(', ')}`);
+    for (const side of ['L', 'R']) if (!known.has(`${curve.to?.landmark}_${side}`)) problems.push(`to ${curve.to?.landmark}_${side} is not a registry landmark`);
+    if (!/^#[0-9a-f]{6}$/i.test(curve.colour || '')) problems.push('colour must be #rrggbb');
+    if (typeof curve.label !== 'string' || !curve.label) problems.push('label must be a string');
+    if (problems.length) errors.push(`${curve.id || '?'}: ${problems.join('; ')}`);
+    else curves.push(curve);
+  }
+
   return {
     levels,
     shapes,
@@ -164,6 +181,7 @@ export function loadLevels(contract, registry) {
     lines,
     ticks,
     straps,
+    curves,
     groups,
     datum,
     errors,
@@ -706,4 +724,32 @@ export function measureStraps(loaded, measured, tapes, ticks, tri) {
   for (const l of measured?.levels || []) heights[l.id] = l.y_m;
   for (const t of tapes || []) heights[t.id] = t.y_m;
   return (loaded.straps || []).map((strap) => measureStrap(strap, ticks, heights, tri));
+}
+
+/* --- curves from a strap to a landmark ---------------------------------------------
+   The cup armhole, say: from a corner of a strap to a registry landmark on the
+   same side (its _L / _R point), as the shortest path over the skin -- the one
+   path model the pen and the surface POMs use (scripts/surface_path.mjs), so the
+   curve and a pen run between the same two points read the same. ------------------ */
+
+/** `landmarks` maps a registry id to [x, y, z]; `grid` is surface_path's buildGrid. */
+export function measureCurve(curve, straps, landmarks, grid) {
+  const strap = straps.find((s) => s.id === curve.from.strap);
+  if (!strap || strap.blocked) return { ...curve, blocked: `needs ${curve.from.strap}`, runs: [] };
+  const missing = ['L', 'R'].map((side) => `${curve.to.landmark}_${side}`).filter((id) => !Array.isArray(landmarks?.[id]));
+  if (missing.length) return { ...curve, blocked: `needs ${missing.join(', ')}`, runs: [] };
+  const runs = [];
+  for (const side of ['L', 'R']) {
+    const from = strap.bands.find((b) => b.side === side).corners[curve.from.corner];
+    const to = landmarks[`${curve.to.landmark}_${side}`];
+    const run = surfaceRun(grid, from, to);
+    if (!run.onSurface) return { ...curve, blocked: `no path over the skin on the ${side} side`, runs: [] };
+    runs.push({ side, from, to, length_m: run.length, points: run.points });
+  }
+  return { ...curve, blocked: null, runs };
+}
+
+/** Every declared curve, from the measured straps. */
+export function measureCurves(loaded, straps, landmarks, grid) {
+  return (loaded.curves || []).map((curve) => measureCurve(curve, straps, landmarks, grid));
 }
