@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, levelsRecord, outOfRange,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, levelsRecord, outOfRange,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -245,6 +245,24 @@ const unhung = measureReferenceTapes(loaded, {}, ctx.tri, { scan, maxY });
 gate.record('a reference tape without its height reads needs …, never a line',
   unhung.every((t) => t.blocked === `needs ${t.from}` && !t.chains.length), unhung.map((t) => t.blocked).join('; '));
 
+// ---- 6. centre-back lines ---------------------------------------------------------
+gate.record('every declared line validates',
+  loaded.lines.length === (contract.lines || []).length,
+  `${loaded.lines.length} line(s): ${loaded.lines.map((l) => `${l.id} ${l.from} -> ${l.to}`).join(', ') || 'none'}`);
+const lines = measureLines(loaded, measured, tapes, ctx.tri);
+const heightOf = (id) => measured.levels.find((l) => l.id === id)?.y_m ?? tapes.find((t) => t.id === id)?.y_m;
+for (const line of lines) {
+  const ends = [heightOf(line.from), heightOf(line.to)].sort((a, b) => b - a);
+  const ok = !line.blocked
+    && line.points.every((p) => p[0] === 0)
+    && Math.abs(line.top[1] - ends[0]) < 1e-9 && Math.abs(line.bottom[1] - ends[1]) < 1e-9
+    && line.points.every((p, i) => i === 0 || p[1] <= line.points[i - 1][1])
+    && line.length_m >= line.chord_m;
+  gate.record(`${line.id}: on the centre back from ${line.from} down to ${line.to}, along the skin`,
+    ok,
+    line.blocked || `y ${line.top[1].toFixed(4)} -> ${line.bottom[1].toFixed(4)}m, ${(line.length_m * 1000).toFixed(1)}mm on the skin, chord ${(line.chord_m * 1000).toFixed(1)}mm`);
+}
+
 // ---- evidence ---------------------------------------------------------------
 const body = {
   purpose: 'The house "how to measure" level stack, read off the source sheets and resolved on this avatar.',
@@ -274,6 +292,15 @@ const body = {
     girth_mm: t.girth_m === null ? null : Number((t.girth_m * 1000).toFixed(1)),
     pieces_mm: t.pieces_m ? t.pieces_m.map((v) => Number((v * 1000).toFixed(1))) : null,
     blocked: t.blocked,
+  })),
+  lines: lines.map((l) => ({
+    id: l.id, from: l.from, to: l.to, blocked: l.blocked,
+    ...(l.blocked ? {} : {
+      length_mm: Number((l.length_m * 1000).toFixed(1)),
+      chord_mm: Number((l.chord_m * 1000).toFixed(1)),
+      top_m: l.top.map((v) => Number(v.toFixed(5))),
+      bottom_m: l.bottom.map((v) => Number(v.toFixed(5))),
+    }),
   })),
   declared_limits: contract.declared_limits,
 };

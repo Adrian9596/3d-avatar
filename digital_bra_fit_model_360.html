@@ -274,7 +274,7 @@ import { draftMesh, draftPieces, flattenDraft, draftSummary, draftExport, SEAM_T
    The module resolves and measures them through the SAME section engine the
    POMs use, so a level and a POM can never disagree about the same slice; this
    file only draws what it returns. */
-import { loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, levelLabel } from './scripts/measurement_levels.mjs';
+import { loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, levelLabel } from './scripts/measurement_levels.mjs';
 /* The vertical half of the same frame: centre, side and apex curves plus the
    four lines this mesh is cut on, declared in contracts/body-grid.json. Every
    rule in it is an extreme or an exact feature, never a threshold, and a curve
@@ -407,7 +407,7 @@ const REGISTRY_URL='contracts/measurement-registry.json';
 let registry=null,registrySha=null,torsoTris=null,measureScan=[],tapeGroup=null,templates=[];
 let autoMarks=null,marks=null,poms=null,measureGrid=null,hps=null,autoHps=null;
 let sectionOpen=false,sectionGroup=null;
-let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,measuredShapes=[],measuredTapes=[],levelLabelEls=[];
+let levelContract=null,levelsVisible=false,levelGroup=null,measuredLevels=null,measuredShapes=[],measuredTapes=[],measuredLines=[],levelLabelEls=[];
 let gridContract=null,gridVisible=false,gridGroup=null,gridCurves=null,gridBounds=null,lmLabelEls=[];
 try{gridVisible=localStorage.getItem('gridVisible')==='1'}catch(error){/* private mode */}
 try{levelsVisible=localStorage.getItem('levelsVisible')==='1'}catch(error){/* private mode */}
@@ -635,6 +635,31 @@ function renderReferenceTapeRows(fromId,tbody){
     tbody.appendChild(tr);
     measureRowData.push(tape.section?{label:tape.label,section:tape.section}:{label:tape.label,paths:tape.chains});
   }
+  // centre-back lines that start on one of these tapes follow them
+  const ids=new Set(tapes.map(t=>t.id));
+  for(const line of measuredLines.filter(l=>ids.has(l.from)))renderLineRow(line,tbody);
+}
+
+/* A centre-back line ("lines" in contracts/measurement-levels.json): its length
+   down the back along the skin; the straight chord is on hover. */
+function renderLineRow(line,tbody){
+  const den=registry.reporting.inch_denominator;
+  const tr=document.createElement('tr');
+  const label='CB line';
+  tr.title=line.label+': straight down the centre back, measured along the skin.';
+  if(line.blocked){
+    tr.className='landmark';
+    tr.innerHTML=`<td>${label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;
+    tr.title+=' '+line.blocked;
+    tbody.appendChild(tr);
+    return;
+  }
+  tr.title+=` From y = ${line.y_top_m.toFixed(3)} m to ${line.y_bottom_m.toFixed(3)} m; straight chord ${CM(line.chord_m)} cm (${inchFraction(line.chord_m,den)}).`;
+  tr.setAttribute('aria-selected','false');
+  tr.innerHTML=`<td>${label}</td><td class="val">${CM(line.length_m)}</td><td class="in">${inchFraction(line.length_m,den)}</td>`;
+  selectableTape(tr,tbody);
+  tbody.appendChild(tr);
+  measureRowData.push({label,path:line.points});
 }
 
 /* A reference shape declared on a tape level (contracts/measurement-levels.json
@@ -1116,6 +1141,7 @@ function recomputeLevels(){
   const heights=Object.fromEntries(Object.entries(poms||{}).map(([id,r])=>[id,r.at_y]));
   measuredTapes=levelContract&&torsoTris?measureReferenceTapes(levelContract,heights,torsoTris,{
     scan:registry.scan,maxY:levelContract.max_y_m,inchDenominator:registry.reporting.inch_denominator}):[];
+  measuredLines=levelContract&&torsoTris?measureLines(levelContract,measuredLevels,measuredTapes,torsoTris):[];
   drawLevels();
   renderLevelList();
 }

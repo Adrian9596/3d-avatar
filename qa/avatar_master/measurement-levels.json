@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T12:54:54Z",
+  "generated_at": "2026-09-27T13:02:10Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "ba9a5a8c35ec642454e68e85e8b7718ce1b4b5182ffa579cfb0cb36679662a52"
+    "sha256": "ea60340211c88e97ff450df3465b0c3476d049ae06ff1980b1ee86a0ea81c846"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T12:54:34Z"
+    "generated_at": "2026-09-27T13:01:49Z"
   },
   "sheets": [
     {
@@ -232,6 +232,26 @@
       "blocked": "above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring"
     }
   ],
+  "lines": [
+    {
+      "id": "LINE_CB_MAXP2_TO_M1_1_2",
+      "from": "TAPE_MAXGIRTH_P2",
+      "to": "LVL_M1_1_2",
+      "blocked": null,
+      "length_mm": 182.8,
+      "chord_mm": 181,
+      "top_m": [
+        0,
+        1.4058,
+        -0.12375
+      ],
+      "bottom_m": [
+        0,
+        1.2269,
+        -0.09632
+      ]
+    }
+  ],
   "declared_limits": [
     "Reference levels are heights from the underbust line, not a fit recommendation and not a size.",
     "The figure on the source sheets is not this avatar; only the protocol transfers, never a dimension.",
@@ -384,6 +404,16 @@
       "name": "a reference tape without its height reads needs …, never a line",
       "status": "PASS",
       "detail": "needs DIAG_MAX_TORSO_GIRTH; needs DIAG_MAX_TORSO_GIRTH"
+    },
+    {
+      "name": "every declared line validates",
+      "status": "PASS",
+      "detail": "1 line(s): LINE_CB_MAXP2_TO_M1_1_2 TAPE_MAXGIRTH_P2 -> LVL_M1_1_2"
+    },
+    {
+      "name": "LINE_CB_MAXP2_TO_M1_1_2: on the centre back from TAPE_MAXGIRTH_P2 down to LVL_M1_1_2, along the skin",
+      "status": "PASS",
+      "detail": "y 1.4058 -> 1.2269m, 182.8mm on the skin, chord 181.0mm"
     }
   ],
   "decision": "LEVELS_RESOLVE_ON_THIS_BODY"

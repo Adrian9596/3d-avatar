@@ -110,10 +110,26 @@ export function loadLevels(contract, registry) {
     else tapes.push(tape);
   }
 
+  // Centre-back lines join two of the heights above (a level or a reference
+  // tape) straight down the back.
+  const lines = [];
+  const heightIds = new Set([...levels.map((l) => l.id), ...tapes.map((t) => t.id)]);
+  for (const line of contract?.lines || []) {
+    const problems = [];
+    if (!line.id || heightIds.has(line.id) || shapeIds.has(line.id) || lines.some((l) => l.id === line.id)) problems.push('missing or duplicate id');
+    if (line.kind !== 'centre_back') problems.push(`unknown kind ${line.kind}`);
+    for (const end of ['from', 'to']) if (!heightIds.has(line[end])) problems.push(`${end} ${line[end]} is not a valid level or reference tape`);
+    if (line.from === line.to) problems.push('from and to are the same height');
+    if (typeof line.label !== 'string' || !line.label) problems.push('label must be a string');
+    if (problems.length) errors.push(`${line.id || '?'}: ${problems.join('; ')}`);
+    else lines.push(line);
+  }
+
   return {
     levels,
     shapes,
     tapes,
+    lines,
     groups,
     datum,
     errors,
@@ -434,4 +450,41 @@ export function measureReferenceTapes(loaded, heights, tri, { scan = null, maxY 
       girth_in: inchFraction(section.girth, inchDenominator), blocked: null,
     };
   });
+}
+
+/* --- centre-back lines ---------------------------------------------------------
+   Straight down the back: the body cut by the centre plane x = 0, followed on
+   the skin from the centre back of one height to the centre back of the other.
+   The length is along the skin, the way a tape laid down the spine reads it;
+   the straight chord between the ends is reported beside it. ------------------ */
+
+export function measureLine(line, heights, tri) {
+  const ys = [heights[line.from], heights[line.to]];
+  if (!ys.every(Number.isFinite)) return { ...line, blocked: `needs ${[line.from, line.to].filter((id) => !Number.isFinite(heights[id])).join(', ')}`, points: [] };
+  const [yTop, yBottom] = ys[0] >= ys[1] ? ys : [ys[1], ys[0]];
+  const cb = backCrossing(sectionSegments(tri, yTop), 0);
+  if (!cb) return { ...line, blocked: 'no centre back at the upper end', points: [] };
+  const down = walkContour(verticalSegments(tri, 0), [yTop, cb[1]], (a, b) => a[0] < b[0], byCoordinate(0, yBottom));
+  if (!down) return { ...line, blocked: 'the back ends before the lower end', points: [] };
+  const points = down.map(([y, z]) => [0, y, z]);
+  const top = points[0], bottom = points[points.length - 1];
+  return {
+    ...line,
+    blocked: null,
+    y_top_m: yTop,
+    y_bottom_m: yBottom,
+    top,
+    bottom,
+    length_m: polylineLength(points),
+    chord_m: Math.hypot(top[1] - bottom[1], top[2] - bottom[2]),
+    points,
+  };
+}
+
+/** Every declared line, with the heights of the measured levels and tapes. */
+export function measureLines(loaded, measured, tapes, tri) {
+  const heights = {};
+  for (const l of measured?.levels || []) heights[l.id] = l.y_m;
+  for (const t of tapes || []) heights[t.id] = t.y_m;
+  return (loaded.lines || []).map((line) => measureLine(line, heights, tri));
 }
