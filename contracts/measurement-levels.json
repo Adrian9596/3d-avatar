@@ -84,7 +84,7 @@
     { "id": "TICK_MAXP2_CB_4IN", "on": "TAPE_MAXGIRTH_P2", "anchor": "centre_back", "offset_in": 4, "length_mm": 5, "colour": "#1f6fe0" },
     { "id": "TICK_MAXP2_CF_4_3_8IN", "on": "TAPE_MAXGIRTH_P2", "anchor": "centre_front", "offset_in": 4.375, "length_mm": 5, "colour": "#1f6fe0" }
   ],
-  "ticks_note": "Blue marks 5mm long across the Max +2in tape (asked for 2026-09-27): 4in from its centre back on each side, and 4 3/8in from its centre front on each side. The distance is walked along the tape's own section (on the back, or on the front); each mark crosses the tape at right angles on the skin and is centred on it.",
+  "ticks_note": "Blue marks 5mm long across the Max +2in tape (asked for 2026-09-27): 4in from its centre back on each side, and 4 3/8in from its centre front on each side. The distance is walked along the tape's own section (on the back, or on the front); each mark stands upright across the tape (the vertical cut through its point, followed on the skin 2.5mm up and 2.5mm down), so it reads square to the tape from the front or the back.",
   "trace": {
     "evidence": "qa/avatar_master/measurement-levels-trace.json",
     "tool": "scripts/trace_measurement_levels.py",

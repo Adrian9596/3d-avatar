@@ -507,14 +507,11 @@ export function measureLines(loaded, measured, tapes, tri) {
 
 /* --- tick marks ------------------------------------------------------------------
    A short mark across a level or tape, `offset_in` along it from its centre back
-   (or centre front) on each side (walked on the section, as a tape measures). The mark crosses the
-   tape at right angles on the skin: its direction is the surface's own, taken
-   from the section's tangent and the vertical cut through the point, and it is
-   centred on the tape. ------------------------------------------------------------ */
-
-const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit = (a) => { const n = Math.hypot(...a) || 1; return a.map((v) => v / n); };
+   (or centre front) on each side (walked on the section, as a tape measures). The mark
+   stands upright across the (horizontal) tape: it is the vertical cut through
+   the point, x = const, followed on the skin half its length up and half down,
+   so from the front or the back it reads square to the tape however the chest
+   curves there. -------------------------------------------------------------------- */
 
 export function measureTick(tick, heights, tri) {
   const y = heights[tick.on];
@@ -530,25 +527,19 @@ export function measureTick(tick, heights, tri) {
     const walked = walkContour(section, cb, (a, b) => (side === 'R' ? a[0] > b[0] : a[0] < b[0]), byLength(along));
     if (!walked) return { ...tick, blocked: `the section ends before ${tick.offset_in}in on the ${side} side`, marks: [] };
     const [x, z] = walked[walked.length - 1];
-    const [px, pz] = walked[walked.length - 2];
     const point = [x, y, z];
-    const tangent = unit([x - px, 0, z - pz]);
-    // the skin's vertical direction here: a short walk each way in the plane x = const
+    // upright on the skin: half the length each way in the plane x = const
     const vertical = verticalSegments(tri, x);
     const up = walkContour(vertical, [y, z], (a, b) => a[0] > b[0], byLength(half));
     const down = walkContour(vertical, [y, z], (a, b) => a[0] < b[0], byLength(half));
     if (!up || !down) return { ...tick, blocked: `no skin across the tape on the ${side} side`, marks: [] };
-    const [uy, uz] = up[up.length - 1], [dy, dz] = down[down.length - 1];
-    const normal = cross(tangent, unit([0, uy - dy, uz - dz]));
-    let across = unit(cross(normal, tangent));
-    if (across[1] < 0) across = across.map((v) => -v);
+    const points = [...down.slice().reverse(), ...up.slice(1)].map(([vy, vz]) => [x, vy, vz]);
     marks.push({
       side,
       point,
       arc_m: polylineLength(walked.map(([wx, wz]) => [wx, y, wz])),
-      points: [-half, 0, half].map((t) => point.map((v, i) => v + across[i] * t)),
-      tangent,
-      normal: unit(normal),
+      length_m: polylineLength(points),
+      points,
     });
   }
   return { ...tick, blocked: null, y_m: y, anchor_point: [0, y, cb[1]], marks };
