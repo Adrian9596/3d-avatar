@@ -139,12 +139,30 @@ export function loadLevels(contract, registry) {
     else ticks.push(tick);
   }
 
+  // Straps over the shoulder, from a centre-front tick to a centre-back tick on the same tape.
+  const straps = [];
+  for (const strap of contract?.straps || []) {
+    const problems = [];
+    const [from, to] = [strap.from, strap.to].map((id) => ticks.find((t) => t.id === id));
+    if (!strap.id || heightIds.has(strap.id) || shapeIds.has(strap.id) || lines.some((l) => l.id === strap.id) || ticks.some((t) => t.id === strap.id) || straps.some((t) => t.id === strap.id)) problems.push('missing or duplicate id');
+    if (strap.kind !== 'over_shoulder') problems.push(`unknown kind ${strap.kind}`);
+    if (from?.anchor !== 'centre_front') problems.push(`from ${strap.from} is not a valid centre-front tick`);
+    if (to?.anchor !== 'centre_back') problems.push(`to ${strap.to} is not a valid centre-back tick`);
+    if (from && to && from.on !== to.on) problems.push('the two ticks are on different tapes');
+    if (!(Number.isFinite(strap.width_mm) && strap.width_mm > 0)) problems.push('width_mm must be a positive number');
+    if (!/^#[0-9a-f]{6}$/i.test(strap.colour || '')) problems.push('colour must be #rrggbb');
+    if (typeof strap.label !== 'string' || !strap.label) problems.push('label must be a string');
+    if (problems.length) errors.push(`${strap.id || '?'}: ${problems.join('; ')}`);
+    else straps.push(strap);
+  }
+
   return {
     levels,
     shapes,
     tapes,
     lines,
     ticks,
+    straps,
     groups,
     datum,
     errors,
@@ -551,4 +569,109 @@ export function measureTicks(loaded, measured, tapes, tri) {
   for (const l of measured?.levels || []) heights[l.id] = l.y_m;
   for (const t of tapes || []) heights[t.id] = t.y_m;
   return (loaded.ticks || []).map((tick) => measureTick(tick, heights, tri));
+}
+
+/* --- straps over the shoulder ------------------------------------------------------
+   A band of `width_mm` from each mark of one tick to the same side's mark of
+   another, over the shoulder, as a strap would lie. Its ends are on the tape the
+   ticks stand on: half the width each way along the section from each mark, so
+   each end is centred on its tick. Each long edge is the body cut by the upright
+   plane through its front and back corner, followed on the skin up from the
+   front corner, over the shoulder and down to the tape again on the back; it
+   must arrive at the back corner, or the strap says it cannot be laid. The
+   width is exact at the ends; over the shoulder it is what the two planes leave,
+   reported, not forced. --------------------------------------------------------- */
+
+// The body cut by the upright plane through `origin` along the horizontal unit
+// direction `d`, as [[y, s], [y, s]] segments (s measured along d from origin).
+function uprightSegments(tri, origin, d) {
+  const n = [d[2], 0, -d[0]];
+  const segments = [];
+  for (let t = 0; t < tri.length; t += 9) {
+    const dist = [0, 1, 2].map((k) => (tri[t + k * 3] - origin[0]) * n[0] + (tri[t + k * 3 + 2] - origin[2]) * n[2]);
+    if ((dist[0] < 0 && dist[1] < 0 && dist[2] < 0) || (dist[0] > 0 && dist[1] > 0 && dist[2] > 0)) continue;
+    const hits = [];
+    for (let e = 0; e < 3; e++) {
+      const i = t + e * 3, j = t + ((e + 1) % 3) * 3;
+      const d0 = dist[e], d1 = dist[(e + 1) % 3];
+      if ((d0 > 0) !== (d1 > 0)) {
+        const s = d0 / (d0 - d1);
+        const x = tri[i] + (tri[j] - tri[i]) * s, z = tri[i + 2] + (tri[j + 2] - tri[i + 2]) * s;
+        hits.push([tri[i + 1] + (tri[j + 1] - tri[i + 1]) * s, (x - origin[0]) * d[0] + (z - origin[2]) * d[2]]);
+      }
+    }
+    if (hits.length === 2) segments.push([hits[0], hits[1]]);
+  }
+  return segments;
+}
+
+// One edge of a strap: from `front` up over the shoulder and down to the tape
+// height on the back, in the upright plane through `front` and `back`.
+function overShoulder(tri, front, back) {
+  const run = Math.hypot(back[0] - front[0], back[2] - front[2]);
+  const d = [(back[0] - front[0]) / run, 0, (back[2] - front[2]) / run];
+  const y = front[1];
+  let cleared = false;
+  const stop = (a, b) => {
+    if (b[0] > y + 0.01) cleared = true;
+    if (!cleared || (a[0] - y) * (b[0] - y) > 0) return null;
+    return a[0] === b[0] ? 1 : (y - a[0]) / (b[0] - a[0]);
+  };
+  const walked = walkContour(uprightSegments(tri, front, d), [y, 0], (a, b) => a[0] > b[0], stop);
+  if (!walked) return null;
+  const points = walked.map(([py, s]) => [front[0] + s * d[0], py, front[2] + s * d[2]]);
+  const end = points[points.length - 1];
+  return { points, miss_m: Math.hypot(end[0] - back[0], end[1] - back[1], end[2] - back[2]) };
+}
+
+export function measureStrap(strap, ticks, heights, tri) {
+  const [from, to] = [strap.from, strap.to].map((id) => ticks.find((t) => t.id === id));
+  if (!from || !to || from.blocked || to.blocked) return { ...strap, blocked: `needs ${[from, to].some((t) => !t) ? 'both ticks' : [from, to].find((t) => t.blocked).blocked}`, bands: [] };
+  const y = heights[from.on];
+  const section = sectionSegments(tri, y);
+  const half = strap.width_mm / 2000;
+  const bands = [];
+  for (const side of ['L', 'R']) {
+    const f = from.marks.find((m) => m.side === side).point;
+    const b = to.marks.find((m) => m.side === side).point;
+    // the corners: half the width each way along the tape from each mark
+    const along = (p, outward) => {
+      const w = walkContour(section, [p[0], p[2]], (a, c) => ((p[0] > 0) === outward ? a[0] > c[0] : a[0] < c[0]), byLength(half));
+      return w && [w[w.length - 1][0], y, w[w.length - 1][1]];
+    };
+    const corners = { front_inner: along(f, false), front_outer: along(f, true), back_inner: along(b, false), back_outer: along(b, true) };
+    if (Object.values(corners).some((c) => !c)) return { ...strap, blocked: `the tape ends before the strap's corners on the ${side} side`, bands: [] };
+    const inner = overShoulder(tri, corners.front_inner, corners.back_inner);
+    const outer = overShoulder(tri, corners.front_outer, corners.back_outer);
+    const MISS_M = 1e-6;
+    if (!inner || !outer || inner.miss_m > MISS_M || outer.miss_m > MISS_M) {
+      return { ...strap, blocked: `the skin over the ${side} shoulder does not carry the strap from tick to tick`, bands: [] };
+    }
+    const cut = (p, q) => section && [...walkContour(section, [p[0], p[2]], (a, c) => Math.abs(a[0] - q[0]) < Math.abs(c[0] - q[0]), byCoordinate(0, q[0]))].map(([x, z]) => [x, y, z]);
+    const frontEnd = cut(corners.front_inner, corners.front_outer);
+    const backEnd = cut(corners.back_outer, corners.back_inner);
+    const outline = [...frontEnd, ...outer.points.slice(1), ...backEnd.slice(1), ...inner.points.slice().reverse().slice(1)];
+    const topOf = (pts) => pts.reduce((t, p) => (p[1] > t[1] ? p : t));
+    const [ti, to_] = [topOf(inner.points), topOf(outer.points)];
+    bands.push({
+      side,
+      corners,
+      front_width_m: polylineLength(frontEnd),
+      back_width_m: polylineLength(backEnd),
+      inner_length_m: polylineLength(inner.points),
+      outer_length_m: polylineLength(outer.points),
+      top_width_m: Math.hypot(ti[0] - to_[0], ti[1] - to_[1], ti[2] - to_[2]),
+      top_y_m: Math.max(ti[1], to_[1]),
+      outline,
+    });
+  }
+  return { ...strap, blocked: null, y_m: y, bands };
+}
+
+/** Every declared strap, between the measured ticks. */
+export function measureStraps(loaded, measured, tapes, ticks, tri) {
+  const heights = {};
+  for (const l of measured?.levels || []) heights[l.id] = l.y_m;
+  for (const t of tapes || []) heights[t.id] = t.y_m;
+  return (loaded.straps || []).map((strap) => measureStrap(strap, ticks, heights, tri));
 }

@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, levelsRecord, outOfRange,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, levelsRecord, outOfRange,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -289,6 +289,39 @@ for (const tick of ticks) {
     tick.blocked || tick.marks.map((m) => `${m.side} at x = ${(m.point[0] * 1000).toFixed(1)}mm, arc ${(m.arc_m * 1000).toFixed(2)}mm, ${(m.length_m * 1000).toFixed(2)}mm long on the skin, upright`).join('; '));
 }
 
+// ---- 8. straps over the shoulder -------------------------------------------------------
+gate.record('every declared strap validates',
+  loaded.straps.length === (contract.straps || []).length,
+  `${loaded.straps.length} strap(s): ${loaded.straps.map((s) => `${s.id} ${s.from} -> ${s.to}`).join(', ') || 'none'}`);
+const brokenStrap = loadLevels({ ...contract, straps: [{ id: 'X', kind: 'over_shoulder', from: 'TICK_MAXP2_CB_4IN', to: 'TICK_MAXP2_CB_4IN', width_mm: 20, colour: '#000000', label: 'x' }] }, ctx.registry);
+gate.record('a strap that does not run from a centre-front tick to a centre-back tick is refused',
+  brokenStrap.straps.length === 0 && brokenStrap.errors.some((e) => /not a valid centre-front tick/.test(e)),
+  brokenStrap.errors.join('; ').slice(0, 160));
+const straps = measureStraps(loaded, measured, tapes, ticks, ctx.tri);
+for (const strap of straps) {
+  const [from, to] = [strap.from, strap.to].map((id) => ticks.find((t) => t.id === id));
+  const width = strap.width_mm / 1000;
+  const y = heightOf(from.on);
+  const same = (p, q) => p.every((v, i) => Math.abs(v - q[i]) < 1e-6);
+  const ok = !strap.blocked && strap.bands.length === 2
+    && strap.bands.every((b) => Math.abs(b.front_width_m - width) < 1e-6 && Math.abs(b.back_width_m - width) < 1e-6
+      // the four corners are on the tape; the outline is closed and goes over the shoulder
+      && Object.values(b.corners).every((c) => c[1] === y)
+      && same(b.outline[0], b.outline[b.outline.length - 1])
+      && b.top_y_m > y + 0.05
+      // each end is centred on its tick: the tick's point lies on the end, between the two corners
+      && [[from, 'front'], [to, 'back']].every(([t, end]) => {
+        const p = t.marks.find((m) => m.side === b.side).point;
+        const [i, o] = [b.corners[`${end}_inner`], b.corners[`${end}_outer`]];
+        return (p[0] - i[0]) * (p[0] - o[0]) < 0;
+      }))
+    // L and R mirror
+    && same(strap.bands[0].corners.front_inner.map((v, i) => (i ? v : -v)), strap.bands[1].corners.front_inner);
+  gate.record(`${strap.id}: ${strap.width_mm}mm band from ${strap.from} over the shoulder to ${strap.to} on each side`,
+    ok,
+    strap.blocked || strap.bands.map((b) => `${b.side} ends ${(b.front_width_m * 1000).toFixed(2)}/${(b.back_width_m * 1000).toFixed(2)}mm, edges ${(b.inner_length_m * 1000).toFixed(1)}/${(b.outer_length_m * 1000).toFixed(1)}mm, ${(b.top_width_m * 1000).toFixed(2)}mm wide at the shoulder top y = ${b.top_y_m.toFixed(4)}m`).join('; '));
+}
+
 // ---- evidence ---------------------------------------------------------------
 const body = {
   purpose: 'The house "how to measure" level stack, read off the source sheets and resolved on this avatar.',
@@ -331,6 +364,19 @@ const body = {
   ticks: ticks.map((t) => ({
     id: t.id, on: t.on, offset_in: t.offset_in, length_mm: t.length_mm, colour: t.colour, blocked: t.blocked,
     marks: t.marks.map((m) => ({ side: m.side, point_m: m.point.map((v) => Number(v.toFixed(5))), arc_mm: Number((m.arc_m * 1000).toFixed(2)) })),
+  })),
+  straps: straps.map((s) => ({
+    id: s.id, from: s.from, to: s.to, width_mm: s.width_mm, colour: s.colour, blocked: s.blocked,
+    bands: s.bands.map((b) => ({
+      side: b.side,
+      front_width_mm: Number((b.front_width_m * 1000).toFixed(2)),
+      back_width_mm: Number((b.back_width_m * 1000).toFixed(2)),
+      inner_length_mm: Number((b.inner_length_m * 1000).toFixed(1)),
+      outer_length_mm: Number((b.outer_length_m * 1000).toFixed(1)),
+      top_width_mm: Number((b.top_width_m * 1000).toFixed(2)),
+      top_y_m: Number(b.top_y_m.toFixed(5)),
+      corners_m: Object.fromEntries(Object.entries(b.corners).map(([k, p]) => [k, p.map((v) => Number(v.toFixed(5)))])),
+    })),
   })),
   declared_limits: contract.declared_limits,
 };
