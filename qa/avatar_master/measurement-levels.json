@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T14:07:06Z",
+  "generated_at": "2026-09-27T14:16:35Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "3a0b0674f20ff817f224af34e4511c81ece83a99624e80f5a734aff0e8b12766"
+    "sha256": "65a2adaf2ec49342b6a208c867cc63fc94cdd928079263f2cca577cbfa6c9bd8"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T14:06:42Z"
+    "generated_at": "2026-09-27T14:16:06Z"
   },
   "sheets": [
     {
@@ -323,21 +323,21 @@
           "side": "L",
           "front_width_mm": 20,
           "back_width_mm": 20,
-          "length_mm": 358.1,
-          "inner_length_mm": 366.3,
-          "outer_length_mm": 349.6,
-          "top_width_mm": 20.16,
-          "top_y_m": 1.5359,
+          "length_mm": 324.6,
+          "inner_length_mm": 331.8,
+          "outer_length_mm": 317.3,
+          "top_width_mm": 20.68,
+          "top_y_m": 1.53598,
           "corners_m": {
             "front_inner": [
-              -0.09827,
-              1.4058,
-              0.08816
+              -0.09696,
+              1.4312,
+              0.06474
             ],
             "front_outer": [
-              -0.11594,
-              1.4058,
-              0.07893
+              -0.11614,
+              1.4312,
+              0.05919
             ],
             "back_inner": [
               -0.09023,
@@ -355,21 +355,21 @@
           "side": "R",
           "front_width_mm": 20,
           "back_width_mm": 20,
-          "length_mm": 358.1,
-          "inner_length_mm": 366.3,
-          "outer_length_mm": 349.6,
-          "top_width_mm": 20.16,
-          "top_y_m": 1.5359,
+          "length_mm": 324.6,
+          "inner_length_mm": 331.8,
+          "outer_length_mm": 317.3,
+          "top_width_mm": 20.68,
+          "top_y_m": 1.53598,
           "corners_m": {
             "front_inner": [
-              0.09827,
-              1.4058,
-              0.08816
+              0.09696,
+              1.4312,
+              0.06474
             ],
             "front_outer": [
-              0.11594,
-              1.4058,
-              0.07893
+              0.11614,
+              1.4312,
+              0.05919
             ],
             "back_inner": [
               0.09023,
@@ -575,9 +575,9 @@
       "detail": "X: from TICK_MAXP2_CB_4IN is not a valid centre-front tick"
     },
     {
-      "name": "STRAP_MAXP2_CF_TO_CB: 20mm band from TICK_MAXP2_CF_4_3_8IN over the shoulder to TICK_MAXP2_CB_4IN on each side",
+      "name": "STRAP_MAXP2_CF_TO_CB: 20mm band from TICK_MAXP2_CF_4_3_8IN (front end moved up to TAPE_MAXGIRTH_P3) over the shoulder to TICK_MAXP2_CB_4IN on each side",
       "status": "PASS",
-      "detail": "L 358.1mm long tick to tick, ends 20.00/20.00mm, edges 366.3/349.6mm, 20.16mm wide at the shoulder top y = 1.5359m; R 358.1mm long tick to tick, ends 20.00/20.00mm, edges 366.3/349.6mm, 20.16mm wide at the shoulder top y = 1.5359m"
+      "detail": "L 324.6mm long along the middle, ends 20.00/20.00mm, edges 331.8/317.3mm, 20.68mm wide at the shoulder top y = 1.5360m; R 324.6mm long along the middle, ends 20.00/20.00mm, edges 331.8/317.3mm, 20.68mm wide at the shoulder top y = 1.5360m"
     }
   ],
   "decision": "LEVELS_RESOLVE_ON_THIS_BODY"

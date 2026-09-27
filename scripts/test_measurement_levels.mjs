@@ -302,27 +302,30 @@ for (const strap of straps) {
   const [from, to] = [strap.from, strap.to].map((id) => ticks.find((t) => t.id === id));
   const width = strap.width_mm / 1000;
   const y = heightOf(from.on);
+  // with front_on the front end is moved up to that tape, the edges unchanged
+  const yFront = strap.front_on ? heightOf(strap.front_on) : y;
   const same = (p, q) => p.every((v, i) => Math.abs(v - q[i]) < 1e-6);
   const ok = !strap.blocked && strap.bands.length === 2
     && strap.bands.every((b) => Math.abs(b.front_width_m - width) < 1e-6 && Math.abs(b.back_width_m - width) < 1e-6
-      // the four corners are on the tape; the outline is closed and goes over the shoulder
-      && Object.values(b.corners).every((c) => c[1] === y)
+      // the corners are on their tapes; the outline is closed and goes over the shoulder
+      && [b.corners.back_inner, b.corners.back_outer].every((c) => c[1] === y)
+      && [b.corners.front_inner, b.corners.front_outer, b.centre[0]].every((c) => Math.abs(c[1] - yFront) < 1e-12)
       && same(b.outline[0], b.outline[b.outline.length - 1])
       && b.top_y_m > y + 0.05
       // the length runs tick to tick, between the two edges' lengths
-      && [[b.centre[0], from], [b.centre[b.centre.length - 1], to]].every(([p, t]) => same(p, t.marks.find((m) => m.side === b.side).point))
+      && [...(strap.front_on ? [] : [[b.centre[0], from]]), [b.centre[b.centre.length - 1], to]].every(([p, t]) => same(p, t.marks.find((m) => m.side === b.side).point))
       && b.length_m > Math.min(b.inner_length_m, b.outer_length_m) && b.length_m < Math.max(b.inner_length_m, b.outer_length_m)
       // each end is centred on its tick: the tick's point lies on the end, between the two corners
-      && [[from, 'front'], [to, 'back']].every(([t, end]) => {
+      && [...(strap.front_on ? [] : [[from, 'front']]), [to, 'back']].every(([t, end]) => {
         const p = t.marks.find((m) => m.side === b.side).point;
         const [i, o] = [b.corners[`${end}_inner`], b.corners[`${end}_outer`]];
         return (p[0] - i[0]) * (p[0] - o[0]) < 0;
       }))
     // L and R mirror
     && same(strap.bands[0].corners.front_inner.map((v, i) => (i ? v : -v)), strap.bands[1].corners.front_inner);
-  gate.record(`${strap.id}: ${strap.width_mm}mm band from ${strap.from} over the shoulder to ${strap.to} on each side`,
+  gate.record(`${strap.id}: ${strap.width_mm}mm band from ${strap.from}${strap.front_on ? ` (front end moved up to ${strap.front_on})` : ''} over the shoulder to ${strap.to} on each side`,
     ok,
-    strap.blocked || strap.bands.map((b) => `${b.side} ${(b.length_m * 1000).toFixed(1)}mm long tick to tick, ends ${(b.front_width_m * 1000).toFixed(2)}/${(b.back_width_m * 1000).toFixed(2)}mm, edges ${(b.inner_length_m * 1000).toFixed(1)}/${(b.outer_length_m * 1000).toFixed(1)}mm, ${(b.top_width_m * 1000).toFixed(2)}mm wide at the shoulder top y = ${b.top_y_m.toFixed(4)}m`).join('; '));
+    strap.blocked || strap.bands.map((b) => `${b.side} ${(b.length_m * 1000).toFixed(1)}mm long along the middle, ends ${(b.front_width_m * 1000).toFixed(2)}/${(b.back_width_m * 1000).toFixed(2)}mm, edges ${(b.inner_length_m * 1000).toFixed(1)}/${(b.outer_length_m * 1000).toFixed(1)}mm, ${(b.top_width_m * 1000).toFixed(2)}mm wide at the shoulder top y = ${b.top_y_m.toFixed(4)}m`).join('; '));
 }
 
 // ---- evidence ---------------------------------------------------------------
