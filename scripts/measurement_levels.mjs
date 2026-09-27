@@ -64,9 +64,9 @@ export function loadLevels(contract, registry) {
     }
     if (!groups[level.group]) problems.push(`unknown group ${level.group}`);
     if (level.label_in === undefined) problems.push('label_in must be a string or null (null = the unlabelled datum ring)');
-    // A requested ring is asked for on top of the sheets; it is never one of their printed values.
-    if (level.source !== undefined && level.source !== 'requested') problems.push(`unknown source ${level.source}`);
-    if (level.source === 'requested' && (level.label_in === null || level.offset_in === 0)) problems.push('the datum ring comes from the sheets, not a request');
+    // a tape level is also drawn as a tape in the measurement table; the datum already is the underbust
+    if (level.tape !== undefined && typeof level.tape !== 'boolean') problems.push('tape must be true or false');
+    if (level.tape && level.offset_in === 0) problems.push('the 0 ring is the underbust POM\'s own tape');
     if (problems.length) errors.push(`${level.id || '?'}: ${problems.join('; ')}`);
     else levels.push(level);
   }
@@ -151,11 +151,6 @@ export function measureLevels(resolved, tri, { scan = null, maxY = null, inchDen
   };
 }
 
-/** The rings the sheets print (and the trace must find), without the requested ones. */
-export function sheetLevels(levels) {
-  return levels.filter((l) => l.label_in !== null && l.source !== 'requested');
-}
-
 /** What a level says in a list: its printed label, or the datum's own name. */
 export function levelLabel(level, groups) {
   return level.label_in || `0" · ${groups?.[level.group]?.label_en || 'datum'}`;
@@ -170,7 +165,7 @@ export function levelsRecord(measured, loaded, provenance = 'auto') {
       id: l.id,
       offset_in: l.offset_in,
       label: l.label_in,
-      source: l.source || 'sheet',
+      tape: Boolean(l.tape),
       y_m: Number(l.y_m.toFixed(5)),
       girth_mm: l.girth_m === null ? null : Number((l.girth_m * 1000).toFixed(1)),
       blocked: l.blocked,

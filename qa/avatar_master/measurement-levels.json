@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T11:43:18Z",
+  "generated_at": "2026-09-27T11:50:24Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "4350b27a4054a327f2ab16544e2c2e54e56d0357b48a0a85252218324ae5d783"
+    "sha256": "1adaa9710ec8264e09ca850bf3b53b931206aa68f6ddada7b9571e14a3dd689f"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-27T11:42:48Z"
+    "generated_at": "2026-09-27T11:49:57Z"
   },
   "sheets": [
     {
@@ -47,7 +47,7 @@
       "id": "LVL_P4_1_4",
       "offset_in": 4.25,
       "label": "+4 1/4\"",
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.37295,
       "girth_mm": 1015.6,
       "blocked": null
@@ -56,7 +56,7 @@
       "id": "LVL_P3_3_4",
       "offset_in": 3.75,
       "label": "+3 3/4\"",
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.36025,
       "girth_mm": 1020.9,
       "blocked": null
@@ -65,34 +65,16 @@
       "id": "LVL_P3_1_2",
       "offset_in": 3.5,
       "label": "+3 1/2\"",
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.3539,
       "girth_mm": 1021.9,
-      "blocked": null
-    },
-    {
-      "id": "LVL_P1_3_4",
-      "offset_in": 1.75,
-      "label": "+1 3/4\"",
-      "source": "requested",
-      "y_m": 1.30945,
-      "girth_mm": 977.8,
-      "blocked": null
-    },
-    {
-      "id": "LVL_P1_1_2",
-      "offset_in": 1.5,
-      "label": "+1 1/2\"",
-      "source": "requested",
-      "y_m": 1.3031,
-      "girth_mm": 962.2,
       "blocked": null
     },
     {
       "id": "LVL_P1_1_4",
       "offset_in": 1.25,
       "label": "+1 1/4\"",
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.29675,
       "girth_mm": 943.6,
       "blocked": null
@@ -101,7 +83,7 @@
       "id": "LVL_P0_3_4",
       "offset_in": 0.75,
       "label": "+3/4\"",
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.28405,
       "girth_mm": 894.1,
       "blocked": null
@@ -110,7 +92,7 @@
       "id": "LVL_P0_1_2",
       "offset_in": 0.5,
       "label": "+1/2\"",
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.2777,
       "girth_mm": 862.8,
       "blocked": null
@@ -119,7 +101,7 @@
       "id": "LVL_ZERO",
       "offset_in": 0,
       "label": null,
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.265,
       "girth_mm": 818.5,
       "blocked": null
@@ -128,7 +110,7 @@
       "id": "LVL_M1",
       "offset_in": -1,
       "label": "-1\"",
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.2396,
       "girth_mm": 787.4,
       "blocked": null
@@ -137,7 +119,7 @@
       "id": "LVL_M1_1_4",
       "offset_in": -1.25,
       "label": "-1 1/4\"",
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.23325,
       "girth_mm": 782.8,
       "blocked": null
@@ -146,7 +128,7 @@
       "id": "LVL_M1_1_2",
       "offset_in": -1.5,
       "label": "-1 1/2\"",
-      "source": "sheet",
+      "tape": true,
       "y_m": 1.2269,
       "girth_mm": 778.8,
       "blocked": null
@@ -155,7 +137,7 @@
       "id": "LVL_M1_3_4",
       "offset_in": -1.75,
       "label": "-1 3/4\"",
-      "source": "sheet",
+      "tape": true,
       "y_m": 1.22055,
       "girth_mm": 775.2,
       "blocked": null
@@ -164,7 +146,7 @@
       "id": "LVL_M2",
       "offset_in": -2,
       "label": "-2\"",
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.2142,
       "girth_mm": 772.1,
       "blocked": null
@@ -173,7 +155,7 @@
       "id": "LVL_M2_1_4",
       "offset_in": -2.25,
       "label": "-2 1/4\"",
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.20785,
       "girth_mm": 769.8,
       "blocked": null
@@ -182,7 +164,7 @@
       "id": "LVL_M2_1_2",
       "offset_in": -2.5,
       "label": "-2 1/2\"",
-      "source": "sheet",
+      "tape": false,
       "y_m": 1.2015,
       "girth_mm": 768.3,
       "blocked": null
@@ -212,11 +194,6 @@
       "detail": "front 13, back 13, three-quarter 13 of 13"
     },
     {
-      "name": "a requested ring is declared as one, in its own group, and is not counted as a printed value",
-      "status": "PASS",
-      "detail": "+1 3/4\", +1 1/2\" requested, not on the sheets"
-    },
-    {
       "name": "the printed values hold a linear inch scale within 0.28in",
       "status": "PASS",
       "detail": "worst 0.2693in (front 34.347px/in, back 33.607px/in, three-quarter 35.327px/in)"
@@ -234,7 +211,7 @@
     {
       "name": "the contract validates against the registry",
       "status": "PASS",
-      "detail": "16 levels, datum UNDERBUST_FOLD is a registry landmark, offsets on the quarter inch and ordered"
+      "detail": "14 levels, datum UNDERBUST_FOLD is a registry landmark, offsets on the quarter inch and ordered"
     },
     {
       "name": "the contract states the levels limit",
@@ -254,7 +231,7 @@
     {
       "name": "every level resolves from the detected datum",
       "status": "PASS",
-      "detail": "UNDERBUST_FOLD at y = 1.2650m, 16 heights"
+      "detail": "UNDERBUST_FOLD at y = 1.2650m, 14 heights"
     },
     {
       "name": "a level height is the datum plus its offset in inches, exactly",
@@ -269,7 +246,7 @@
     {
       "name": "a level reports a girth exactly when it is not blocked",
       "status": "PASS",
-      "detail": "16 measured, 0 withheld"
+      "detail": "14 measured, 0 withheld"
     },
     {
       "name": "a measured level always has the section its girth came from",
@@ -285,6 +262,11 @@
       "name": "a level blocked by the range ceiling still carries its ring, only the girth withheld",
       "status": "PASS",
       "detail": "y = 1.4200m, above the 1.39m ceiling — blocked: above y = 1.39m, where the torso is open at the armhole and a section is not a closed body ring, section: 86 pts"
+    },
+    {
+      "name": "a level drawn as a tape is one of the printed rings, and measurable here",
+      "status": "PASS",
+      "detail": "-1 1/2\" 778.8mm, -1 3/4\" 775.2mm"
     },
     {
       "name": "the whole stack lands on the reliable part of this torso",

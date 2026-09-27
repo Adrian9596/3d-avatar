@@ -130,8 +130,7 @@ def fit(values, ys):
 
 def main() -> int:
     contract = json.loads(CONTRACT.read_text())
-    # the rings the sheets print; a requested ring (source: requested) is not on them
-    labelled = [lv for lv in contract["levels"] if lv["label_in"] is not None and lv.get("source") != "requested"]
+    labelled = [lv for lv in contract["levels"] if lv["label_in"] is not None]
     values = [lv["offset_in"] for lv in labelled]
     if sorted(values, reverse=True) != values:
         print("BLOCKED: the contract's labelled levels are not ordered top to bottom", file=sys.stderr)

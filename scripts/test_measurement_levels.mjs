@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from './measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, levelsRecord, outOfRange, sheetLevels,
+  loadLevels, resolveLevels, measureLevels, levelsRecord, outOfRange,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from './measurement_levels.mjs';
 
@@ -77,17 +77,12 @@ for (const sheet of trace.sheets) {
 gate.record('the trace evidence is of these sheets and this contract', true,
   `${trace.sheets.length} sheets traced by ${trace.tool}`);
 
-const labelled = sheetLevels(contract.levels);   // printed on the sheets; requested rings are not
+const labelled = contract.levels.filter((l) => l.label_in !== null);
 const budget = contract.trace.worst_residual_in;
 const worst = Math.max(...trace.sheets.map((s) => s.fit?.worst_residual_in ?? Infinity));
 gate.record('every sheet traced one leader per printed value',
   trace.sheets.every((s) => s.leaders_y_px.length === labelled.length),
   trace.sheets.map((s) => `${s.view} ${s.leaders_y_px.length}`).join(', ') + ` of ${labelled.length}`);
-const requested = contract.levels.filter((l) => l.source === 'requested');
-gate.record('a requested ring is declared as one, in its own group, and is not counted as a printed value',
-  requested.every((l) => l.group === 'requested' && l.label_in !== null && !labelled.includes(l))
-  && contract.levels.filter((l) => l.group === 'requested').every((l) => l.source === 'requested'),
-  requested.length ? requested.map((l) => l.label_in).join(', ') + ' requested, not on the sheets' : 'none requested');
 gate.record(`the printed values hold a linear inch scale within ${budget}in`,
   Number.isFinite(worst) && worst <= budget,
   `worst ${worst.toFixed(4)}in (${trace.sheets.map((s) => `${s.view} ${s.fit?.px_per_inch}px/in`).join(', ')})`);
@@ -180,6 +175,10 @@ gate.record('a level blocked by the range ceiling still carries its ring, only t
 
 // The contract claims the stack fits between the waist and the armhole on this
 // body. That is a property of THIS avatar, so it is measured, not asserted.
+const taped = measured.levels.filter((l) => l.tape);
+gate.record('a level drawn as a tape is one of the printed rings, and measurable here',
+  taped.every((l) => l.label_in !== null && l.girth_m !== null),
+  taped.map((l) => `${l.label_in} ${(l.girth_m * 1000).toFixed(1)}mm`).join(', ') || 'none drawn as tapes');
 const top = measured.levels[0], bottom = measured.levels[measured.levels.length - 1];
 gate.record('the whole stack lands on the reliable part of this torso',
   top.y_m <= maxY && bottom.y_m >= scan.from_m,

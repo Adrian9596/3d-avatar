@@ -573,18 +573,19 @@ function selectableTape(tr,tbody){
   });
 }
 
-/* The house's requested reference rings (contracts/measurement-levels.json,
-   source: requested) as red tapes and table rows under the underbust, like the
-   POMs. They are levels, not POMs: the girth is the shared engine's section at
-   that height (measureLevels), they have no house code and no POM-sheet row. */
-function renderRequestedLevelRows(tbody){
+/* Reference levels marked "tape": true in contracts/measurement-levels.json, as
+   red tapes and table rows under the underbust, like the POMs. They are levels,
+   not POMs: the girth is the shared engine's section at that height
+   (measureLevels), they have no house code and no POM-sheet row. */
+function renderTapeLevelRows(tbody){
   if(!measuredLevels||measuredLevels.needs)return;
-  const requested=measuredLevels.levels.filter(l=>l.source==='requested').sort((a,b)=>a.offset_in-b.offset_in);
-  for(const level of requested){
+  const taped=measuredLevels.levels.filter(l=>l.tape).sort((a,b)=>b.offset_in-a.offset_in);
+  for(const level of taped){
     const tr=document.createElement('tr');
     const label='Fold '+level.label_in;
-    tr.title='Reference level requested by the house: the girth '+level.label_in.replace('+','')
-      +' above the underbust fold. A level, not a POM — no house code, not in the POM sheet.';
+    const inches=level.label_in.replace(/^[+-]/,'');
+    tr.title='Reference level: the girth '+inches+(level.offset_in<0?' below':' above')
+      +' the underbust fold. A level, not a POM — no house code, not in the POM sheet.';
     if(level.girth_m===null){
       tr.className='landmark';
       tr.innerHTML=`<td>${label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;
@@ -646,7 +647,7 @@ function renderMeasurements(marks,poms,elapsedMs){
     // a girth POM draws as a ring, a surface-path POM as its own polyline
     if(isPath&&result.points)measureRowData.push({label:spec.label_short,path:result.points});
     else if(section)measureRowData.push({label:spec.label_short,section});
-    if(spec.id==='BODY_UNDERBUST_GIRTH')renderRequestedLevelRows(tbody);
+    if(spec.id==='BODY_UNDERBUST_GIRTH')renderTapeLevelRows(tbody);
   });
   redrawTapes();
 
@@ -697,7 +698,7 @@ function recomputeMeasurements(elapsedMs){
   if(poms&&measureGrid)Object.assign(poms,computeSurfacePoms(
     measureGrid,torsoTris,marks,{hps,manualPoints,foldLandmarks:foldMarks,armholes}));
   const elapsed=elapsedMs??Math.round(performance.now()-started);
-  recomputeLevels();          // before the table: it lists the requested levels
+  recomputeLevels();          // before the table: it lists the levels drawn as tapes
   renderMeasurements(marks,poms,elapsed);
   renderLandmarkList();
   redrawLandmarks();
