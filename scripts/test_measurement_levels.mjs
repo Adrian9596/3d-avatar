@@ -400,6 +400,21 @@ const curves = measureCurves(loaded, straps, onBody, ctx.grid, {}, unplaced, lin
 const points = measureCurvePoints(unplaced, curves);
 const onSkin = (pts) => pts.every((p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; });
 const mirrored = (a, b) => a.points.length === b.points.length && a.points.every((p, i) => Math.hypot(p[0] + b.points[i][0], p[1] - b.points[i][1], p[2] - b.points[i][2]) < 1e-4);
+// how kinked a run is: the most any sample strays from the middle of its neighbours, and the
+// sharpest turn from one sample to the next
+const kinks = (r) => {
+  let off = 0, turn = 0;
+  for (let i = 1; i < r.points.length - 1; i++) {
+    const [a, p, b] = [r.points[i - 1], r.points[i], r.points[i + 1]];
+    off = Math.max(off, Math.hypot(...p.map((v, k) => v - (a[k] + b[k]) / 2)));
+    const u = p.map((v, k) => v - a[k]), w = b.map((v, k) => v - p[k]);
+    const c = (u[0] * w[0] + u[1] * w[1] + u[2] * w[2]) / (Math.hypot(...u) * Math.hypot(...w));
+    turn = Math.max(turn, (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI);
+  }
+  return { off, turn };
+};
+const smooth = (c) => !c.blocked && c.runs.every((r) => { const k = kinks(r); return k.off < 2.5e-4 && k.turn < 6; });
+const kinked = (c) => c.runs.map((r) => { const k = kinks(r); return `${r.side} ${(k.off * 1000).toFixed(2)}mm, ${k.turn.toFixed(1)}deg`; }).join(', ');
 for (const curve of curves) {
   const ok = !curve.blocked && curve.runs.length === 2
     && curve.runs.every((r) => {
@@ -451,6 +466,10 @@ for (const curve of curves) {
     gate.record(`${curve.id}: dragging its middle reads back the fullness, dragging its centre-front dot the angle, and near level snaps to U`,
       Math.abs(backDepth?.fullness - 1.0) < 1e-3 && Math.abs(backCf?.angle_deg - 40) < 0.5 && backLevel?.angle_deg === 0,
       `fullness ${backDepth?.fullness?.toFixed(4)} (1), angle ${backCf?.angle_deg?.toFixed(2)} (40), 2deg -> ${backLevel?.angle_deg}`);
+    // smooth as drawn, as a V and at every fullness (carried to the nearest skin alone it had 1.5mm and 34deg)
+    gate.record(`${curve.id}: smooth on the skin, as declared, as a V and at every fullness: every sample within 0.25mm of the middle of its neighbours, no turn over 6deg`,
+      [curve, v30, ...byFullness].every(smooth),
+      `as declared ${kinked(curve)}; V 30deg ${kinked(v30)}; fullness 0.3/0.667/1 ${byFullness.map(kinked).join(' / ')}`);
     const restored = bendCurve(v30, curve.handles, ctx.grid);
     gate.record(`${curve.id}: putting the contract's shape back restores it exactly`,
       !restored.blocked && restored.runs.every((r, i) => Math.abs(r.length_m - curve.runs[i].length_m) < 1e-9),
@@ -475,22 +494,9 @@ for (const curve of curves) {
         const m = r.through, i = r.points.findIndex((q) => q.every((v, k) => v === m[k]));
         return `${r.side} ${(r.leg_lengths_m[0] * 1000).toFixed(1)} + ${(r.leg_lengths_m[1] * 1000).toFixed(1)}mm, lowest at y = ${m[1].toFixed(4)}m (sample ${i}), its tangent there ${slope(r.points[i + 1], r.points[i - 1]).toFixed(2)}deg from level`;
       }).join('; '));
-    // smooth: no sample far off the middle of its neighbours, no sharp turn from one sample to the next
     // (carried to the nearest skin, the same three points gave 1.4mm and 28deg)
-    const kinks = (r) => {
-      let off = 0, turn = 0;
-      for (let i = 1; i < r.points.length - 1; i++) {
-        const [a, p, b] = [r.points[i - 1], r.points[i], r.points[i + 1]];
-        off = Math.max(off, Math.hypot(...p.map((v, k) => v - (a[k] + b[k]) / 2)));
-        const u = p.map((v, k) => v - a[k]), w = b.map((v, k) => v - p[k]);
-        const c = (u[0] * w[0] + u[1] * w[1] + u[2] * w[2]) / (Math.hypot(...u) * Math.hypot(...w));
-        turn = Math.max(turn, (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI);
-      }
-      return { off, turn };
-    };
     gate.record(`${curve.id}: smooth on the skin: every sample within 0.25mm of the middle of its neighbours, no turn over 6deg from one to the next`,
-      curve.runs.every((r) => { const k = kinks(r); return k.off < 2.5e-4 && k.turn < 6; }),
-      curve.runs.map((r) => { const k = kinks(r); return `${r.side} ${r.points.length} samples, at most ${(k.off * 1000).toFixed(2)}mm off, ${k.turn.toFixed(1)}deg`; }).join('; '));
+      smooth(curve), kinked(curve));
     // it follows its points: the CF point slid up its line, the armhole's handles turned (the mark
     // rides on it), the armhole point moved; drawn again with nothing moved it is the same wire
     const cfEnd = points.find((p) => p.id === curve.to.point), markEnd = points.find((p) => p.id === curve.from.point);

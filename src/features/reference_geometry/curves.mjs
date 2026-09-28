@@ -33,8 +33,10 @@
    a deeper scoop). Each sample is carried onto the skin at its own height (the
    level section through it), not to the closest point, so seen from the front
    the curve is the one drafted: a U stays level into the cleavage instead of
-   being pulled up its walls. Its bow is reported as the largest distance from
-   the shortest path over the skin.
+   being pulled up its walls. The nearest point of each section jumps about a
+   little from one height to the next, so the run is then eased across the body
+   (see ease), its heights kept. Its bow is reported as the largest distance
+   from the shortest path over the skin.
 
    kind "wire_curve": a wire, drawn between points: from one (the armhole mark,
    on each side) through a registry landmark that is its lowest point (the
@@ -48,9 +50,8 @@
    point). Each sample is carried onto the skin along its level ray out from
    the axis, to where the ray first leaves the body (under a breast that hangs
    over the fold, the chest wall, where a wire sits), and the run is then eased
-   twice, each sample a quarter of the way toward each neighbour, which takes
-   out the kinks of the mesh's flat facets and keeps it within a fraction of a
-   millimetre of the skin. (Drawn across the body instead, a Bezier through
+   across the body twice, its heights kept (see ease), which takes out the
+   kinks of the mesh's flat facets. (Drawn across the body instead, a Bezier through
    these three points runs centimetres inside it, and carried to the nearest
    skin it comes out jagged.) It has no handles: it follows its points. Its end
    may be a dot riding on a curve declared before it, so curves are measured in
@@ -248,7 +249,8 @@ function levelOnMesh(grid, p) {
 }
 
 const RAY_REACH_M = 0.4;         // how far out from the axis a level ray looks for the skin
-const EASE_PASSES = 2;           // how many times a wire is eased once it is on the skin
+const WIRE_EASE_PASSES = 2;      // how many times a wire is eased once it is on the skin
+const JOINED_EASE_PASSES = 6;    // and a joined curve, carried to the nearest skin, which strays more
 
 /* The upright axis a wire is drawn round, at height y: on the centre plane,
    half way between the front and the back of the body there. Null if the body
@@ -303,15 +305,36 @@ function outAlongLevelRay(grid, p, axisZ) {
   return Number.isFinite(best) ? { point: [best * ux, y, axisZ + best * uz] } : null;
 }
 
+/* A run on the skin eased across the body: `passes` times, each sample but
+   the ends and the `held` ones moved a quarter of the way toward each
+   neighbour in x and z, its height kept. A curve carried at its own heights
+   strays only across the body -- on the mesh's flat facets (their edges are
+   about 7mm here), and where the nearest skin jumps -- so this takes the kinks
+   out, leaves every height as drawn (level stays level, the lowest point the
+   lowest), and keeps the run within a fraction of a millimetre of the skin. */
+function ease(points, passes, held = []) {
+  const keep = new Set([0, points.length - 1, ...held]);
+  let out = points;
+  for (let pass = 0; pass < passes; pass++) {
+    const was = out;
+    out = was.map((p, i) => (keep.has(i) ? p : [(was[i - 1][0] + 2 * p[0] + was[i + 1][0]) / 4, p[1], (was[i - 1][2] + 2 * p[2] + was[i + 1][2]) / 4]));
+  }
+  return out;
+}
+
+// A cubic Bezier's point at t.
+const bezierAt = (P0, P1, P2, P3, t) => {
+  const u = 1 - t;
+  return [0, 1, 2].map((i) => u * u * u * P0[i] + 3 * u * u * t * P1[i] + 3 * u * t * t * P2[i] + t * t * t * P3[i]);
+};
+
 // A cubic Bezier's samples, t in (0, 1], carried onto the skin (by `carry`, the
 // closest point unless said otherwise); null if one misses.
 function bezierOnSkin(grid, P0, P1, P2, P3, samples, carry = closestOnMesh) {
   const out = [];
   for (let s = 1; s <= samples; s++) {
     if (s === samples) { out.push(P3.slice()); break; }
-    const t = s / samples, u = 1 - t;
-    const b = [0, 1, 2].map((i) => u * u * u * P0[i] + 3 * u * u * t * P1[i] + 3 * u * t * t * P2[i] + t * t * t * P3[i]);
-    const hit = carry(grid, b);
+    const hit = carry(grid, bezierAt(P0, P1, P2, P3, s / samples));
     if (!hit) return null;
     out.push(hit.point);
   }
@@ -425,14 +448,18 @@ function joinedRun(grid, side, frames, handles, guideLength) {
   const k = handles.depth.fullness;
   const P1 = P0.map((v, i) => v + k * s * t0[i]);
   const P2 = P3.map((v, i) => v - k * u * t3[i]);
-  // carried at its own heights, so level out of the centre front stays level
+  // carried at its own heights, so level out of the centre front stays level; then eased across
   const b = bezierOnSkin(grid, P0, P1, P2, P3, CURVE_SAMPLES, levelOnMesh);
   if (!b) return { side, blocked: `the curve leaves the skin on the ${side} side` };
-  const points = [P0.slice(), ...b];
+  // (its last few samples held, so it still runs into the strap along the strap's edge; out of
+  // the centre front it keeps its heights, so it leaves level as drawn)
+  const held = [CURVE_SAMPLES - 2, CURVE_SAMPLES - 1];
+  const points = ease([P0.slice(), ...b], JOINED_EASE_PASSES, held);
   const jumped = jumpAcross(points, side);
   if (jumped) return { side, blocked: jumped };
-  // the middle, t = 1/2, and how it moves as the fullness changes (it is linear in it)
-  const middle = points[CURVE_SAMPLES / 2];
+  // the middle, t = 1/2, carried as it was drawn (the dot the fullness is dragged by, within
+  // a millimetre or so of the eased run), and how it moves as the fullness changes (it is linear in it)
+  const middle = levelOnMesh(grid, bezierAt(P0, P1, P2, P3, 0.5))?.point || points[CURVE_SAMPLES / 2];
   const chordMiddle = P0.map((v, i) => (v + P3[i]) / 2);
   const pull = t0.map((v, i) => (3 / 8) * (s * v - u * t3[i]));
   const cfTip = handleTip(grid, frames.cf, { angle_deg: handles.cf.angle_deg, length_mm: CF_HANDLE_MM });
@@ -478,13 +505,9 @@ function wireRun(grid, side, A, M, C, axisZ) {
   const share = Math.max(8, Math.round((CURVE_SAMPLES * la) / (la + lb)));
   const first = leg(a, a1, inA, m, M, share), second = leg(m, outC, c1, c, C, Math.max(8, CURVE_SAMPLES - share));
   if (!first || !second) return { side, blocked: `the curve leaves the skin on the ${side} side` };
-  let points = [A.slice(), ...first, ...second];
   const mid = first.length;
-  // eased, the three points it runs through held
-  for (let pass = 0; pass < EASE_PASSES; pass++) {
-    points = points.map((p, i) => (i === 0 || i === mid || i === points.length - 1 ? p
-      : p.map((v, k) => (points[i - 1][k] + 2 * v + points[i + 1][k]) / 4)));
-  }
+  // eased across, the point it runs lowest at held
+  const points = ease([A.slice(), ...first, ...second], WIRE_EASE_PASSES, [mid]);
   const jumped = jumpAcross(points, side);
   if (jumped) return { side, blocked: jumped };
   return {
