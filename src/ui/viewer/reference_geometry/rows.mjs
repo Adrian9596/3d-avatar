@@ -264,7 +264,7 @@ function updateCurvePointRow(point){
    angle (a V), and is shaped by how full it is. Select a side's row and drag
    the round dots on the body; the handles shape both sides, mirrored, and every
    number here follows the drag. A "wire_curve" has no handles: it runs between
-   points, through its lowest one, and follows them (listed after the dot it
+   points along the breast root, and follows them (listed after the dot it
    starts from). */
 const lowerFirst=s=>/^[A-Z][a-z]/.test(s)?s[0].toLowerCase()+s.slice(1):s;
 function curveEndText(end,side){
@@ -275,10 +275,9 @@ function curveEndText(end,side){
 }
 // What a wire's row says it is, on one side: what it runs through, and which of its points can be dragged from it.
 function wireText(curve,side){
-  const low=`${curve.through.landmark}_${side}`,about=(registry.landmarks||[]).find(l=>l.id===low)?.comment;
+  const apex=`${curve.root.about.landmark}_${side}`;
   const sliding=[curve.from,curve.to].map(e=>measuredPoints.find(p=>p.id===e.point)).filter(p=>p?.kind==='on_line');
-  return `through ${low}, its lowest point: a smooth curve on the skin, level where it runs lowest.`
-    +(about?` ${low}: ${lowerFirst(about)}`:'')
+  return `along the breast root round ${apex}: the crease where the breast leaves the chest wall, read off the skin as its most concave line, followed from where the crease runs out (toward the side) inward to the height of the CF point, and joined smoothly to both ends.`
     +' It has no handles; it follows its points, drawn with it when this row is selected.'
     +sliding.map(p=>` Drag the ${p.label} dot from here: it slides along its line, and the wire follows.`).join('');
 }
@@ -358,7 +357,8 @@ export function updateCurveRows(curve){
       +(run.leg_lengths_m?` Through the armhole point: ${CM(run.leg_lengths_m[0])} cm from the strap to it, ${CM(run.leg_lengths_m[1])} cm from it to the wing.`:'')
       +` Shortest path${run.through?' through the point':''} ${CM(run.guide_length_m)} cm; this curve ${CM(run.length_m)} cm.`;
     else if(curve.kind==='wire_curve')el.tr.title=el.title
-      +` ${CM(run.leg_lengths_m[0])} cm from ${curveEndText(curve.from,run.side)} to its lowest point, ${CM(run.leg_lengths_m[1])} cm from there to ${curveEndText(curve.to,run.side)}.`;
+      +` ${CM(run.leg_lengths_m[0])} cm from ${curveEndText(curve.from,run.side)} to its lowest point, ${CM(run.leg_lengths_m[1])} cm from there to ${curveEndText(curve.to,run.side)}.`
+      +(run.root?` ${CM(run.root.length_m)} cm of it runs along the root, within ${(run.root.off_max_m*1000).toFixed(1)} mm of it.`:'');
   }
   for(const [end,tr] of Object.entries(els.handles)){
     const cells=handleCells(curve,end,den);

@@ -37,8 +37,9 @@ import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection, sectionPointNearX } from '../src/core/measure_core.mjs';
 import {
   loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, measureWires, bendCurve, handleFromPoint, dragHandle, measurePoint, measurePoints, pointOffsets, measureLinePoint, linePointOffsets, measureCurvePoint, measureCurvePoints, levelsRecord, outOfRange, sectionChains,
-  METRES_PER_INCH, LEVELS_LIMIT,
+  METRES_PER_INCH, LEVELS_LIMIT, breastRoot,
 } from '../src/features/reference_geometry/index.mjs';
+import { buildGrid } from '../src/core/surface_path.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTRACT = join(ROOT, 'contracts', 'measurement-levels.json');
@@ -394,6 +395,17 @@ for (const side of ['L', 'R']) {
   const b = sectionPointNearX(ctx.tri, landmarks.UNDERBUST_FOLD, ctx.landmarks[`BUST_APEX_${side}`][0]);
   if (b) onBody[`ROOT_BOTTOM_${side}`] = [b.x, b.y, b.z];
 }
+// the mesh's median edge: how finely the skin is described, so how closely a crease can be read off it
+const medianEdge = (() => {
+  const { positions: P, faces: F } = ctx.mesh, seen = new Set(), lengths = [];
+  for (let f = 0; f < F.length; f += 3) for (let k = 0; k < 3; k++) {
+    const [i, j] = [F[f + k], F[f + ((k + 1) % 3)]], key = i < j ? `${i},${j}` : `${j},${i}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    lengths.push(Math.hypot(P[3 * i] - P[3 * j], P[3 * i + 1] - P[3 * j + 1], P[3 * i + 2] - P[3 * j + 2]));
+  }
+  return lengths.sort((a, b) => a - b)[lengths.length >> 1];
+})();
 const unplaced = measurePoints(loaded, onBody, ctx.tri, {}, lines);
 const curves = measureCurves(loaded, straps, onBody, ctx.grid, {}, unplaced, lines);
 // a dot on a curve is placed once the curves are measured
@@ -476,24 +488,44 @@ for (const curve of curves) {
       `${curve.runs.map((r) => (r.length_m * 1000).toFixed(1)).join(', ')}mm, bowing ${(curve.runs[0].depth_m * 1000).toFixed(1)}mm below the shortest path (${(curve.runs[0].guide_length_m * 1000).toFixed(1)}mm)`);
   }
   if (curve.kind === 'wire_curve' && !curve.blocked) {
-    // through its lowest point on each side: a sample there, none lower, level there (the chord
-    // between the samples either side of it, its tangent there, within 1deg of level); mirrored,
-    // both sides ending at the one CF point
-    const low = (side) => onBody[`${curve.through.landmark}_${side}`];
-    const slope = (q, m) => (Math.atan2(q[1] - m[1], Math.hypot(q[0] - m[0], q[2] - m[2])) * 180) / Math.PI;
-    const lowest = curve.runs.every((r) => {
-      const m = low(r.side), i = r.points.findIndex((q) => q.every((v, k) => v === m[k]));
-      return i > 0 && i < r.points.length - 1 && r.points.every((q) => q[1] >= m[1] - 1e-12)
-        && Math.abs(slope(r.points[i + 1], r.points[i - 1])) < 1
-        && Math.abs(r.leg_lengths_m[0] + r.leg_lengths_m[1] - r.length_m) < 1e-9;
+    // along the breast root about the apex (root.mjs): on every profile it follows, the drawn
+    // wire within half a mesh edge of the root as found there (each profile's root is read off
+    // the one mesh edge its least curvature lands on, so it is not placed closer than that);
+    // followed from the root's outer end, where the crease runs out, inward until the next
+    // profile's root would rise past the CF point or reach the centre plane
+    const halfEdge = medianEdge / 2;
+    const followsRoot = curve.runs.every((r) => {
+      const root = breastRoot(ctx.grid, ctx.landmarks[`${curve.root.about.landmark}_${r.side}`], r.side);
+      if (root.blocked || !r.root) return false;
+      const all = root.samples, [innerDeg, outerDeg] = r.root.span_deg;
+      const inner = all.findIndex((q) => q.deg === innerDeg), next = all[inner - 1];
+      const C = r.to;
+      return outerDeg === root.span_deg[1] && r.root.off_max_m <= halfEdge
+        && all[inner].point[1] <= C[1] && (!next || next.point[1] > C[1] || Math.abs(next.point[0]) <= 1e-9);
     });
-    const meet = curve.runs[0].to.every((v, i) => v === curve.runs[1].to[i]) && curve.runs[0].to[0] === 0;
-    gate.record(`${curve.id}: through ${curve.through.landmark}_L/R on each side, its lowest point and level there; mirrored, the two sides meeting on the centre plane`,
-      lowest && meet && mirrored(curve.runs[0], curve.runs[1]),
-      curve.runs.map((r) => {
-        const m = r.through, i = r.points.findIndex((q) => q.every((v, k) => v === m[k]));
-        return `${r.side} ${(r.leg_lengths_m[0] * 1000).toFixed(1)} + ${(r.leg_lengths_m[1] * 1000).toFixed(1)}mm, lowest at y = ${m[1].toFixed(4)}m (sample ${i}), its tangent there ${slope(r.points[i + 1], r.points[i - 1]).toFixed(2)}deg from level`;
-      }).join('; '));
+    gate.record(`${curve.id}: follows the breast root about ${curve.root.about.landmark}_L/R, within half a mesh edge (${(halfEdge * 1000).toFixed(2)}mm) of the root found on every profile, from where the crease runs out inward to the CF point's height`,
+      followsRoot,
+      curve.runs.map((r) => r.root ? `${r.side} ${r.root.span_deg[0]}..${r.root.span_deg[1]}deg about the apex, ${(r.root.length_m * 1000).toFixed(1)}mm along the root, at most ${(r.root.off_max_m * 1000).toFixed(2)}mm off it (the easing moved it ${(r.root.eased_max_m * 1000).toFixed(2)}mm at most)` : `${r.side} no root`).join('; '));
+    // the two sides meet at the one CF point on the centre plane and neither crosses to the other
+    // side; mirrored. The V they make there is reported (the first wire met at 54deg)
+    const meetAngle = (r) => { const [p, q] = [r.points[r.points.length - 1], r.points[r.points.length - 2]]; return (2 * Math.atan2(Math.abs(q[1] - p[1]), Math.hypot(q[0] - p[0], q[2] - p[2])) * 180) / Math.PI; };
+    const meet = curve.runs[0].to.every((v, i) => v === curve.runs[1].to[i]) && curve.runs[0].to[0] === 0
+      && curve.runs.every((r) => r.points.every((q) => (r.side === 'L' ? q[0] <= 1e-9 : q[0] >= -1e-9)));
+    gate.record(`${curve.id}: the two sides meet at the CF point on the centre plane, neither crossing it; mirrored`,
+      meet && mirrored(curve.runs[0], curve.runs[1]),
+      `they meet in a V of ${meetAngle(curve.runs[0]).toFixed(1)}deg`);
+    // its lowest point and the legs either side, reported; and how far the fold point below the
+    // apex (ROOT_BOTTOM, where cup depth starts) is from it, since the wire no longer passes through it
+    const offWire = (p, pts) => Math.min(...pts.slice(1).map((q, i) => {
+      const a = pts[i], d = q.map((v, k) => v - a[k]), l2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+      const t = l2 > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1] + (p[2] - a[2]) * d[2]) / l2)) : 0;
+      return Math.hypot(p[0] - a[0] - d[0] * t, p[1] - a[1] - d[1] * t, p[2] - a[2] - d[2] * t);
+    }));
+    const lowest = curve.runs.every((r) => r.points.every((q) => q[1] >= r.through[1]) && r.points.includes(r.through)
+      && Math.abs(r.leg_lengths_m[0] + r.leg_lengths_m[1] - r.length_m) < 1e-9);
+    gate.record(`${curve.id}: its lowest point is a sample of it, none lower, and its two legs add up to it`,
+      lowest,
+      curve.runs.map((r) => `${r.side} ${(r.leg_lengths_m[0] * 1000).toFixed(1)} + ${(r.leg_lengths_m[1] * 1000).toFixed(1)}mm, lowest at y = ${r.through[1].toFixed(4)}m, x = ${(r.through[0] * 1000).toFixed(1)}mm; ROOT_BOTTOM_${r.side} is ${(offWire(onBody[`ROOT_BOTTOM_${r.side}`], r.points) * 1000).toFixed(2)}mm from the wire`).join('; '));
     // (carried to the nearest skin, the same three points gave 1.4mm and 28deg)
     gate.record(`${curve.id}: smooth on the skin: every sample within 0.25mm of the middle of its neighbours, no turn over 6deg from one to the next`,
       smooth(curve), kinked(curve));
@@ -512,7 +544,7 @@ for (const curve of curves) {
     const movedArm = measureCurves(loaded, straps, onBody, ctx.grid, {}, unplaced.map((p) => (p.id === armPoint.id ? measurePoint(armPoint, ctx.landmarks, ctx.tri, { up_in: 0.6, forward_in: 0.8 }) : p)), lines);
     const same = (a, b) => a.every((v, i) => v === b[i]);
     const follows = (w, fromAt, toAt) => !w.blocked && w.runs.every((r) => same(r.points[0], fromAt(r.side)) && same(r.points[r.points.length - 1], toAt(r.side))
-      && r.points.some((q) => same(q, low(r.side))) && onSkin(r.points)) && mirrored(w.runs[0], w.runs[1]);
+      && onSkin(r.points)) && mirrored(w.runs[0], w.runs[1]);
     const newCf = slid.find((p) => p.id === cfEnd.id), newMark = measureCurvePoint(markEnd, turnedArm), movedMark = measureCurvePoint(markEnd, movedArm.find((c) => c.id === armhole.id));
     const mm = (w) => (w.blocked ? w.blocked : w.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm`).join(', '));
     gate.record(`${curve.id}: follows its points: the CF point slid along its line, the armhole reshaped or its point moved (the mark rides on it); drawn again with nothing moved it is the same wire`,
@@ -521,12 +553,13 @@ for (const curve of curves) {
         && follows(afterTurn, (side) => pointAt(newMark, side), () => cfEnd.at) && !same(pointAt(newMark, 'R'), pointAt(markEnd, 'R'))
         && follows(wireIn(movedArm), (side) => pointAt(movedMark, side), () => cfEnd.at) && !same(pointAt(movedMark, 'R'), pointAt(markEnd, 'R')),
       `CF point 1.5in up its line: ${mm(afterSlide)}; armhole handles turned: ${mm(afterTurn)}; armhole point moved: ${mm(wireIn(movedArm))} (as declared ${mm(curve)})`);
-    // what it waits on: its lowest point, either end
-    const noLow = wireIn(measureCurves(loaded, straps, ctx.landmarks, ctx.grid, {}, unplaced, lines));
+    // what it waits on: the landmark its root is found about, either end
+    const noApex = Object.fromEntries(Object.entries(onBody).filter(([id]) => !id.startsWith(`${curve.root.about.landmark}_`)));
+    const noLow = wireIn(measureCurves(loaded, straps, noApex, ctx.grid, {}, measurePoints(loaded, noApex, ctx.tri, {}, lines), lines));
     const noCf = wireIn(measureWires(loaded, curves, onBody, ctx.grid, points.map((p) => (p.id === cfEnd.id ? measureLinePoint(cfEnd, cfLine, { up_in: 40 }) : p))));
     const noArm = wireIn(measureWires(loaded, curves.map((c) => (c.id === armhole.id ? { ...c, blocked: 'gone', runs: [] } : c)), onBody, ctx.grid, points));
-    gate.record(`${curve.id}: without its lowest point, or with either end blocked, it reads needs …, never a curve`,
-      noLow.blocked === `needs ${curve.through.landmark}_L, ${curve.through.landmark}_R` && noCf.blocked === `needs ${cfEnd.id}` && noArm.blocked === `needs ${markEnd.id}`
+    gate.record(`${curve.id}: without the landmark its root is found about, or with either end blocked, it reads needs …, never a curve`,
+      noLow.blocked === `needs ${curve.root.about.landmark}_L, ${curve.root.about.landmark}_R` && noCf.blocked === `needs ${cfEnd.id}` && noArm.blocked === `needs ${markEnd.id}`
         && [noLow, noCf, noArm].every((w) => w.runs.length === 0),
       [noLow, noCf, noArm].map((w) => w.blocked).join('; '));
   }
@@ -591,20 +624,54 @@ if (wireDef) {
   const rider = (contract.points || []).find((p) => p.id === wireDef.from.point && p.kind === 'on_curve');
   const withWire = (w) => loadLevels({ ...contract, curves: [...others, { ...wireDef, ...w }] }, ctx.registry);
   const cases = [
-    [withWire({ from: { landmark: 'SIDE_WING_HIGH' } }), wireDef.id, /a wire runs from a point, through a registry landmark \(its lowest point\), to a point/],
-    [withWire({ through: { point: wireDef.to.point } }), wireDef.id, /a wire runs from a point, through a registry landmark/],
+    [withWire({ from: { landmark: 'SIDE_WING_HIGH' } }), wireDef.id, /a wire runs from a point, along the breast root about a registry landmark, to a point/],
+    [withWire({ through: { landmark: 'ROOT_BOTTOM' } }), wireDef.id, /a wire runs from a point, along the breast root about a registry landmark/],
+    [withWire({ root: undefined }), wireDef.id, /a wire runs from a point, along the breast root about a registry landmark/],
     [withWire({ to: { point: 'NOPE' } }), wireDef.id, /to point NOPE is not a valid point/],
-    [withWire({ through: { landmark: 'NOPE' } }), wireDef.id, /through NOPE_L is not a registry landmark/],
+    [withWire({ root: { about: { landmark: 'NOPE' } } }), wireDef.id, /root about NOPE_L is not a registry landmark/],
+    [loadLevels({ ...contract, curves: [...contract.curves, { id: 'Y', kind: 'shortest_surface_path', from: { landmark: 'SIDE_WING_HIGH' }, to: { landmark: 'SIDE_UNDERBUST' }, root: wireDef.root, colour: '#000000', label: 'y' }] }, ctx.registry), 'Y', /only a wire follows the breast root/],
     ...(rider ? [[loadLevels({ ...contract, curves: [wireDef, ...others] }, ctx.registry), wireDef.id, new RegExp(`from point ${rider.id} rides on ${rider.curve}, which is not a valid curve declared before this one`)]] : []),
     [loadLevels({ ...contract, curves: [...contract.curves, { id: 'X', kind: 'shortest_surface_path', from: wireDef.from, to: { landmark: 'SIDE_WING_HIGH' }, colour: '#000000', label: 'x' }] }, ctx.registry), 'X', /only a wire runs from or to a point/],
   ];
-  gate.record('a wire from or to anything but a point, through anything but a registry landmark, or from a dot on a curve declared after it, is refused; nothing but a wire runs to a point',
+  gate.record('a wire from or to anything but a point, not along the root about a registry landmark, or from a dot on a curve declared after it, is refused; nothing but a wire runs to a point or follows the root',
     cases.every(([l, id, want]) => !l.curves.some((c) => c.id === id) && l.errors.some((e) => e.startsWith(`${id}: `) && want.test(e))),
     cases.map(([l, id]) => l.errors.find((e) => e.startsWith(`${id}: `)) || `${id} not refused`).join(' | ').slice(0, 400));
 }
 gate.record('a tangent curve without a sound pair of handles is refused',
   (contract.curves || []).length === 0 || (brokenHandles.curves.length === 0 && brokenHandles.errors.some((e) => /handles\.from\.angle_deg/.test(e) && /handles\.to\.length_mm/.test(e))),
   brokenHandles.errors.join('; ').slice(0, 160));
+
+// ---- 9b. the breast root, on surfaces whose crease is known --------------------------------
+// Independent of the avatar and of the root code: a sphere sunk into a plane meets it on a circle
+// of radius sqrt(R^2 - sink^2), a crease whose place is known exactly. Drawn as a height field at
+// two mesh sizes, every profile's root must land within one mesh edge of that circle, and the eased
+// root within half an edge; finer is closer. A paraboloid has no crease at all, and must say so.
+{
+  const field = (f, h, [x0, x1], [y0, y1]) => {
+    const nx = Math.round((x1 - x0) / h), ny = Math.round((y1 - y0) / h), out = [];
+    const P = (i, j) => [x0 + i * h, y0 + j * h, f(x0 + i * h, y0 + j * h)];
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+      const [a, b, c, d] = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)];
+      out.push(...a, ...b, ...c, ...a, ...c, ...d);   // facing +z, the way the skin faces out
+    }
+    return new Float32Array(out);
+  };
+  const R = 0.08, sink = 0.05, r0 = Math.sqrt(R * R - sink * sink), C = [-0.1, 1.3], X = [-0.2, -0.004], Y = [1.18, 1.42];
+  const dome = (x, y) => { const r = Math.hypot(x - C[0], y - C[1]); return r < r0 ? Math.sqrt(R * R - r * r) - sink : 0; };
+  const byMesh = [0.004, 0.002].map((h) => {
+    const root = breastRoot(buildGrid(field(dome, h, X, Y)), [C[0], C[1], R - sink], 'L');
+    const off = (pick) => (root.blocked ? Infinity : Math.max(...root.samples.map((q) => Math.abs(Math.hypot(pick(q)[0] - C[0], pick(q)[1] - C[1]) - r0))));
+    return { h, root, raw: off((q) => q.raw_point), eased: off((q) => q.point) };
+  });
+  gate.record('the breast root of a sphere sunk into a plane is its crease circle: every profile within one mesh edge of it, eased within half, closer on a finer mesh',
+    byMesh.every((m) => !m.root.blocked && m.root.samples.length > 200 && m.raw <= m.h && m.eased <= m.h / 2) && byMesh[1].raw < byMesh[0].raw,
+    byMesh.map((m) => `${(m.h * 1000).toFixed(0)}mm mesh: ${m.root.blocked || `${m.root.samples.length} profiles, at most ${(m.raw * 1000).toFixed(2)}mm off the circle, eased ${(m.eased * 1000).toFixed(2)}mm`}`).join('; ') + ` (circle radius ${(r0 * 1000).toFixed(2)}mm)`);
+  const bowl = (x, y) => 0.03 - 8 * ((x - C[0]) ** 2 + (y - C[1]) ** 2);
+  const none = breastRoot(buildGrid(field(bowl, 0.004, X, Y)), [C[0], C[1], 0.03], 'L');
+  gate.record('a surface with no crease has no breast root, and says so',
+    none.blocked === 'no concave crease below BUST_APEX_L' && !none.samples,
+    none.blocked || 'a root was found');
+}
 
 // ---- 10. points offset from a landmark, and dots on a line -------------------------------
 gate.record('every declared point validates',
@@ -788,11 +855,12 @@ const body = {
   })),
   curves: curves.map((c) => ({
     id: c.id, from: c.from, to: c.to, colour: c.colour, blocked: c.blocked,
-    kind: c.kind, handles: c.handles || null, through: c.through || null,
+    kind: c.kind, handles: c.handles || null, through: c.through || null, root: c.root || null,
     runs: c.runs.map((r) => ({
       side: r.side, length_mm: Number((r.length_m * 1000).toFixed(1)),
       ...(r.guide_length_m ? { shortest_path_mm: Number((r.guide_length_m * 1000).toFixed(1)) } : {}),
       ...(r.leg_lengths_m ? { legs_mm: r.leg_lengths_m.map((v) => Number((v * 1000).toFixed(1))), through_m: r.through.map((v) => Number(v.toFixed(5))) } : {}),
+      ...(r.root ? { root: { span_deg: r.root.span_deg, followed_mm: Number((r.root.length_m * 1000).toFixed(1)), off_max_mm: Number((r.root.off_max_m * 1000).toFixed(2)), eased_max_mm: Number((r.root.eased_max_m * 1000).toFixed(2)) } } : {}),
       from_m: r.from.map((v) => Number(v.toFixed(5))), to_m: r.to.map((v) => Number(v.toFixed(5))),
       ...(r.tangents ? { tips_m: Object.fromEntries(r.tangents.map((t) => [t.end, t.tip.map((v) => Number(v.toFixed(5)))])) } : {}),
       ...(Number.isFinite(r.depth_m) ? { depth_mm: Number((r.depth_m * 1000).toFixed(1)) } : {}),

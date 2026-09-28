@@ -22,7 +22,7 @@
  * the reason attached — visible absence beats a plausible number.
  *
  * One module per kind (levels, shapes, tapes, lines, ticks, straps, curves,
- * points), each with its own contract validation next to its measuring;
+ * points, and root: the breast root the wire follows), each with its own contract validation next to its measuring;
  * contract.mjs runs the validators in order and contour.mjs holds the plane
  * cuts they share. This file is the feature's public API.
  *
@@ -40,4 +40,5 @@ export { measureLine, measureLines } from './lines.mjs';
 export { measureTick, measureTicks } from './ticks.mjs';
 export { measureStrap, measureStraps } from './straps.mjs';
 export { handleTip, handleFromPoint, bendCurve, dragHandle, validHandle, measureCurve, measureCurves, measureWires } from './curves.mjs';
+export { breastRoot, surfaceCurvature } from './root.mjs';
 export { measurePoint, pointOffsets, measureLinePoint, linePointOffsets, measureCurvePoint, measurePoints, measureCurvePoints } from './points.mjs';

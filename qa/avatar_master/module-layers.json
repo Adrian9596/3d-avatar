@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-28T06:58:30Z",
+  "generated_at": "2026-09-28T08:51:29Z",
   "purpose": "Static guard that the app's modules stay in their layers (ui -> features -> core) with no cycle.",
   "layers": {
     "core": [
@@ -42,6 +42,7 @@
         "src/features/reference_geometry/levels.mjs",
         "src/features/reference_geometry/lines.mjs",
         "src/features/reference_geometry/points.mjs",
+        "src/features/reference_geometry/root.mjs",
         "src/features/reference_geometry/shapes.mjs",
         "src/features/reference_geometry/straps.mjs",
         "src/features/reference_geometry/tapes.mjs",
@@ -81,17 +82,17 @@
       "src/ui/viewer/tip.mjs"
     ]
   },
-  "imports": 192,
+  "imports": 195,
   "checks": [
     {
       "name": "every module under src/ is in a layer: core, a feature, or the ui",
       "status": "PASS",
-      "detail": "9 core, 21 in 6 features (avatar, body_grid, landmarks, pattern, pen, reference_geometry), 29 ui"
+      "detail": "9 core, 22 in 6 features (avatar, body_grid, landmarks, pattern, pen, reference_geometry), 29 ui"
     },
     {
       "name": "every relative import resolves",
       "status": "PASS",
-      "detail": "192 imports between modules"
+      "detail": "195 imports between modules"
     },
     {
       "name": "nothing under src/ imports the gates or tools in scripts/",

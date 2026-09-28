@@ -39,28 +39,40 @@
    from the shortest path over the skin.
 
    kind "wire_curve": a wire, drawn between points: from one (the armhole mark,
-   on each side) through a registry landmark that is its lowest point (the
-   bottom of the breast root, where cup depth starts) to another (the CF point,
-   one for both sides). It is drawn round the body, not across it: each point
-   is placed by its angle about an upright axis through the middle of the body
-   (on the centre plane) and by its height, and in that flat chart the wire is
-   two cubic Beziers joined at the lowest point, smoothly and level there, each
-   handle a third of its own leg's chord long. At the ends it does not bend (a
-   natural spline: each end's inner point half way to the handle at the lowest
-   point). Each sample is carried onto the skin along its level ray out from
-   the axis, to where the ray first leaves the body (under a breast that hangs
-   over the fold, the chest wall, where a wire sits), and the run is then eased
-   across the body twice, its heights kept (see ease), which takes out the
-   kinks of the mesh's flat facets. (Drawn across the body instead, a Bezier through
-   these three points runs centimetres inside it, and carried to the nearest
-   skin it comes out jagged.) It has no handles: it follows its points. Its end
-   may be a dot riding on a curve declared before it, so curves are measured in
-   the contract's order, with the dots on the curves before a wire placed
-   first. ------------------------------------------------------------------------ */
+   on each side) to another (the CF point, one for both sides), along the breast
+   root in between. The root is found about a registry landmark on each side
+   (root.about, the apex; see root.mjs): the skin's most concave line round the
+   breast, where it leaves the chest wall. The wire follows it from its outer end
+   (where the crease runs out) inward, until it would rise past the CF point's
+   height or reach the centre plane, and it joins each end to the root in the
+   chart it is drawn round the body in: each point placed by its angle about an
+   upright axis through the middle of the body (on the centre plane) and by its
+   height. There each join is a cubic Bezier leaving the root along the root's
+   own direction, its handle a third of the join's chord long. At the armhole
+   mark it does not bend (a natural spline: its inner point half way to the
+   handle); at the CF point, where the two sides meet, it is drawn arriving
+   level, so neither side crosses the centre plane (left free there, the join
+   carried on the root's rising direction and crossed it). Eased, the two sides
+   meet there in a shallow V, which is reported. A join's samples are carried
+   onto the skin along their level ray out from the
+   axis, to where the ray first leaves the body; the root's are on the skin
+   already. The joined run is then spaced evenly along itself (2.5mm) and eased
+   along itself, sixteen times, in all three directions (the root's heights are
+   read off the mesh facet by facet and carry its noise), its ends kept, which
+   takes out the kinks of the mesh's flat facets and keeps it within half a
+   millimetre of the skin. Its lowest point
+   is reported, and the two legs either side of it. It has no handles: it follows
+   its points. Its end may be a dot riding on a curve declared before it, so
+   curves are measured in the contract's order, with the dots on the curves
+   before a wire placed first. (The first wires were two Beziers through the
+   armhole mark, the fold point below the apex and the CF point: smooth, but
+   9-17mm off the crease on both legs, because nothing in them knew where the
+   crease was.) ------------------------------------------------------------------ */
 
 import { surfaceRun, closestOnMesh } from '../../core/surface_path.mjs';
 import { verticalSegments, backCrossing } from './contour.mjs';
 import { measureCurvePoints } from './points.mjs';
+import { breastRoot } from './root.mjs';
 
 // The handles each shaped kind of curve carries (see the curves section).
 export const HANDLE_KEYS = { tangent_curve: ['from', 'to'], joined_curve: ['cf', 'depth'] };
@@ -123,13 +135,15 @@ export function validateCurves(contract, { errors, heightIds, shapeIds, lines, t
       if (curve.from?.line === undefined || curve.to?.strap === undefined) problems.push('a joined curve runs from a line\'s end on the centre plane to a strap corner');
     }
     if (curve.kind === 'wire_curve') {
-      if (curve.from?.point === undefined || curve.to?.point === undefined || curve.through?.landmark === undefined) problems.push('a wire runs from a point, through a registry landmark (its lowest point), to a point');
+      if (curve.from?.point === undefined || curve.to?.point === undefined || curve.root?.about?.landmark === undefined || curve.through !== undefined) problems.push('a wire runs from a point, along the breast root about a registry landmark, to a point');
     } else if ([curve.from, curve.to].some((e) => e?.point !== undefined)) problems.push('only a wire runs from or to a point');
+    else if (curve.root !== undefined) problems.push('only a wire follows the breast root');
     problems.push(...endProblems(curve.from, 'from'), ...endProblems(curve.to, 'to'));
-    // what it passes through: for a wire, a registry landmark on each side, its lowest point; for a
-    // tangent curve, a point per side, offset from a landmark (a dot on a line is one for both)
+    // what it follows or passes through: for a wire, the root about a registry landmark on each
+    // side (the apex); for a tangent curve, a point per side, offset from a landmark (a dot on a
+    // line is one for both)
     if (curve.kind === 'wire_curve') {
-      if (curve.through?.landmark !== undefined) problems.push(...endProblems({ landmark: curve.through.landmark }, 'through'));
+      if (curve.root?.about?.landmark !== undefined) problems.push(...endProblems({ landmark: curve.root.about.landmark }, 'root about'));
     } else if (curve.through !== undefined && (curve.kind !== 'tangent_curve' || !points.some((p) => p.id === curve.through?.point && p.kind === 'offset_on_skin'))) problems.push(`through ${curve.through?.point} is not a valid point offset on the skin (and only a tangent curve passes through one)`);
     if (!/^#[0-9a-f]{6}$/i.test(curve.colour || '')) problems.push('colour must be #rrggbb');
     if (typeof curve.label !== 'string' || !curve.label) problems.push('label must be a string');
@@ -249,7 +263,7 @@ function levelOnMesh(grid, p) {
 }
 
 const RAY_REACH_M = 0.4;         // how far out from the axis a level ray looks for the skin
-const WIRE_EASE_PASSES = 2;      // how many times a wire is eased once it is on the skin
+const WIRE_EASE_PASSES = 16;     // how many times a wire is eased along itself once joined
 const JOINED_EASE_PASSES = 6;    // and a joined curve, carried to the nearest skin, which strays more
 
 /* The upright axis a wire is drawn round, at height y: on the centre plane,
@@ -474,23 +488,61 @@ function joinedRun(grid, side, frames, handles, guideLength) {
   };
 }
 
-/** One side's wire, from A through M, its lowest point, to C, drawn round
- *  the body about the upright axis at axisZ: in the chart of angle (as a length
- *  round at M's distance from the axis) and height, two cubic Beziers joined at
- *  M, level there, each handle a third of its own leg's chord long, and at A and
- *  C no bend; each sample carried out along its level ray onto the skin, and the
- *  run eased. */
-function wireRun(grid, side, A, M, C, axisZ) {
-  const radius = Math.hypot(M[0], M[2] - axisZ);
+const JOIN_SPACING_M = 0.002;    // about how far apart a join's samples are
+const WIRE_SPACING_M = 0.0025;   // and the wire's, once joined
+
+// How far p is from a run: its distance to the nearest of the run's segments.
+function offRun(p, pts) {
+  let best = Infinity;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], d = sub(pts[i], a), l2 = dot(d, d);
+    const t = l2 > 0 ? Math.max(0, Math.min(1, dot(sub(p, a), d) / l2)) : 0;
+    best = Math.min(best, Math.hypot(p[0] - a[0] - d[0] * t, p[1] - a[1] - d[1] * t, p[2] - a[2] - d[2] * t));
+  }
+  return best;
+}
+
+/* A polyline (its points and the distance along it at each) at `n` + 1 points
+   evenly spaced along it, the ends kept; `indexAt(d)` is the sample nearest d along. */
+function resampleAt(pts, at, n) {
+  const total = at[at.length - 1], out = [pts[0].slice()];
+  for (let s = 1, j = 1; s < n; s++) {
+    const d = (total * s) / n;
+    while (j < pts.length - 1 && at[j] < d) j++;
+    const f = (d - at[j - 1]) / (at[j] - at[j - 1] || 1);
+    out.push(pts[j - 1].map((v, c) => v + (pts[j][c] - v) * f));
+  }
+  out.push(pts[pts.length - 1].slice());
+  return { points: out, indexAt: (d) => Math.max(0, Math.min(n, Math.round((d / total) * n))) };
+}
+const JOIN_REACH = 5;            // how many root samples a join reads the root's direction over
+
+/** One side's wire, from A to C along the breast root about `apex`: the root
+ *  from its outer end inward, while it stays below C and off the centre plane,
+ *  and each end joined to it round the body about the upright axis there (in the
+ *  chart of angle, as a length round at the root's distance from the axis, and
+ *  height), leaving the root along its own direction; the join's samples carried
+ *  out along their level ray onto the skin, and the run eased. */
+function wireRun(grid, side, A, apex, C) {
+  const root = breastRoot(grid, apex, side);
+  if (root.blocked) return { side, blocked: root.blocked };
+  const all = root.samples;
+  const zero = all.findIndex((s) => s.deg === 0);
+  let lo = zero;
+  while (lo > 0 && all[lo - 1].point[1] <= C[1] && Math.abs(all[lo - 1].point[0]) > 1e-9) lo--;
+  // outer end first, as the wire runs from A
+  const kept = all.slice(lo).reverse();
+  if (kept.length <= 2 * JOIN_REACH) return { side, blocked: `the breast root on the ${side} side is too short to follow` };
+  const bottom = all[zero].point;
+  const axisZ = axisAt(grid, bottom[1]);
+  if (axisZ === null) return { side, blocked: `the body does not cross the centre plane below BUST_APEX_${side}` };
+  const radius = Math.hypot(bottom[0], bottom[2] - axisZ);
   const chart = (p) => [Math.atan2(p[0], p[2] - axisZ) * radius, p[1]];
-  const [a, m, c] = [A, M, C].map(chart);
-  const way = Math.sign(c[0] - a[0]) || 1;   // round the body, from A's end toward C's
-  const [la, lb] = [Math.hypot(m[0] - a[0], m[1] - a[1]) / 3, Math.hypot(c[0] - m[0], c[1] - m[1]) / 3];
-  const inA = [m[0] - way * la, m[1]], outC = [m[0] + way * lb, m[1]];
-  // a natural spline's ends (no second derivative there): each end's inner point half way to the handle at M
-  const a1 = [(a[0] + inA[0]) / 2, (a[1] + inA[1]) / 2], c1 = [(c[0] + outC[0]) / 2, (c[1] + outC[1]) / 2];
-  // a leg's samples, t in (0, 1], each out along its level ray, the last one the point it ends at
-  const leg = (P0, P1, P2, P3, end, samples) => {
+  const k = kept.map((s) => chart(s.point));
+  const dir = (from, to) => { const d = [to[0] - from[0], to[1] - from[1]], l = Math.hypot(d[0], d[1]) || 1; return [d[0] / l, d[1] / l]; };
+  // a join's samples, t in (0, 1), each out along its level ray
+  const join = (P0, P1, P2, P3) => {
+    const samples = Math.max(8, Math.round(Math.hypot(P3[0] - P0[0], P3[1] - P0[1]) / JOIN_SPACING_M));
     const out = [];
     for (let s = 1; s < samples; s++) {
       const t = s / samples, u = 1 - t;
@@ -499,20 +551,49 @@ function wireRun(grid, side, A, M, C, axisZ) {
       if (!hit) return null;
       out.push(hit.point);
     }
-    out.push(end.slice());
     return out;
   };
-  const share = Math.max(8, Math.round((CURVE_SAMPLES * la) / (la + lb)));
-  const first = leg(a, a1, inA, m, M, share), second = leg(m, outC, c1, c, C, Math.max(8, CURVE_SAMPLES - share));
-  if (!first || !second) return { side, blocked: `the curve leaves the skin on the ${side} side` };
-  const mid = first.length;
-  // eased across, the point it runs lowest at held
-  const points = ease([A.slice(), ...first, ...second], WIRE_EASE_PASSES, [mid]);
+  // from A into the root's outer end, arriving along the root; from its inner end on, into C
+  const [a, c, r0, r1] = [chart(A), chart(C), k[0], k[k.length - 1]];
+  const t0 = dir(k[JOIN_REACH], r0), t1 = dir(k[k.length - 1 - JOIN_REACH], r1);
+  const [l0, l1] = [Math.hypot(a[0] - r0[0], a[1] - r0[1]) / 3, Math.hypot(c[0] - r1[0], c[1] - r1[1]) / 3];
+  const in0 = [r0[0] + t0[0] * l0, r0[1] + t0[1] * l0], out1 = [r1[0] + t1[0] * l1, r1[1] + t1[1] * l1];
+  // C is on the centre plane, where the two sides meet: each is drawn arriving level, so
+  // neither crosses to the other side
+  const way = Math.sign(c[0] - r1[0]) || 1;
+  const first = join(a, [(a[0] + in0[0]) / 2, (a[1] + in0[1]) / 2], in0, r0);
+  const last = join(r1, out1, [c[0] - way * l1, c[1]], c);
+  if (!first || !last) return { side, blocked: `the curve leaves the skin on the ${side} side` };
+  // the joined run, spaced evenly along itself (the root's profiles are a degree apart, about a
+  // millimetre, closer than the joins), then eased across the body
+  const joined = [A.slice(), ...first, ...kept.map((s) => s.point.slice()), ...last, C.slice()];
+  const at = [0];
+  for (let i = 1; i < joined.length; i++) at.push(at[i - 1] + Math.hypot(...sub(joined[i], joined[i - 1])));
+  const spaced = resampleAt(joined, at, Math.max(16, Math.round(at[at.length - 1] / WIRE_SPACING_M)));
+  // eased along itself in all three directions, ends kept: the root's heights are read off the
+  // mesh facet by facet, so they carry its noise too. Not carried back to the skin afterwards: the
+  // nearest skin jumps at the facets' edges and puts the kinks back; eased, it stays within half a
+  // millimetre of the skin (checked by the gate)
+  let points = spaced.points;
+  for (let pass = 0; pass < WIRE_EASE_PASSES; pass++) {
+    const was = points;
+    points = was.map((p, i) => (i === 0 || i === was.length - 1 ? p : p.map((v, c) => (was[i - 1][c] + 2 * v + was[i + 1][c]) / 4)));
+  }
+  const [followFrom, followTo] = [spaced.indexAt(at[first.length + 1]), spaced.indexAt(at[first.length + kept.length])];
   const jumped = jumpAcross(points, side);
   if (jumped) return { side, blocked: jumped };
+  let mid = 1;
+  for (let i = 1; i < points.length - 1; i++) if (points[i][1] < points[mid][1]) mid = i;
   return {
-    side, from: A, to: C, through: M, length_m: polyLength(points), points,
+    side, from: A, to: C, through: points[mid], length_m: polyLength(points), points,
     leg_lengths_m: [polyLength(points.slice(0, mid + 1)), polyLength(points.slice(mid))],
+    root: {
+      about: apex, span_deg: [kept[kept.length - 1].deg, kept[0].deg], followed: [followFrom, followTo],
+      length_m: polyLength(points.slice(followFrom, followTo)),
+      eased_max_m: Math.max(...kept.map((s) => s.moved_m)),
+      // how far the drawn wire runs from the root as found, profile by profile
+      off_max_m: Math.max(...kept.map((s) => offRun(s.raw_point, points.slice(Math.max(0, followFrom - 1), followTo + 2)))),
+    },
   };
 }
 
@@ -598,16 +679,14 @@ function curveEnd(end, side, straps, landmarks, lines, points) {
  *  the next point the curve must meet (the through point, or the other end). */
 export function measureCurve(curve, straps, landmarks, grid, handles = null, points = [], lines = []) {
   const ends = ['L', 'R'].map((side) => [curveEnd(curve.from, side, straps, landmarks, lines, points), curveEnd(curve.to, side, straps, landmarks, lines, points)]);
-  // a wire's lowest point is a registry landmark on each side
-  const lows = curve.kind === 'wire_curve' ? ['L', 'R'].map((side) => curveEnd(curve.through, side, straps, landmarks, lines, points)) : [];
-  const missing = [...new Set([...ends.flat(), ...lows].filter((e) => e.needs).map((e) => e.needs))];
+  // a wire's root is found about a registry landmark on each side (the apex)
+  const abouts = curve.kind === 'wire_curve' ? ['L', 'R'].map((side) => curveEnd(curve.root.about, side, straps, landmarks, lines, points)) : [];
+  const missing = [...new Set([...ends.flat(), ...abouts].filter((e) => e.needs).map((e) => e.needs))];
   if (missing.length) return { ...curve, blocked: `needs ${missing.join(', ')}`, runs: [] };
   if (curve.kind === 'wire_curve') {
     const runs = [];
     for (const [s, side] of ['L', 'R'].entries()) {
-      const axisZ = axisAt(grid, lows[s].at[1]);
-      const run = axisZ === null ? { side, blocked: `the body does not cross the centre plane at the height of ${curve.through.landmark}_${side}` }
-        : wireRun(grid, side, ends[s][0].at, lows[s].at, ends[s][1].at, axisZ);
+      const run = wireRun(grid, side, ends[s][0].at, abouts[s].at, ends[s][1].at);
       if (run.blocked) return { ...curve, blocked: run.blocked, runs: [] };
       runs.push(run);
     }

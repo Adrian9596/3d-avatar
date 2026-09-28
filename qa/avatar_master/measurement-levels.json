@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-28T06:22:44Z",
+  "generated_at": "2026-09-28T08:51:28Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "ac8c29db83bd405ac5ded0c43de8df547770597eb2823e05d50d1be51df93033"
+    "sha256": "2175577cd47085bca5126daba9c11d5643cf635f16c5eaf22ce6908f50d62673"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-28T06:22:29Z"
+    "generated_at": "2026-09-28T08:50:16Z"
   },
   "sheets": [
     {
@@ -433,6 +433,7 @@
       "through": {
         "point": "POINT_WING_HIGH_UP_3_8_FWD_1_1_4"
       },
+      "root": null,
       "runs": [
         {
           "side": "L",
@@ -530,6 +531,7 @@
         }
       },
       "through": null,
+      "root": null,
       "runs": [
         {
           "side": "L",
@@ -601,22 +603,34 @@
       "blocked": null,
       "kind": "wire_curve",
       "handles": null,
-      "through": {
-        "landmark": "ROOT_BOTTOM"
+      "through": null,
+      "root": {
+        "about": {
+          "landmark": "BUST_APEX"
+        }
       },
       "runs": [
         {
           "side": "L",
-          "length_mm": 239.8,
+          "length_mm": 243,
           "legs_mm": [
-            166.5,
-            73.3
+            144.3,
+            98.6
           ],
           "through_m": [
-            -0.06742,
-            1.265,
-            0.08948
+            -0.08913,
+            1.26525,
+            0.07927
           ],
+          "root": {
+            "span_deg": [
+              -48,
+              56
+            ],
+            "followed_mm": 125.9,
+            "off_max_mm": 2.15,
+            "eased_max_mm": 2.03
+          },
           "from_m": [
             -0.15809,
             1.36323,
@@ -630,16 +644,25 @@
         },
         {
           "side": "R",
-          "length_mm": 239.8,
+          "length_mm": 243,
           "legs_mm": [
-            166.5,
-            73.3
+            144.3,
+            98.6
           ],
           "through_m": [
-            0.06742,
-            1.265,
-            0.08948
+            0.08913,
+            1.26525,
+            0.07927
           ],
+          "root": {
+            "span_deg": [
+              -48,
+              56
+            ],
+            "followed_mm": 125.9,
+            "off_max_mm": 2.15,
+            "eased_max_mm": 2.03
+          },
           "from_m": [
             0.15809,
             1.36323,
@@ -1017,27 +1040,37 @@
     {
       "name": "CURVE_WIRE: from POINT_ARMHOLE_1_1_4_FROM_WING to POINT_ON_CF_LINE on each side, over the skin",
       "status": "PASS",
-      "detail": "L 239.8mm; R 239.8mm"
+      "detail": "L 243.0mm; R 243.0mm"
     },
     {
-      "name": "CURVE_WIRE: through ROOT_BOTTOM_L/R on each side, its lowest point and level there; mirrored, the two sides meeting on the centre plane",
+      "name": "CURVE_WIRE: follows the breast root about BUST_APEX_L/R, within half a mesh edge (3.15mm) of the root found on every profile, from where the crease runs out inward to the CF point's height",
       "status": "PASS",
-      "detail": "L 166.5 + 73.3mm, lowest at y = 1.2650m (sample 61), its tangent there -0.16deg from level; R 166.5 + 73.3mm, lowest at y = 1.2650m (sample 61), its tangent there -0.16deg from level"
+      "detail": "L -48..56deg about the apex, 125.9mm along the root, at most 2.15mm off it (the easing moved it 2.03mm at most); R -48..56deg about the apex, 125.9mm along the root, at most 2.15mm off it (the easing moved it 2.03mm at most)"
+    },
+    {
+      "name": "CURVE_WIRE: the two sides meet at the CF point on the centre plane, neither crossing it; mirrored",
+      "status": "PASS",
+      "detail": "they meet in a V of 12.2deg"
+    },
+    {
+      "name": "CURVE_WIRE: its lowest point is a sample of it, none lower, and its two legs add up to it",
+      "status": "PASS",
+      "detail": "L 144.3 + 98.6mm, lowest at y = 1.2652m, x = -89.1mm; ROOT_BOTTOM_L is 2.98mm from the wire; R 144.3 + 98.6mm, lowest at y = 1.2652m, x = 89.1mm; ROOT_BOTTOM_R is 2.98mm from the wire"
     },
     {
       "name": "CURVE_WIRE: smooth on the skin: every sample within 0.25mm of the middle of its neighbours, no turn over 6deg from one to the next",
       "status": "PASS",
-      "detail": "L 0.09mm, 3.7deg, R 0.09mm, 3.7deg"
+      "detail": "L 0.11mm, 5.1deg, R 0.11mm, 5.1deg"
     },
     {
       "name": "CURVE_WIRE: follows its points: the CF point slid along its line, the armhole reshaped or its point moved (the mark rides on it); drawn again with nothing moved it is the same wire",
       "status": "PASS",
-      "detail": "CF point 1.5in up its line: L 235.8mm, R 235.8mm; armhole handles turned: L 234.9mm, R 234.9mm; armhole point moved: L 252.5mm, R 252.5mm (as declared L 239.8mm, R 239.8mm)"
+      "detail": "CF point 1.5in up its line: L 238.5mm, R 238.5mm; armhole handles turned: L 237.6mm, R 237.6mm; armhole point moved: L 255.9mm, R 255.9mm (as declared L 243.0mm, R 243.0mm)"
     },
     {
-      "name": "CURVE_WIRE: without its lowest point, or with either end blocked, it reads needs …, never a curve",
+      "name": "CURVE_WIRE: without the landmark its root is found about, or with either end blocked, it reads needs …, never a curve",
       "status": "PASS",
-      "detail": "needs ROOT_BOTTOM_L, ROOT_BOTTOM_R; needs POINT_ON_CF_LINE; needs POINT_ARMHOLE_1_1_4_FROM_WING"
+      "detail": "needs BUST_APEX_L, BUST_APEX_R; needs POINT_ON_CF_LINE; needs POINT_ARMHOLE_1_1_4_FROM_WING"
     },
     {
       "name": "a curve cannot pass through a dot on a line or on a curve, only a point offset on each side",
@@ -1045,14 +1078,24 @@
       "detail": "CURVE_CUP_ARMHOLE: through POINT_ON_CF_LINE is not a valid point offset on the skin (and only a tangent curve passes through one) | CURVE_CUP_ARMHOLE: through POINT_ARMHOLE_1_1_4_FROM_WING is not a valid point offset on "
     },
     {
-      "name": "a wire from or to anything but a point, through anything but a registry landmark, or from a dot on a curve declared after it, is refused; nothing but a wire runs to a point",
+      "name": "a wire from or to anything but a point, not along the root about a registry landmark, or from a dot on a curve declared after it, is refused; nothing but a wire runs to a point or follows the root",
       "status": "PASS",
-      "detail": "CURVE_WIRE: a wire runs from a point, through a registry landmark (its lowest point), to a point | CURVE_WIRE: a wire runs from a point, through a registry landmark (its lowest point), to a point | CURVE_WIRE: to point NOPE is not a valid point | CURVE_WIRE: through NOPE_L is not a registry landmark; through NOPE_R is not a registry landmark | CURVE_WIRE: from point POINT_ARMHOLE_1_1_4_FROM_WING r"
+      "detail": "CURVE_WIRE: a wire runs from a point, along the breast root about a registry landmark, to a point | CURVE_WIRE: a wire runs from a point, along the breast root about a registry landmark, to a point | CURVE_WIRE: a wire runs from a point, along the breast root about a registry landmark, to a point | CURVE_WIRE: to point NOPE is not a valid point | CURVE_WIRE: root about NOPE_L is not a registry lan"
     },
     {
       "name": "a tangent curve without a sound pair of handles is refused",
       "status": "PASS",
       "detail": "CURVE_CUP_ARMHOLE: handles.from.angle_deg must be a number of degrees; handles.to.length_mm must be a positive number; CURVE_CF_TO_STRAP: handles.from.angle_deg"
+    },
+    {
+      "name": "the breast root of a sphere sunk into a plane is its crease circle: every profile within one mesh edge of it, eased within half, closer on a finer mesh",
+      "status": "PASS",
+      "detail": "4mm mesh: 271 profiles, at most 3.05mm off the circle, eased 1.71mm; 2mm mesh: 271 profiles, at most 1.04mm off the circle, eased 0.51mm (circle radius 62.45mm)"
+    },
+    {
+      "name": "a surface with no crease has no breast root, and says so",
+      "status": "PASS",
+      "detail": "no concave crease below BUST_APEX_L"
     },
     {
       "name": "every declared point validates",

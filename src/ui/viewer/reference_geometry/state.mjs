@@ -108,9 +108,9 @@ export function measureReferenceGeometry(){
   measuredTicks=levelContract&&torsoTris?measureTicks(levelContract,measuredLevels,measuredTapes,torsoTris):[];
   measuredStraps=levelContract&&torsoTris?measureStraps(levelContract,measuredLevels,measuredTapes,measuredTicks,torsoTris):[];
   // curves end on a registry landmark on each side (the wing top, say), or a
-  // wire runs lowest at one (the root bottom), as the table places it
+  // wire follows the root round one (the apex), as the table places it
   const curveMarks=levelMarks={};
-  for(const landmark of [...(levelContract?.curves||[]).flatMap(c=>[c.from.landmark,c.to.landmark,c.through?.landmark]),...(levelContract?.points||[]).map(p=>p.from?.landmark)].filter(Boolean))for(const side of ['L','R']){
+  for(const landmark of [...(levelContract?.curves||[]).flatMap(c=>[c.from.landmark,c.to.landmark,c.through?.landmark,c.root?.about?.landmark]),...(levelContract?.points||[]).map(p=>p.from?.landmark)].filter(Boolean))for(const side of ['L','R']){
     const id=`${landmark}_${side}`,p=landmarkValue(id);
     if(p&&Number.isFinite(p.x))curveMarks[id]=[p.x,p.y,p.z];
   }
