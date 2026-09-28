@@ -84,7 +84,7 @@ def build_audit(write_report: bool = True) -> dict:
 
     manifest = text("avatar_36C_asset_manifest.md")
     validation = text("qa/avatar_36C/validation.md")
-    prototype_html = text("digital_bra_fit_model_360.html")
+    prototype_html = text("src/ui/viewer/asset.mjs")   # the viewer's asset constants
     prototype_validation = text("qa/avatar_36C/prototype-validation.md")
     prototype_validator = text("scripts/validate_prototype.py")
 
@@ -95,7 +95,7 @@ def build_audit(write_report: bool = True) -> dict:
         record("validation-version", f"**Asset version:** {CURRENT_VERSION}" in validation, CURRENT_VERSION, "qa/avatar_36C/validation.md"),
         record("validation-blend-sha", blend_sha in validation, blend_sha, "qa/avatar_36C/validation.md"),
         record("validation-canonical-sha", canonical_sha in validation, canonical_sha, "qa/avatar_36C/validation.md"),
-        record("prototype-html-sha", re.search(r"const ASSET_SHA=['\"]([0-9a-f]{64})['\"]", prototype_html).group(1) == prototype_sha if re.search(r"const ASSET_SHA=['\"]([0-9a-f]{64})['\"]", prototype_html) else False, prototype_sha, "digital_bra_fit_model_360.html"),
+        record("prototype-html-sha", re.search(r"const ASSET_SHA=['\"]([0-9a-f]{64})['\"]", prototype_html).group(1) == prototype_sha if re.search(r"const ASSET_SHA=['\"]([0-9a-f]{64})['\"]", prototype_html) else False, prototype_sha, "src/ui/viewer/asset.mjs"),
         record("prototype-validation-sha", prototype_sha in prototype_validation, prototype_sha, "qa/avatar_36C/prototype-validation.md"),
         record("prototype-validator-sha", prototype_sha in prototype_validator and canonical_sha in prototype_validator, f"prototype={prototype_sha}; canonical={canonical_sha}", "scripts/validate_prototype.py"),
     ]

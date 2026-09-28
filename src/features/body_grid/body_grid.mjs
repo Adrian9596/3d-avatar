@@ -27,8 +27,8 @@
  * landmarks and the pattern block.
  */
 
-import { sectionSegments } from './measure_core.mjs';
-import { weld, boundaryLoops } from './flatten_mesh.mjs';
+import { sectionSegments } from '../../core/measure_core.mjs';
+import { weld, boundaryLoops } from '../../core/flatten/flatten_mesh.mjs';
 
 export const GRID_LIMIT = 'The grid is where this body\'s own geometry falls, not where a bra\'s seams should go.';
 const RULES = new Set(['section_crossing_x', 'section_mid_depth_x', 'boundary_loop']);

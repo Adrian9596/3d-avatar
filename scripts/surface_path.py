@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Shortest-path-on-a-surface, ported for the Python authority pass.
 
-This is a deliberate re-implementation of scripts/surface_path.mjs, kept
+This is a deliberate re-implementation of src/core/surface_path.mjs, kept
 parallel for the same reason the rest of the measurement stack is: the parity
 gate can only catch a mistake if the two sides were written independently. The
 *algorithm* must match exactly — same seed, same resampling, same multigrid

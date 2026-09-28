@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evidence about a flattened piece — port of scripts/flatten_report.mjs."""
+"""Evidence about a flattened piece — port of src/core/flatten/flatten_report.mjs."""
 
 from __future__ import annotations
 

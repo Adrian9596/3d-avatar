@@ -22,7 +22,7 @@ What the build does, in order, and why:
    back onto the refined surface and relaxed along it, flat caps rebuilt from
    the rims). The source is a collapse decimation: 22% of its torso triangles
    are narrower than the 2 mm the pen and the pattern flattening sample a loop
-   at (scripts/flatten_patch.mjs DEFAULT_LOOP_SPACING), so a drawn loop can
+   at (src/core/flatten/flatten_patch.mjs DEFAULT_LOOP_SPACING), so a drawn loop can
    step over a face and its flood fill leaks out of the piece. After the
    re-mesh 1.1% are, fewer than on the previous CLO3D mesh (2.6%). QuadriFlow's
    short edges and the triangle it folds at each crease singularity are

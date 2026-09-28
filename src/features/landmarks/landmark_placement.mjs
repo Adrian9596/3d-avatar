@@ -13,8 +13,8 @@
  * is still theirs to put down.
  */
 
-import { placement, DEFAULT_POLAR_LIMITS } from './view_geometry.mjs';
-import { mirrorCandidate, MIRROR_FLAG_MM } from './pen_snap.mjs';
+import { placement, DEFAULT_POLAR_LIMITS } from '../../core/view_geometry.mjs';
+import { mirrorCandidate, MIRROR_FLAG_MM } from '../../core/pen_snap.mjs';
 
 /** The eight points no rule may detect, in the order a fitter places them. */
 export const GUIDED_ORDER = Object.freeze([

@@ -10,7 +10,7 @@ Two deliberate design choices:
   the viewer loads, so the authority pass and the live pass measure the same
   triangles, and this runs anywhere including CI.
 * It is an **independent re-implementation** of the JavaScript engine in
-  scripts/measure_core.mjs. That is the point: scripts/test_measurement_parity.mjs
+  src/core/measure_core.mjs. That is the point: scripts/test_measurement_parity.mjs
   asserts the two agree inside the registry's tolerance, so a mistake in either
   one becomes a build failure instead of a plausible-looking number.
 
@@ -291,7 +291,7 @@ def find_landmarks(sections: list[dict], search_from: float) -> dict | None:
 
 
 # Which POMs depend on which landmarks, so a hand-placed point can be traced to
-# the numbers it changed. Mirrors POM_LANDMARKS in scripts/measure_core.mjs.
+# the numbers it changed. Mirrors POM_LANDMARKS in src/core/measure_core.mjs.
 POM_LANDMARKS = {
     "BODY_WAIST_GIRTH": ["WAIST_LEVEL"],
     "BODY_UNDERBUST_GIRTH": ["UNDERBUST_FOLD"],
@@ -1081,7 +1081,7 @@ def main() -> int:
         "tool": {
             "script": "scripts/measure_avatar.py",
             "python": sys.version.split()[0],
-            "implementation": "independent of scripts/measure_core.mjs by design",
+            "implementation": "independent of src/core/measure_core.mjs by design",
         },
         "scan": registry["scan"],
         "reporting": {"precision_mm": precision, "inch_denominator": denominator},

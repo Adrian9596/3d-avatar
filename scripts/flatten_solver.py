@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The flattening solver — port of scripts/flatten_solver.mjs.
+"""The flattening solver — port of src/core/flatten/flatten_solver.mjs.
 
 Hinge-unfolding start, then the seam-exact Jacobi relaxation with fold-over
 guard, rigid-drift removal and Chebyshev acceleration. Every arithmetic step is

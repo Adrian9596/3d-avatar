@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Gate for scripts/view_geometry.mjs — the maths behind the grazing guard, the
+ * Gate for src/core/view_geometry.mjs — the maths behind the grazing guard, the
  * `F` key and the turntable — against the analytic answers.
  *
  * What it proves: a pixel's footprint is 2·d·tan(fov/2)/H over cos(incidence),
@@ -19,7 +19,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import {
   footprintMmPerPx, incidence, placement, poseFacing, turntable, framingDistance, spherical,
   grazingLevel, DEFAULT_POLAR_LIMITS, GRAZING_WARN_DEG, GRAZING_ALERT_DEG,
-} from './view_geometry.mjs';
+} from '../src/core/view_geometry.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = join(ROOT, 'qa', 'avatar_master', 'view-geometry-test.json');
@@ -97,7 +97,7 @@ gate.finish({
   reportPath: REPORT, relativeTo: ROOT, okDecision: 'VIEW_GEOMETRY_VERIFIED',
   body: {
     purpose: 'The maths behind the grazing guard, the F key and the turntable, against analytic answers.',
-    module: { file: 'scripts/view_geometry.mjs', sha256: sha256File(join(ROOT, 'scripts', 'view_geometry.mjs')) },
+    module: { file: 'src/core/view_geometry.mjs', sha256: sha256File(join(ROOT, 'src', 'core', 'view_geometry.mjs')) },
     viewer_framing: { ...FRAMING, footprint_table: table, zoomed_0p35m_mm_per_px: r3(zoomed) },
     thresholds_deg: { warn: GRAZING_WARN_DEG, alert: GRAZING_ALERT_DEG, note: 'display thresholds; they change no recorded value' },
     declared_limits: [

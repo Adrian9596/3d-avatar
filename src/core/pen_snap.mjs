@@ -1,6 +1,6 @@
 /**
  * Where a pen anchor goes when the click lands near something it should meet.
- * Pure functions on plain arrays; the pen (scripts/pen_tool.mjs) is the only
+ * Pure functions on plain arrays; the pen (src/features/pen/pen_tool.mjs) is the only
  * caller, and scripts/test_pen_snap.mjs checks them on a cylinder
  * and on the avatar (AUTHORING_UX_PLAN.md §6, §15 B1).
  *

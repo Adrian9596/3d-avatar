@@ -131,7 +131,7 @@ is no mode to switch and nothing to disclose; the reading responds only to an ac
 Verified in the browser: a **1 px** handle drag leaves 15.0 cm at 15.0 cm, where the old
 build jumped 0.5 cm. Larger drags move it proportionately — 18.9 cm, then 32.4 cm.
 
-**How it is computed** (`scripts/surface_path.mjs`): seed with the plane-section walk, which
+**How it is computed** (`src/core/surface_path.mjs`): seed with the plane-section walk, which
 is already on the surface and a good first guess, then relax — repeatedly move each interior
 point to the midpoint of its neighbours and snap it back to the nearest surface point, with
 the endpoints pinned. Fixed resampling and a fixed iteration count keep it deterministic,
@@ -403,7 +403,7 @@ The production viewer (`viewer/`) showed the same measurement table and the same
 lines as the prototype. The point of the phase was not to add a panel — it was to add it
 **without creating a way for the two lanes to disagree**.
 
-**One engine.** `viewer/src/measurements.js` imported the same `scripts/measure_core.mjs` and
+**One engine.** `viewer/src/measurements.js` imported the same `src/core/measure_core.mjs` and
 `surface_path.mjs` the prototype and the Node parity test use. Only the DOM and the three.js
 drawing were local, because the two shells differed. No maths was copied.
 
@@ -689,7 +689,7 @@ contracts/measurement-registry.json          ← the definitions (human-authored
             ├─► scripts/measure_avatar.py    ← authority pass, PURE PYTHON over the GLB
             │        └─► qa/avatar_master/measurements.json      (SHA-pinned evidence)
             │
-            └─► scripts/measure_core.mjs     ← the one JavaScript engine
+            └─► src/core/measure_core.mjs     ← the one JavaScript engine
                      ├─► digital_bra_fit_model_360.html  (live, in-browser)
                      └─► scripts/test_measurement_parity.mjs
                               └─► qa/avatar_master/measurement-parity.json
@@ -771,7 +771,7 @@ figure: thirteen rings with a red leader ending in a printed inch value, and one
 drawn in black with no label at all, at the inframammary fold.
 
 `contracts/measurement-levels.json` declares the ladder as a **protocol** — inch
-offsets from `UNDERBUST_FOLD` — and `scripts/measurement_levels.mjs` resolves it
+offsets from `UNDERBUST_FOLD` — and `src/features/reference_geometry/` resolves it
 onto this avatar. The `G` toggle draws it (authoring lane only), one ring per
 level through the same `measureSection` the POMs use, labels set off in a column
 with a leader back to each ring the way the sheets set them.
@@ -946,7 +946,7 @@ asset SHA, the registry SHA and `declared_limits` embedded in the header.
 | 0d | Two control points per segment, screen-space handle picking, real-time recompute | **done** |
 | 0e | Single path model (shortest surface path) replacing the earlier two, multigrid relaxation, `validate:surface-path` gating analytic accuracy and continuity | **done** |
 | 1 | `contracts/measurement-registry.json`; `scripts/measure_avatar.py` writing SHA-pinned evidence; per-side apex; registry-driven viewer table; `npm run measure:avatar` | **done** |
-| 2 | `scripts/measure_core.mjs` shared engine; `scripts/test_measurement_parity.mjs`; `npm run validate:measure-parity` / `validate:measurements` (0.5 mm gate) | **done** |
+| 2 | `src/core/measure_core.mjs` shared engine; `scripts/test_measurement_parity.mjs`; `npm run validate:measure-parity` / `validate:measurements` (0.5 mm gate) | **done** |
 | 3 | Landmark markers, live section tool, landmark override round-tripped through the authority pass, named/exportable draft lines | **done** |
 | 4 | Surface-path POMs: cup depth per side, HPS→apex per side; the routine ported to Python so the parity gate covers it | **done** |
 | 5 | POM sheet export: `npm run export:pom-sheet` writing CSV + JSON from the SHA-pinned evidence | **done** |

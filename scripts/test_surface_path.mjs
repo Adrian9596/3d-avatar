@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { trianglesByMaterial } from './glb_reader.mjs';
 import {
   buildGrid, surfaceRun, pointAtFraction, closestOnMesh, DEFAULT_SCHEDULE,
-} from './surface_path.mjs';
+} from '../src/core/surface_path.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY_PATH = join(ROOT, 'contracts', 'measurement-registry.json');

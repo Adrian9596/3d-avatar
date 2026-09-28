@@ -5,7 +5,7 @@ Target CAD decided 2026-09-05: **Gerber AccuMark**. `qa/avatar_master/dxf-roundt
 carries `import_verified: false` until someone opens `qa/avatar_master/flatten-draft.dxf`
 in AccuMark and records the version that accepted it.
 
-This contract is what `scripts/dxf_writer.mjs` writes and `scripts/test_dxf_roundtrip.mjs`
+This contract is what `src/features/pattern/dxf_writer.mjs` writes and `scripts/test_dxf_roundtrip.mjs`
 checks with an independent parser. It exists so the layer numbers and text syntax below are
 looked up, not remembered.
 

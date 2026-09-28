@@ -47,12 +47,12 @@ place, nothing invented, every number a person influenced says so.
   millimetres, and they choose.
 - **No production-lane editing.** Landmark placement and template drafts stay in the prototype
   (CLAUDE.md: one place to correct, one record). The pen improvements land in the shared
-  `scripts/pen_tool.mjs`, so both lanes get orbit-while-drafting and snapping to their own lines.
+  `src/features/pen/pen_tool.mjs`, so both lanes get orbit-while-drafting and snapping to their own lines.
 - **No ease, allowance or grading** — unchanged from `PATTERN_2D_DXF_PLAN.md` §11.
 
 ## 3. What exists, and where it hurts
 
-Read from the code, not from memory; line references are to `scripts/pen_tool.mjs` (P) and
+Read from the code, not from memory; line references are to `src/features/pen/pen_tool.mjs` (P) and
 `digital_bra_fit_model_360.html` (H) at commit `ad6c4af`.
 
 | Area | Today | Where it hurts |
@@ -165,7 +165,7 @@ produces no rotation, but confirm in the browser before relying on it.
 
 - **Face this point** (button and key `F`): move the camera so its view direction is the
   surface normal at the selected anchor, landmark or hovered point, keeping the current distance.
-  The pose is pure geometry (`scripts/view_geometry.mjs`, §9) and animates through the existing
+  The pose is pure geometry (`src/core/view_geometry.mjs`, §9) and animates through the existing
   `cameraGoal`.
 - **Auto-frame on selection**: selecting a landmark row frames that landmark's *expected region*
   — for the eight manual-only points the registry gives a side (L/R) and a level (apex, fold),
@@ -342,16 +342,16 @@ cuts, not a fit recommendation."*
 
 | Module | New / changed | Lane | Content |
 |---|---|---|---|
-| `scripts/view_geometry.mjs` | new, pure | shared | footprint (mm/px from distance, FOV, pixel height, incidence), incidence from normal and view direction, camera pose facing a normal at a distance, turntable step |
-| `scripts/pen_snap.mjs` | new, pure | shared | snap candidates → best snap: screen-space distance, priority, radius; level and mirror candidate construction; residual |
-| `scripts/pen_tool.mjs` | changed | shared | pointer grammar (§5.1), `getSnapTargets()` and `surfaces` options, per-anchor `snap` / `surface` / `placed_with`, nudge, command stack, mirror line, loupe hook (`onDragPreview`) |
-| `scripts/pattern_templates.mjs` | new | **prototype only** | resolve a template against landmarks → anchor lists; `requires` check; naming; provenance record |
+| `src/core/view_geometry.mjs` | new, pure | shared | footprint (mm/px from distance, FOV, pixel height, incidence), incidence from normal and view direction, camera pose facing a normal at a distance, turntable step |
+| `src/core/pen_snap.mjs` | new, pure | shared | snap candidates → best snap: screen-space distance, priority, radius; level and mirror candidate construction; residual |
+| `src/features/pen/pen_tool.mjs` | changed | shared | pointer grammar (§5.1), `getSnapTargets()` and `surfaces` options, per-anchor `snap` / `surface` / `placed_with`, nudge, command stack, mirror line, loupe hook (`onDragPreview`) |
+| `src/features/pattern/pattern_templates.mjs` | new | **prototype only** | resolve a template against landmarks → anchor lists; `requires` check; naming; provenance record |
 | `contracts/pattern-templates.json` | new | — | the templates (§8.2) |
-| `scripts/landmark_placement.mjs` | new, pure | **prototype only** | guided order, per-landmark framing hint from the registry, `placed_with` construction, mirror offer with residual |
+| `src/features/landmarks/landmark_placement.mjs` | new, pure | **prototype only** | guided order, per-landmark framing hint from the registry, `placed_with` construction, mirror offer with residual |
 | `digital_bra_fit_model_360.html` | changed | prototype | drag-to-place, ring for level landmarks, Place-next, Face-point, loupe canvas, template controls in the pattern block |
 | `viewer/src/main.js` | changed | production | pass `surfaces`; Face-point button; nothing else — *lane merged away 2026-09-06; this row is history* |
 | `scripts/measure_avatar.py` | changed | — | accept `manual_mirrored` and `placed_with`, carry both to provenance |
-| `scripts/pattern_draft.mjs` | changed | prototype | `template` in `draftExport`; pre-Flatten surface refusal (§6.2) |
+| `src/features/pattern/pattern_draft.mjs` | changed | prototype | `template` in `draftExport`; pre-Flatten surface refusal (§6.2) |
 
 Python ports: **none required.** Templates emit anchors; anchors are recorded; the runs and the
 flattening those anchors produce are computed by engines that are already parity-gated. The
@@ -429,7 +429,7 @@ phase binds into is §14; the file-by-file work plan with acceptance criteria is
 
 ## 14. Keyboard and pointer map
 
-One source: `scripts/keymap.mjs` exports the table below as data (`KEYMAP`), both lanes dispatch
+One source: `src/ui/keymap.mjs` exports the table below as data (`KEYMAP`), both lanes dispatch
 through it, the `?` overlay is generated from it, and `validate:keymap` (§15, A2) checks that the
 table here matches the code — the map is looked up, not remembered.
 
@@ -526,7 +526,7 @@ implementer's.
 
 ### Phase A — orbit while drafting, grazing guard, shortcuts — **done 2026-09-05**
 
-What landed: `scripts/view_geometry.mjs` and `scripts/keymap.mjs` with their gates
+What landed: `src/core/view_geometry.mjs` and `src/ui/keymap.mjs` with their gates
 (`validate:view-geometry`, `validate:keymap`, both in the chain; lane parity extended); the pen no
 longer parks OrbitControls for the mode — it claims the pointer only while a pin is held, so
 dragging empty skin orbits, a touch long-press is the right-click, and every anchor records
@@ -545,7 +545,7 @@ deselected the pin, then the line, then left the pen; `?` listed 18–22 rows pe
 context; `1`–`4`, `Home`, arrows, `L`, `Shift+F` dispatched to the right actions; the production
 lane knew no landmark rows.
 
-**A1 `scripts/view_geometry.mjs` (new, pure, shared).**
+**A1 `src/core/view_geometry.mjs` (new, pure, shared).**
 `footprintMmPerPx({ distance_m, fov_deg, pixel_height, incidence_rad })`;
 `incidence(normal, viewDir)` → radians in [0, π/2];
 `poseFacing({ point, normal, distance_m, up })` → `{ position, target }` with view direction
@@ -558,7 +558,7 @@ Test `scripts/test_view_geometry.mjs` → `qa/avatar_master/view-geometry-test.j
 footprint table (§4.1 values reproduced), incidence symmetry and range, pose direction to 1e-9 and
 distance preserved, 24 × 15° yaw composes to the identity, polar limits respected.
 
-**A2 `scripts/keymap.mjs` (new, pure, shared).**
+**A2 `src/ui/keymap.mjs` (new, pure, shared).**
 `KEYMAP`: `[{ id, keys, context, label, hold?, needsSelection?, producesFile? }]`;
 `matchBinding(event, { contexts, hasSelection, platform })` → binding or null;
 `cheatSheet(contexts)` → rows for the overlay; `isTextEntry(node)` (moved from the pen);
@@ -568,7 +568,7 @@ Test `scripts/test_keymap.mjs` → `qa/avatar_master/keymap-test.json`: no two b
 a label; no browser-reserved combo; the §14 tables regenerate byte-for-byte from `KEYMAP`
 (the doc is checked, not trusted).
 
-**A3 `scripts/pen_tool.mjs` (changed, shared).**
+**A3 `src/features/pen/pen_tool.mjs` (changed, shared).**
 Stop toggling `controls.enabled` in `setEnabled`; claim the pointer only when `pickAt()` hits
 (as the drag path already does) and on a click that passes the 5 px / 300 ms test — the test in
 `onPointerUp` becomes live. `setSuspended` unchanged in meaning. Each anchor gains
@@ -603,7 +603,7 @@ mode). `Alt` on Firefox/Windows. `Space` page scroll.
 
 ### Phase B — smart pen — **done 2026-09-05**
 
-What landed: `scripts/pen_snap.mjs` with `validate:pen-snap` (in the chain; lane parity extended:
+What landed: `src/core/pen_snap.mjs` with `validate:pen-snap` (in the chain; lane parity extended:
 the module is reached only through the pen, neither lane redefines it, the production host
 hardcodes no material). The pen snaps the click — first anchor, another line's anchor or run,
 a landmark from `getSnapTargets()`, Shift = level, Alt = mirror — shows the candidate as a ring
@@ -629,7 +629,7 @@ beside its run snapped onto the run (residual 8.15 mm recorded; the anchor sits 
 polyline chord because it is re-snapped onto the skin, not onto the chord). Real
 pointer, touch and the loupe's rendering stay on the smoke list.
 
-**B1 `scripts/pen_snap.mjs` (new, pure, shared).**
+**B1 `src/core/pen_snap.mjs` (new, pure, shared).**
 `SNAP_PRIORITY` (first anchor › other line's anchor › point on a line › landmark › level › mirror);
 `projectTargets(targets, camera, rect)` → screen-space list;
 `resolveSnap({ cursor_px, candidates, radius_px, enabled })` → best or null, deterministic
@@ -642,7 +642,7 @@ Test `scripts/test_pen_snap.mjs` → `qa/avatar_master/pen-snap-test.json`: radi
 disabled snapping, level and mirror candidates on the cylinder fixture (residual 0) and on the
 avatar (residual recorded, 0.000 mm expected on this asset).
 
-**B2 `scripts/pen_tool.mjs`.** Options `getSnapTargets()` (host-supplied, may return landmarks)
+**B2 `src/features/pen/pen_tool.mjs`.** Options `getSnapTargets()` (host-supplied, may return landmarks)
 and `surfaces: [{ root, role }]` (per-role triangle sets and grids; the hit reports its role).
 Anchors gain `snap` and `surface`. A snap ring is drawn at the candidate before the click.
 Nudge: `nudgeSelected(dx_px, dy_px)` re-raycasts one pixel over. Command stack: `history` with
@@ -671,7 +671,7 @@ ten times and back returns the line length to within the continuity budget of
 
 ### Phase C — landmark placement *(prototype only)* — **done 2026-09-05**
 
-What landed: `scripts/landmark_placement.mjs` with `validate:landmark-placement` (in the chain;
+What landed: `src/features/landmarks/landmark_placement.mjs` with `validate:landmark-placement` (in the chain;
 lane parity checks the production lane never imports it). In the prototype a selected row is
 placed by click or drag on the **measurement surface only**, the dependent POMs following the
 drag and the release committing; a level landmark is dragged as a section ring and only the
@@ -698,7 +698,7 @@ height to the release height exactly and the underbust girth followed; a nudge m
 1.11 mm; `F` set a goal; `Backspace` cleared; the Save button read *Save •*. Real-pointer drags
 with OrbitControls parked stay on the smoke list.
 
-**C1 `scripts/landmark_placement.mjs` (new, pure).**
+**C1 `src/features/landmarks/landmark_placement.mjs` (new, pure).**
 `GUIDED_ORDER` (HPS L, HPS R, ROOT_INNER/OUTER/TOP L, then R);
 `nextNeeded(rows, overrides)`; `framingFor(id, { landmarks, registry })` → preset + zoom +
 target region from side and level; `placedWith(hit, camera, method)`;
@@ -733,7 +733,7 @@ Reset returns everything to automatic as today.
 
 What landed: `contracts/pattern-templates.json` (eight templates: cup one piece, two panels
 vertical, two panels horizontal, cradle front, per side; every one `status: proposal`),
-`scripts/pattern_templates.mjs` and `validate:pattern-templates` on a declared synthetic root
+`src/features/pattern/pattern_templates.mjs` and `validate:pattern-templates` on a declared synthetic root
 fixture (lane parity checks the production lane imports neither). In the pattern block a
 *Template* select is the chooser — available templates first, blocked ones disabled with
 `needs …` — *Draft* (`Shift+T`) adds the template's lines through `pen.addLine` with an
@@ -765,7 +765,7 @@ cut; Reset returned every template to `needs …`.
 "proposal"`, with `label_en` and `comment`; `schema_version`, and a pointer to the registry ids
 it depends on.
 
-**D2 `scripts/pattern_templates.mjs` (new).**
+**D2 `src/features/pattern/pattern_templates.mjs` (new).**
 `loadTemplates(json)` with validation (every anchor id exists in the registry; a closed outline
 has ≥ 3 anchors; a seam's ends are outline anchors);
 `resolveTemplate(template, landmarks)` → `{ outline: [xyz…], seam: [xyz…] | null }` or

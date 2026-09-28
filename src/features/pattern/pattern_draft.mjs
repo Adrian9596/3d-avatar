@@ -17,7 +17,7 @@
 import {
   weld, extractPatch, submesh, loopChords, flattenPieces, patchStats, chordReport,
   mapLoopToFlat, splitLoopBySeam, loopCentroidSeed, DEFAULT_SOLVER,
-} from './flatten_core.mjs';
+} from '../../core/flatten/flatten_core.mjs';
 import { writeAstmDxf } from './dxf_writer.mjs';
 import { dxfPiece } from './dxf_pieces.mjs';
 import { templateAnnotation, TEMPLATE_LIMIT } from './pattern_templates.mjs';
@@ -191,7 +191,7 @@ export function draftExport({ pieces, result, outline, seam, asset, registrySha,
     asset: { ...asset, unit: 'meter' },
     registry_sha256: registrySha,
     recorded_at: now.toISOString().replace(/\.\d{3}Z$/, 'Z'),
-    engine: 'scripts/flatten_core.mjs', solver,
+    engine: 'src/core/flatten/flatten_core.mjs', solver,
     target_cad: 'Gerber AccuMark', import_verified: false,
     declared_limits: DECLARED_LIMITS,
     outline: lineRecord(outline), seam: seam ? lineRecord(seam) : null,

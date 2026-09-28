@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Parity gate: scripts/flatten_core.mjs (JavaScript, the engine a viewer lane
+ * Parity gate: src/core/flatten/flatten_core.mjs (JavaScript, the engine a viewer lane
  * would import) against scripts/flatten.py (an independent Python port).
  *
  * Same relationship as validate:measure-parity has to the measurement engines:
@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { flattenPatch, flattenPieces, patchStats } from './flatten_core.mjs';
+import { flattenPatch, flattenPieces, patchStats } from '../src/core/flatten/flatten_core.mjs';
 import { loadAvatarContext, resolveCase } from './flatten_fixtures.mjs';
 import { createGate, sha256File as sha256, mm as mmOf } from './gate_report.mjs';
 
@@ -110,7 +110,7 @@ finish({ reportPath: REPORT_PATH, relativeTo: ROOT, okDecision: 'ENGINES_AGREE',
   purpose: 'Agreement between the JavaScript flattening engine and its independent Python port on the same patches.',
   asset: { file: 'assets/export/avatar_master.glb', sha256: ctx.assetSha },
   cases: { file: relative(ROOT, CASES_PATH), sha256: sha256(CASES_PATH) },
-  engines: { javascript: 'scripts/flatten_core.mjs', python: 'scripts/flatten.py' },
+  engines: { javascript: 'src/core/flatten/flatten_core.mjs', python: 'scripts/flatten.py' },
   tolerance_mm: TOLERANCE_MM,
   worst_delta_mm: mm(worst),
   cases_compared: rows,

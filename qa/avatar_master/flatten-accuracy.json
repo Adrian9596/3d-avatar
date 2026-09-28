@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T12:30:54Z",
+  "generated_at": "2026-09-28T00:59:14Z",
   "purpose": "Accuracy of the flattening engine against analytic developable surfaces, and soundness on patches of the avatar.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
@@ -10,7 +10,7 @@
     "file": "scripts/flatten_cases.json",
     "sha256": "a1a8e4e76738637ed5bc5f53e0fb167387f394816cc17a5ecac43a8451b312a1"
   },
-  "engine": "scripts/flatten_core.mjs",
+  "engine": "src/core/flatten/flatten_core.mjs",
   "solver": {
     "interior_weight": 0.25,
     "seam_weight": 1,

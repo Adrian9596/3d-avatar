@@ -8,8 +8,8 @@
  */
 import { fileURLToPath } from 'node:url';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
-import { surfaceRun, pointAtFraction } from './surface_path.mjs';
-import { draftPieces, flattenDraft, draftSummary } from './pattern_draft.mjs';
+import { surfaceRun, pointAtFraction } from '../src/core/surface_path.mjs';
+import { draftPieces, flattenDraft, draftSummary } from '../src/features/pattern/pattern_draft.mjs';
 import { trianglesByMaterial } from './glb_reader.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T12:30:50+00:00",
+  "generated_at": "2026-09-28T00:59:09+00:00",
   "asset": {
     "file": "assets/export/avatar_master.glb",
     "sha256": "8a7a5053a5e0d8a3abfffeaca2f6582b98afd1f817f7f1333cc9df1278ad014c",
@@ -17,7 +17,7 @@
   "tool": {
     "script": "scripts/measure_avatar.py",
     "python": "3.9.6",
-    "implementation": "independent of scripts/measure_core.mjs by design"
+    "implementation": "independent of src/core/measure_core.mjs by design"
   },
   "scan": {
     "from_m": 1.05,

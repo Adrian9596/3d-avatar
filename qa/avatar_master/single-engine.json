@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T12:31:01Z",
+  "generated_at": "2026-09-28T00:59:21Z",
   "purpose": "Static guard that the one app reaches every measurement through the shared engine and reimplements none of it.",
   "registry_sha256": "422ccfe1a7ae502d2532777f7abca21e5bda50a2787d2c261c6f3f5ef28b9c92",
   "checks": [
@@ -12,17 +12,17 @@
     {
       "name": "the app imports the shared measurement engine",
       "status": "PASS",
-      "detail": "imports scripts/measure_core.mjs"
+      "detail": "imports src/core/measure_core.mjs"
     },
     {
-      "name": "the app drafts patterns through scripts/pattern_draft.mjs",
+      "name": "the app drafts patterns through src/features/pattern/pattern_draft.mjs",
       "status": "PASS",
-      "detail": "imports scripts/pattern_draft.mjs"
+      "detail": "imports src/features/pattern/pattern_draft.mjs"
     },
     {
       "name": "pattern_draft.mjs sits on the shared flattening engine and DXF writer",
       "status": "PASS",
-      "detail": "imports scripts/flatten_core.mjs and scripts/dxf_writer.mjs"
+      "detail": "imports src/core/flatten/flatten_core.mjs and src/features/pattern/dxf_writer.mjs"
     },
     {
       "name": "the app does not reimplement the engine",
@@ -47,7 +47,7 @@
     {
       "name": "the app imports the shared pen tool",
       "status": "PASS",
-      "detail": "imports scripts/pen_tool.mjs"
+      "detail": "imports src/features/pen/pen_tool.mjs"
     },
     {
       "name": "the app does not reimplement the pen",
@@ -57,12 +57,12 @@
     {
       "name": "the app dispatches keys through the shared keymap",
       "status": "PASS",
-      "detail": "imports scripts/keymap.mjs and calls matchBinding"
+      "detail": "imports src/ui/keymap.mjs and calls matchBinding"
     },
     {
       "name": "the app frames and turns the camera through the shared view geometry",
       "status": "PASS",
-      "detail": "imports scripts/view_geometry.mjs for framingDistance and turntable"
+      "detail": "imports src/core/view_geometry.mjs for framingDistance and turntable"
     },
     {
       "name": "the app does not reimplement the keymap or view geometry",
@@ -72,10 +72,10 @@
     {
       "name": "the pen records placement through the shared view geometry",
       "status": "PASS",
-      "detail": "imports scripts/view_geometry.mjs; placed_with is not computed twice"
+      "detail": "imports src/core/view_geometry.mjs; placed_with is not computed twice"
     },
     {
-      "name": "the pen snaps through scripts/pen_snap.mjs and reimplements none of it",
+      "name": "the pen snaps through src/core/pen_snap.mjs and reimplements none of it",
       "status": "PASS",
       "detail": "imports pen_snap.mjs; snap resolution is not computed twice"
     },
@@ -85,29 +85,29 @@
       "detail": "snapping is reached only through the shared pen"
     },
     {
-      "name": "the app drafts templates through scripts/pattern_templates.mjs",
+      "name": "the app drafts templates through src/features/pattern/pattern_templates.mjs",
       "status": "PASS",
       "detail": "templates are proposals, drafted through the same pen and flattened by the same engine"
     },
     {
-      "name": "the app draws reference levels through scripts/measurement_levels.mjs",
+      "name": "the app draws reference levels through src/features/reference_geometry",
       "status": "PASS",
-      "detail": "imports scripts/measurement_levels.mjs"
+      "detail": "imports src/features/reference_geometry/index.mjs"
     },
     {
-      "name": "measurement_levels.mjs measures a level with the shared section engine",
+      "name": "the reference geometry measures a level with the shared section engine",
       "status": "PASS",
-      "detail": "imports measure_core.mjs; a level girth is not measured a second way"
+      "detail": "imports src/core/measure_core.mjs; a level girth is not measured a second way"
     },
     {
-      "name": "the app draws the body grid through scripts/body_grid.mjs",
+      "name": "the app draws the body grid through src/features/body_grid/body_grid.mjs",
       "status": "PASS",
-      "detail": "imports scripts/body_grid.mjs"
+      "detail": "imports src/features/body_grid/body_grid.mjs"
     },
     {
       "name": "body_grid.mjs samples through the shared section routine and boundary walk",
       "status": "PASS",
-      "detail": "imports measure_core.mjs and flatten_mesh.mjs; no intersection or edge maths of its own"
+      "detail": "imports src/core/measure_core.mjs and src/core/flatten/flatten_mesh.mjs; no intersection or edge maths of its own"
     },
     {
       "name": "the body grid reports no length",
@@ -115,7 +115,7 @@
       "detail": "a curve is drawn, never measured, so it can carry no tolerance"
     },
     {
-      "name": "the app places landmarks through scripts/landmark_placement.mjs",
+      "name": "the app places landmarks through src/features/landmarks/landmark_placement.mjs",
       "status": "PASS",
       "detail": "hand placement has one home and one record: qa/avatar_master/landmarks.manual.json"
     },
@@ -127,7 +127,7 @@
     {
       "name": "the pen uses the one path model",
       "status": "PASS",
-      "detail": "imports surface_path.mjs and reintroduces no second path model"
+      "detail": "imports src/core/surface_path.mjs and reintroduces no second path model"
     }
   ],
   "decision": "ONE_ENGINE_ONE_CONTRACT"

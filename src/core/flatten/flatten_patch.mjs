@@ -2,7 +2,7 @@
  * From a drawn loop to a patch: sampling the loop onto the mesh, flood-filling
  * its inside, turning the loop into chord constraints, cutting an outline into
  * two panels along a seam. The pen tool's input ends up here; the solver
- * (scripts/flatten_solver.mjs) never sees a loop, only chords. Port:
+ * (src/core/flatten/flatten_solver.mjs) never sees a loop, only chords. Port:
  * scripts/flatten_patch.py.
  */
 
@@ -74,7 +74,7 @@ function lexLess(A, B) {
  * barrier that depended on it made the two engines cut different patches.
  *
  * `closest` is a function p -> {point, normal, triangle} over the SAME soup the
- * mesh was welded from (scripts/surface_path.mjs closestOnMesh with its grid).
+ * mesh was welded from (src/core/surface_path.mjs closestOnMesh with its grid).
  * Declared limit: the ring of barrier faces is scaffolding that overshoots the
  * loop by up to one triangle; the piece's outline is the loop's image
  * (`mapLoopToFlat`), never the mesh boundary.

@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-28T00:59:21Z",
+  "purpose": "Static guard that the app's modules stay in their layers (ui -> features -> core) with no cycle.",
+  "layers": {
+    "core": [
+      "src/core/flatten/flatten_core.mjs",
+      "src/core/flatten/flatten_mesh.mjs",
+      "src/core/flatten/flatten_patch.mjs",
+      "src/core/flatten/flatten_report.mjs",
+      "src/core/flatten/flatten_solver.mjs",
+      "src/core/measure_core.mjs",
+      "src/core/pen_snap.mjs",
+      "src/core/surface_path.mjs",
+      "src/core/view_geometry.mjs"
+    ],
+    "features": {
+      "avatar": [
+        "src/features/avatar/animation_controller.mjs",
+        "src/features/avatar/avatar_contracts.mjs"
+      ],
+      "body_grid": [
+        "src/features/body_grid/body_grid.mjs"
+      ],
+      "landmarks": [
+        "src/features/landmarks/landmark_placement.mjs"
+      ],
+      "pattern": [
+        "src/features/pattern/dxf_pieces.mjs",
+        "src/features/pattern/dxf_writer.mjs",
+        "src/features/pattern/pattern_draft.mjs",
+        "src/features/pattern/pattern_templates.mjs"
+      ],
+      "pen": [
+        "src/features/pen/pen_tool.mjs"
+      ],
+      "reference_geometry": [
+        "src/features/reference_geometry/contour.mjs",
+        "src/features/reference_geometry/contract.mjs",
+        "src/features/reference_geometry/curves.mjs",
+        "src/features/reference_geometry/index.mjs",
+        "src/features/reference_geometry/levels.mjs",
+        "src/features/reference_geometry/lines.mjs",
+        "src/features/reference_geometry/points.mjs",
+        "src/features/reference_geometry/shapes.mjs",
+        "src/features/reference_geometry/straps.mjs",
+        "src/features/reference_geometry/tapes.mjs",
+        "src/features/reference_geometry/ticks.mjs",
+        "src/features/reference_geometry/units.mjs"
+      ]
+    },
+    "ui": [
+      "src/ui/keymap.mjs",
+      "src/ui/viewer/asset.mjs",
+      "src/ui/viewer/diagnostics.mjs",
+      "src/ui/viewer/display.mjs",
+      "src/ui/viewer/draw.mjs",
+      "src/ui/viewer/format.mjs",
+      "src/ui/viewer/grid.mjs",
+      "src/ui/viewer/keyboard.mjs",
+      "src/ui/viewer/labels.mjs",
+      "src/ui/viewer/landmark_store.mjs",
+      "src/ui/viewer/landmark_values.mjs",
+      "src/ui/viewer/landmarks.mjs",
+      "src/ui/viewer/loupe.mjs",
+      "src/ui/viewer/main.mjs",
+      "src/ui/viewer/measurement.mjs",
+      "src/ui/viewer/panels.mjs",
+      "src/ui/viewer/pattern_panel.mjs",
+      "src/ui/viewer/pen_host.mjs",
+      "src/ui/viewer/picking.mjs",
+      "src/ui/viewer/reference_geometry/drag.mjs",
+      "src/ui/viewer/reference_geometry/index.mjs",
+      "src/ui/viewer/reference_geometry/levels.mjs",
+      "src/ui/viewer/reference_geometry/rows.mjs",
+      "src/ui/viewer/reference_geometry/state.mjs",
+      "src/ui/viewer/section.mjs",
+      "src/ui/viewer/stage.mjs",
+      "src/ui/viewer/table.mjs",
+      "src/ui/viewer/tip.mjs"
+    ]
+  },
+  "imports": 186,
+  "checks": [
+    {
+      "name": "every module under src/ is in a layer: core, a feature, or the ui",
+      "status": "PASS",
+      "detail": "9 core, 21 in 6 features (avatar, body_grid, landmarks, pattern, pen, reference_geometry), 28 ui"
+    },
+    {
+      "name": "every relative import resolves",
+      "status": "PASS",
+      "detail": "186 imports between modules"
+    },
+    {
+      "name": "nothing under src/ imports the gates or tools in scripts/",
+      "status": "PASS",
+      "detail": "src/ stands alone"
+    },
+    {
+      "name": "dependencies point one way: ui -> features -> core, and no feature imports another",
+      "status": "PASS",
+      "detail": "core imports only core; each feature only core, itself and three.js"
+    },
+    {
+      "name": "the modules under src/ import each other without a cycle",
+      "status": "PASS",
+      "detail": "acyclic"
+    }
+  ],
+  "decision": "LAYERS_HOLD"
+}

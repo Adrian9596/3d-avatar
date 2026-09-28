@@ -16,10 +16,10 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
  * app cannot disagree with itself, which is what the lane-parity gate used to
  * have to prove.
  *
- * Served locally the app is a single self-contained HTML file that resolves
- * `three` through an importmap over node_modules and imports the shared engine
- * as `.mjs`. That shape is right for authoring and is left untouched -- this
- * config only produces a deployable copy.
+ * Served locally the app is one HTML page that resolves `three` through an
+ * importmap over node_modules and loads its modules (src/ui/viewer/main.mjs and
+ * everything it imports) as `.mjs`. That shape is right for authoring and is
+ * left untouched -- this config only produces a deployable copy.
  *
  * It bundles rather than copying because `.mjs` is not reliably served as
  * JavaScript by static hosts (nginx sends application/octet-stream, Apache

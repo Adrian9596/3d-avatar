@@ -7,6 +7,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 HTML = ROOT / "digital_bra_fit_model_360.html"
+ASSET_MODULE = ROOT / "src/ui/viewer/asset.mjs"   # the viewer's asset constants
 GLB = ROOT / "assets/export/avatar_36C_prototype.glb"
 PACKAGE = ROOT / "package.json"
 FALLBACK = ROOT / "qa/avatar_36C/bikini/clothed-front.png"
@@ -16,6 +17,7 @@ EXPECTED_SHA = "7f3c56b9e9c73416598df6030e876e9e59756420f1def503abb7fba6b66a88a5
 EXPECTED_CANONICAL_SHA = "66a5bc648976f468bfffb748f9d78cfe2f9a6db481464dedb9666169fbfe5c3b"
 
 html = HTML.read_text(encoding="utf-8")
+asset_module = ASSET_MODULE.read_text(encoding="utf-8") if ASSET_MODULE.exists() else ""
 package = json.loads(PACKAGE.read_text(encoding="utf-8"))
 actual_sha = sha256(GLB.read_bytes()).hexdigest() if GLB.exists() else None
 canonical_sha = sha256(CANONICAL_GLB.read_bytes()).hexdigest() if CANONICAL_GLB.exists() else None
@@ -25,7 +27,7 @@ checks = {
     "html_exists": HTML.exists(),
     "glb_exists": GLB.exists(),
     "glb_sha_matches": actual_sha == EXPECTED_SHA,
-    "html_sha_matches": f"const ASSET_SHA='{EXPECTED_SHA}'" in html or f'const ASSET_SHA="{EXPECTED_SHA}"' in html,
+    "html_sha_matches": f"const ASSET_SHA='{EXPECTED_SHA}'" in asset_module or f'const ASSET_SHA="{EXPECTED_SHA}"' in asset_module,
     "canonical_glb_unchanged": canonical_sha == EXPECTED_CANONICAL_SHA,
     "prototype_has_no_generator_morphs": export_report.get("morph_targets_exported") == 0,
     "prototype_has_no_armature": export_report.get("armature_exported") is False,

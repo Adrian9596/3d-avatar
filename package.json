@@ -26,7 +26,7 @@
     "validate:body-grid": "node scripts/test_body_grid.mjs",
     "validate:evidence-drift": "node scripts/check_evidence_drift.mjs",
     "export:pom-sheet": "python3 scripts/export_pom_sheet.py",
-    "validate:measurements": "npm run measure:avatar && npm run validate:measure-parity && npm run validate:surface-path && npm run validate:cup-volume && npm run validate:flatten-accuracy && npm run validate:flatten-parity && npm run validate:seam-closure && npm run validate:dxf-roundtrip && npm run validate:pattern-templates && npm run validate:landmark-placement && npm run validate:pen-snap && npm run validate:view-geometry && npm run validate:keymap && npm run validate:measurement-levels && npm run validate:body-grid && npm run validate:single-engine",
+    "validate:measurements": "npm run measure:avatar && npm run validate:measure-parity && npm run validate:surface-path && npm run validate:cup-volume && npm run validate:flatten-accuracy && npm run validate:flatten-parity && npm run validate:seam-closure && npm run validate:dxf-roundtrip && npm run validate:pattern-templates && npm run validate:landmark-placement && npm run validate:pen-snap && npm run validate:view-geometry && npm run validate:keymap && npm run validate:measurement-levels && npm run validate:body-grid && npm run validate:single-engine && npm run validate:module-layers",
     "validate:prototype": "python3 scripts/validate_prototype.py",
     "validate:prototype:gltf": "node scripts/validate_gltf.cjs assets/export/avatar_36C_prototype.glb qa/avatar_36C/prototype-gltf-validator-report.json",
     "validate:bootstrap": "python3 scripts/check_bootstrap.py",
@@ -42,7 +42,8 @@
     "build:bikini-top": "/Applications/Blender.app/Contents/MacOS/Blender --background avatar_36C_master.blend --python scripts/build_bikini_top.py --python-exit-code 1",
     "serve:app": "python3 -m http.server 8765",
     "preview:pages": "vite preview --outDir dist",
-    "validate:single-engine": "node scripts/test_single_engine.mjs"
+    "validate:single-engine": "node scripts/test_single_engine.mjs",
+    "validate:module-layers": "node scripts/test_module_layers.mjs"
   },
   "dependencies": {
     "gltf-validator": "2.0.0-dev.3.10",

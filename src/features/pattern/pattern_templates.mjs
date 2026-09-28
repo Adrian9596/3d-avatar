@@ -15,7 +15,7 @@
  * drafted piece carries names the template and every landmark's provenance.
  */
 
-import { surfaceRun, pointAtFraction, closestOnMesh } from './surface_path.mjs';
+import { surfaceRun, pointAtFraction, closestOnMesh } from '../../core/surface_path.mjs';
 
 export const TEMPLATE_LIMIT = 'Template seams are conventional cuts, not a fit recommendation.';
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Gate for scripts/keymap.mjs — the one keyboard map the app dispatches through.
+ * Gate for src/ui/keymap.mjs — the one keyboard map the app dispatches through.
  *
  * What it proves: no two bindings can mean the same keystroke at once (within a
  * tool, or between a tool and the always layer, unless disjoint by selection);
@@ -16,7 +16,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGate, sha256File, sha256Bytes } from './gate_report.mjs';
-import { KEYMAP, CONTEXTS, RESERVED_MOD_LETTERS, conflicts, matchBinding, docTables, cheatSheet } from './keymap.mjs';
+import { KEYMAP, CONTEXTS, RESERVED_MOD_LETTERS, conflicts, matchBinding, docTables, cheatSheet } from '../src/ui/keymap.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DOC = join(ROOT, 'AUTHORING_UX_PLAN.md');
@@ -106,7 +106,7 @@ gate.finish({
   reportPath: REPORT, relativeTo: ROOT, okDecision: 'KEYMAP_CONSISTENT',
   body: {
     purpose: 'One keyboard map: conflict-free, browser-safe, and the doc regenerated from it.',
-    module: { file: 'scripts/keymap.mjs', sha256: sha256File(join(ROOT, 'scripts', 'keymap.mjs')) },
+    module: { file: 'src/ui/keymap.mjs', sha256: sha256File(join(ROOT, 'src', 'ui', 'keymap.mjs')) },
     keymap_sha256: sha256Bytes(JSON.stringify(KEYMAP)),
     bindings: { total: KEYMAP.length, active: KEYMAP.filter((k) => k.status === 'active').length, planned: KEYMAP.filter((k) => k.status === 'planned').length },
     keystrokes: outcomes,
