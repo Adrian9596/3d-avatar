@@ -1,5 +1,6 @@
-# Node/Vite generated state
-node_modules/
+# Node/Vite generated state. node_modules has no trailing slash so that a
+# worktree's node_modules symlink to a shared install is ignored too.
+node_modules
 dist/
 .vite/
 
