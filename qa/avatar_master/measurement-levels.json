@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-28T00:14:00Z",
+  "generated_at": "2026-09-28T02:40:02Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "889ea15ca5d47d3034e46f79290fc04f5531069b159ec8a01e3b83c93bae4268"
+    "sha256": "00c767b5eeedb3711d2dc2240369316a648afc67d65598e69e9a24f53ab7bb06"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-28T00:09:05Z"
+    "generated_at": "2026-09-28T02:37:57Z"
   },
   "sheets": [
     {
@@ -520,18 +520,20 @@
       },
       "colour": "#1f6fe0",
       "blocked": null,
-      "kind": "control_curve",
+      "kind": "joined_curve",
       "handles": {
-        "control": {
-          "angle_deg": 0,
-          "length_mm": 65
+        "cf": {
+          "angle_deg": 0
+        },
+        "depth": {
+          "fullness": 0.667
         }
       },
       "through": null,
       "runs": [
         {
           "side": "L",
-          "length_mm": 132.4,
+          "length_mm": 168.1,
           "shortest_path_mm": 131.9,
           "from_m": [
             0,
@@ -544,16 +546,22 @@
             0.06474
           ],
           "tips_m": {
-            "control": [
-              -0.04012,
-              1.40432,
-              0.08718
+            "cf": [
+              -0.01991,
+              1.35777,
+              0.11305
+            ],
+            "depth": [
+              -0.07215,
+              1.37827,
+              0.11957
             ]
-          }
+          },
+          "depth_mm": 47.2
         },
         {
           "side": "R",
-          "length_mm": 132.4,
+          "length_mm": 168.1,
           "shortest_path_mm": 131.9,
           "from_m": [
             0,
@@ -566,12 +574,18 @@
             0.06474
           ],
           "tips_m": {
-            "control": [
-              0.04012,
-              1.40432,
-              0.08718
+            "cf": [
+              0.01991,
+              1.35777,
+              0.11305
+            ],
+            "depth": [
+              0.07215,
+              1.37827,
+              0.11957
             ]
-          }
+          },
+          "depth_mm": 47.2
         }
       ]
     }
@@ -821,7 +835,7 @@
     {
       "name": "every declared curve validates",
       "status": "PASS",
-      "detail": "2 curve(s): CURVE_CUP_ARMHOLE tangent_curve STRAP_MAXP2_CF_TO_CB.front_outer -> SIDE_WING_HIGH_L/R, CURVE_CF_TO_STRAP control_curve LINE_CF_M1_3_4_TO_MAXGIRTH.top -> STRAP_MAXP2_CF_TO_CB.front_inner"
+      "detail": "2 curve(s): CURVE_CUP_ARMHOLE tangent_curve STRAP_MAXP2_CF_TO_CB.front_outer -> SIDE_WING_HIGH_L/R, CURVE_CF_TO_STRAP joined_curve LINE_CF_M1_3_4_TO_MAXGIRTH.top -> STRAP_MAXP2_CF_TO_CB.front_inner"
     },
     {
       "name": "a curve from an unknown strap, corner or landmark is refused",
@@ -829,9 +843,9 @@
       "detail": "C: from strap NOPE is not a valid strap; from corner middle is not one of front_inner, front_outer, back_inner, back_outer; to NOPE_L is not a registry landmark"
     },
     {
-      "name": "a curve from an unknown line or line end, or a control curve with no control, is refused",
+      "name": "a curve from an unknown line or line end, a joined curve with unsound handles, or one not from the centre to a strap, is refused",
       "status": "PASS",
-      "detail": "C: handles.control.angle_deg must be a number of degrees; handles.control.length_mm must be a positive number; from line NOPE is not a valid line; from end midd"
+      "detail": "C: handles.cf.angle_deg must be 0 (a U) to 75 degrees (a V); handles.depth.fullness must be 0.05 to 1.5; from line NOPE is not a valid line; from end middle is not top or bottom; D: a joined curve runs from a line's end "
     },
     {
       "name": "CURVE_CUP_ARMHOLE: from STRAP_MAXP2_CF_TO_CB.front_outer to SIDE_WING_HIGH_L/R on each side, over the skin",
@@ -861,22 +875,27 @@
     {
       "name": "CURVE_CF_TO_STRAP: from LINE_CF_M1_3_4_TO_MAXGIRTH.top to STRAP_MAXP2_CF_TO_CB.front_inner on each side, over the skin",
       "status": "PASS",
-      "detail": "L 132.4mm; R 132.4mm"
+      "detail": "L 168.1mm; R 168.1mm"
     },
     {
-      "name": "CURVE_CF_TO_STRAP: with the contract's control its length is the shortest path's within 1%, mirrored",
+      "name": "CURVE_CF_TO_STRAP: leaves the centre front level (a U) and runs on into the strap along its inner edge, mirrored",
       "status": "PASS",
-      "detail": "L 132.4mm vs shortest 131.9mm; R 132.4mm vs shortest 131.9mm"
+      "detail": "L rises 1.6deg out of CF, meets the strap edge at 0.8deg; R rises 1.6deg out of CF, meets the strap edge at 0.8deg"
     },
     {
-      "name": "CURVE_CF_TO_STRAP: the control point reads back as its handle, and the curve bends toward it",
+      "name": "CURVE_CF_TO_STRAP: as a V it rises at its angle out of the centre front; fuller is deeper; on the skin and mirrored throughout",
       "status": "PASS",
-      "detail": "L 0.00deg 65.00mm; R 0.00deg 65.00mm"
+      "detail": "V 30deg: L rises 33.0deg out of CF, meets the strap edge at 1.8deg; R rises 33.0deg out of CF, meets the strap edge at 1.8deg; fullness 0.3/0.667/1: depth 26.3 / 47.2 / 63.9mm, length 146.7 / 168.1 / 188.6mm"
     },
     {
-      "name": "CURVE_CF_TO_STRAP: moving the control reshapes both sides, mirrored, on the skin, and putting it back restores it",
+      "name": "CURVE_CF_TO_STRAP: dragging its middle reads back the fullness, dragging its centre-front dot the angle, and near level snaps to U",
       "status": "PASS",
-      "detail": "30deg 80mm: L 144.6mm, R 144.6mm; restored 132.4, 132.4mm"
+      "detail": "fullness 1.0000 (1), angle 40.01 (40), 2deg -> 0"
+    },
+    {
+      "name": "CURVE_CF_TO_STRAP: putting the contract's shape back restores it exactly",
+      "status": "PASS",
+      "detail": "168.1, 168.1mm, bowing 47.2mm below the shortest path (131.9mm)"
     },
     {
       "name": "a tangent curve without a sound pair of handles is refused",

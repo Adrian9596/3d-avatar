@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from '../src/core/measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, measurePoint, measurePoints, pointOffsets, levelsRecord, outOfRange, sectionChains,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, dragHandle, measurePoint, measurePoints, pointOffsets, levelsRecord, outOfRange, sectionChains,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from '../src/features/reference_geometry/index.mjs';
 
@@ -376,10 +376,15 @@ const brokenCurve = loadLevels({ ...contract, curves: [{ id: 'C', kind: 'shortes
 gate.record('a curve from an unknown strap, corner or landmark is refused',
   brokenCurve.curves.length === 0 && brokenCurve.errors.some((e) => /strap NOPE/.test(e) && /corner middle/.test(e) && /NOPE_L/.test(e)),
   brokenCurve.errors.join('; ').slice(0, 160));
-const brokenEnds = loadLevels({ ...contract, curves: [{ id: 'C', kind: 'control_curve', from: { line: 'NOPE', end: 'middle' }, to: { strap: (contract.straps || [])[0]?.id, corner: 'front_inner' }, handles: {}, colour: '#000000', label: 'c' }] }, ctx.registry);
-gate.record('a curve from an unknown line or line end, or a control curve with no control, is refused',
-  brokenEnds.curves.length === 0 && brokenEnds.errors.some((e) => /line NOPE/.test(e) && /end middle/.test(e) && /handles\.control\.angle_deg/.test(e)),
-  brokenEnds.errors.join('; ').slice(0, 160));
+const strapId = (contract.straps || [])[0]?.id;
+const brokenEnds = loadLevels({ ...contract, curves: [
+  { id: 'C', kind: 'joined_curve', from: { line: 'NOPE', end: 'middle' }, to: { strap: strapId, corner: 'front_inner' }, handles: { cf: { angle_deg: 90 } }, colour: '#000000', label: 'c' },
+  { id: 'D', kind: 'joined_curve', from: { landmark: 'SIDE_WING_HIGH' }, to: { strap: strapId, corner: 'front_inner' }, handles: { cf: { angle_deg: 0 }, depth: { fullness: 0.5 } }, colour: '#000000', label: 'd' },
+] }, ctx.registry);
+gate.record('a curve from an unknown line or line end, a joined curve with unsound handles, or one not from the centre to a strap, is refused',
+  brokenEnds.curves.length === 0 && brokenEnds.errors.some((e) => /line NOPE/.test(e) && /end middle/.test(e) && /handles\.cf\.angle_deg/.test(e) && /handles\.depth\.fullness/.test(e))
+    && brokenEnds.errors.some((e) => /^D: .*a joined curve runs from a line's end on the centre plane to a strap corner/.test(e)),
+  brokenEnds.errors.join('; ').slice(0, 220));
 const points = measurePoints(loaded, ctx.landmarks, ctx.tri);
 const curves = measureCurves(loaded, straps, ctx.landmarks, ctx.grid, {}, points, lines);
 const onSkin = (pts) => pts.every((p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; });
@@ -399,37 +404,46 @@ for (const curve of curves) {
   gate.record(`${curve.id}: from ${endName(curve.from)} to ${endName(curve.to)} on each side, over the skin`,
     ok,
     curve.blocked || curve.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm`).join('; '));
-  if (curve.kind === 'control_curve' && !curve.blocked) {
-    // as declared: close to the shortest path, and the same on both sides, mirrored
-    gate.record(`${curve.id}: with the contract's control its length is the shortest path's within 1%, mirrored`,
-      curve.runs.every((r) => r.length_m >= r.guide_length_m - 1e-3 && r.length_m - r.guide_length_m < 0.01 * r.guide_length_m)
-        && mirrored(curve.runs[0], curve.runs[1]),
-      curve.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm vs shortest ${(r.guide_length_m * 1000).toFixed(1)}mm`).join('; '));
-    // the control point reads back as its handle; the guides run on the skin from each end
-    // to it, and the curve's middle is the skin under the quadratic's (P0 + 2C + P3) / 4
-    const controlOk = curve.runs.every((r) => {
-      const back = handleFromPoint(r.frames.control, r.control), want = curve.handles.control;
-      const mid = r.points[Math.round((r.points.length - 1) / 2)];
-      const under = ctx.closest(r.from.map((v, i) => (v + 2 * r.control[i] + r.to[i]) / 4)).point;
-      return Math.abs(back.length_mm - want.length_mm) < 0.5 && Math.abs(back.angle_deg - want.angle_deg) < 1
-        && r.tangents.length === 2 && r.tangents.every((t, k) => {
-          const from = k === 0 ? r.from : r.to;
-          return t.end === 'control' && t.points[0].every((v, i) => v === from[i]) && t.points[t.points.length - 1].every((v, i) => v === r.control[i]) && onSkin(t.points);
-        })
-        && Math.hypot(...mid.map((v, i) => v - under[i])) < 1e-6;
-    });
-    gate.record(`${curve.id}: the control point reads back as its handle, and the curve bends toward it`,
-      controlOk,
-      curve.runs.map((r) => { const b = handleFromPoint(r.frames.control, r.control); return `${r.side} ${b.angle_deg.toFixed(2)}deg ${b.length_mm.toFixed(2)}mm`; }).join('; '));
-    // dragged: both sides follow, mirrored, still on the skin, and putting it back restores it
-    const dragged = bendCurve(curve, { control: { angle_deg: 30, length_mm: 80 } }, ctx.grid);
-    const draggedOk = !dragged.blocked && mirrored(dragged.runs[0], dragged.runs[1])
-      && dragged.runs.every((r, i) => onSkin(r.points) && r.length_m > curve.runs[i].length_m + 1e-3
-        && r.points[0].every((v, k) => v === curve.runs[i].from[k]) && r.points[r.points.length - 1].every((v, k) => v === curve.runs[i].to[k]));
-    const restored = bendCurve(dragged, curve.handles, ctx.grid);
-    gate.record(`${curve.id}: moving the control reshapes both sides, mirrored, on the skin, and putting it back restores it`,
-      draggedOk && !restored.blocked && restored.runs.every((r, i) => Math.abs(r.length_m - curve.runs[i].length_m) < 1e-9),
-      dragged.blocked || `30deg 80mm: ${dragged.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm`).join(', ')}; restored ${restored.runs?.map((r) => (r.length_m * 1000).toFixed(1)).join(', ')}mm`);
+  if (curve.kind === 'joined_curve' && !curve.blocked) {
+    const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    const unit3 = (a) => { const l = Math.hypot(...a) || 1; return a.map((v) => v / l); };
+    const deg = (u, v) => (Math.acos(Math.max(-1, Math.min(1, u[0] * v[0] + u[1] * v[1] + u[2] * v[2]))) * 180) / Math.PI;
+    // seen from the front, how steeply it leaves the centre front (over its first few mm)
+    const rise = (r) => (Math.atan2(r.points[4][1] - r.points[0][1], Math.abs(r.points[4][0] - r.points[0][0])) * 180) / Math.PI;
+    // the strap's inner edge as it leaves the corner, over its first 15mm
+    const edgeLeaving = (r) => {
+      const edge = straps.find((st) => st.id === curve.to.strap).bands.find((b) => b.side === r.side).edges[curve.to.corner];
+      let walked = 0, i = 1;
+      for (; i < edge.length - 1 && walked < 0.015; i++) walked += Math.hypot(...sub3(edge[i], edge[i - 1]));
+      return unit3(sub3(edge[i], edge[0]));
+    };
+    const arrival = (r) => unit3(sub3(r.points[r.points.length - 1], r.points[r.points.length - 3]));
+    const shape = (run) => `${run.side} rises ${rise(run).toFixed(1)}deg out of CF, meets the strap edge at ${deg(arrival(run), edgeLeaving(run)).toFixed(1)}deg`;
+    gate.record(`${curve.id}: leaves the centre front level (a U) and runs on into the strap along its inner edge, mirrored`,
+      curve.handles.cf.angle_deg === 0 && curve.runs.every((r) => Math.abs(rise(r)) < 2 && deg(arrival(r), edgeLeaving(r)) < 3) && mirrored(curve.runs[0], curve.runs[1]),
+      curve.runs.map(shape).join('; '));
+    // a V: each side rises at about its angle; U or V, fuller is deeper and longer
+    const v30 = bendCurve(curve, { cf: { angle_deg: 30 }, depth: curve.handles.depth }, ctx.grid);
+    const byFullness = [0.3, 0.667, 1.0].map((k) => bendCurve(curve, { cf: curve.handles.cf, depth: { fullness: k } }, ctx.grid));
+    const deeper = byFullness.every((c, i) => !c.blocked && (i === 0 || (c.runs[0].depth_m > byFullness[i - 1].runs[0].depth_m && c.runs[0].length_m > byFullness[i - 1].runs[0].length_m)));
+    gate.record(`${curve.id}: as a V it rises at its angle out of the centre front; fuller is deeper; on the skin and mirrored throughout`,
+      !v30.blocked && v30.runs.every((r) => rise(r) > 25 && rise(r) < 40 && deg(arrival(r), edgeLeaving(r)) < 3 && onSkin(r.points)) && mirrored(v30.runs[0], v30.runs[1])
+        && deeper && byFullness.every((c) => mirrored(c.runs[0], c.runs[1]) && c.runs.every((r) => onSkin(r.points))),
+      `V 30deg: ${v30.blocked || v30.runs.map(shape).join('; ')}; fullness 0.3/0.667/1: depth ${byFullness.map((c) => (c.runs[0].depth_m * 1000).toFixed(1)).join(' / ')}mm, length ${byFullness.map((c) => (c.runs[0].length_m * 1000).toFixed(1)).join(' / ')}mm`);
+    // its two dots read back: the middle as the fullness, the centre-front tip as the angle (near level snaps to U)
+    const R = curve.runs.find((r) => r.side === 'R');
+    const middleOf = (c) => c.runs.find((r) => r.side === 'R').tangents.find((t) => t.end === 'depth').tip;
+    const cfTipOf = (c) => c.runs.find((r) => r.side === 'R').tangents.find((t) => t.end === 'cf').tip;
+    const backDepth = dragHandle(curve, R, 'depth', middleOf(byFullness[2]), ctx.grid);
+    const backCf = dragHandle(curve, R, 'cf', cfTipOf(bendCurve(curve, { cf: { angle_deg: 40 }, depth: curve.handles.depth }, ctx.grid)), ctx.grid);
+    const backLevel = dragHandle(curve, R, 'cf', cfTipOf(bendCurve(curve, { cf: { angle_deg: 2 }, depth: curve.handles.depth }, ctx.grid)), ctx.grid);
+    gate.record(`${curve.id}: dragging its middle reads back the fullness, dragging its centre-front dot the angle, and near level snaps to U`,
+      Math.abs(backDepth?.fullness - 1.0) < 1e-3 && Math.abs(backCf?.angle_deg - 40) < 0.5 && backLevel?.angle_deg === 0,
+      `fullness ${backDepth?.fullness?.toFixed(4)} (1), angle ${backCf?.angle_deg?.toFixed(2)} (40), 2deg -> ${backLevel?.angle_deg}`);
+    const restored = bendCurve(v30, curve.handles, ctx.grid);
+    gate.record(`${curve.id}: putting the contract's shape back restores it exactly`,
+      !restored.blocked && restored.runs.every((r, i) => Math.abs(r.length_m - curve.runs[i].length_m) < 1e-9),
+      `${curve.runs.map((r) => (r.length_m * 1000).toFixed(1)).join(', ')}mm, bowing ${(curve.runs[0].depth_m * 1000).toFixed(1)}mm below the shortest path (${(curve.runs[0].guide_length_m * 1000).toFixed(1)}mm)`);
   }
   if (curve.kind !== 'tangent_curve' || curve.blocked) continue;
   // the handles as declared: along the shortest path, so the curve reads it (through
@@ -590,6 +604,7 @@ const body = {
       ...(r.leg_lengths_m ? { legs_mm: r.leg_lengths_m.map((v) => Number((v * 1000).toFixed(1))), through_m: r.through.map((v) => Number(v.toFixed(5))) } : {}),
       from_m: r.from.map((v) => Number(v.toFixed(5))), to_m: r.to.map((v) => Number(v.toFixed(5))),
       ...(r.tangents ? { tips_m: Object.fromEntries(r.tangents.map((t) => [t.end, t.tip.map((v) => Number(v.toFixed(5)))])) } : {}),
+      ...(Number.isFinite(r.depth_m) ? { depth_mm: Number((r.depth_m * 1000).toFixed(1)) } : {}),
     })),
   })),
   points: points.map((p) => ({

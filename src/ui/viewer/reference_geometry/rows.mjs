@@ -156,9 +156,11 @@ export function showMovedPoint(point){
 
 /* A curve on the skin ("curves" in contracts/measurement-levels.json), such as
    the cup armhole: one row per side with its length on the skin. A
-   "tangent_curve" is shaped by two tangent handles, a "control_curve" by one
-   control point: select a side's row and drag the round dots on the body; the
-   handles shape both sides, mirrored, and every number here follows the drag. */
+   "tangent_curve" is shaped by two tangent handles; a "joined_curve" runs into
+   the strap along its edge and leaves the centre front level (a U) or at an
+   angle (a V), and is shaped by how full it is. Select a side's row and drag
+   the round dots on the body; the handles shape both sides, mirrored, and every
+   number here follows the drag. */
 function curveEndText(end,side){
   if(end.strap)return `the strap's ${end.corner.replace('_',' ')} corner`;
   if(end.line)return `the ${end.end} of the ${measuredLines.find(l=>l.id===end.line)?.kind==='centre_front'?'CF':'CB'} line`;
@@ -166,13 +168,13 @@ function curveEndText(end,side){
 }
 function renderCurveRows(curve,tbody){
   const den=registry.reporting.inch_denominator;
-  const shaped=curve.kind==='tangent_curve'||curve.kind==='control_curve';
+  const shaped=curve.kind==='tangent_curve'||curve.kind==='joined_curve';
   const els=curveRowEls[curve.id]={sides:{},handles:{}};
   for(const side of ['L','R']){
     const label=`${curve.label} ${side}`;
     const tr=document.createElement('tr');
     tr.title=`From ${curveEndText(curve.from,side)} to ${curveEndText(curve.to,side)}, `
-      +(curve.kind==='control_curve'?'shaped by one control point: select this row, then drag the green dot on the body.'
+      +(curve.kind==='joined_curve'?'running into the strap along its inner edge and out of the centre front level (a U) or at an angle (a V): select this row, then drag the green dots on the body, the one at the centre front for its angle, the one in the middle for how full it is.'
         :shaped?`${curve.through?'through the armhole point, ':''}shaped by two tangent handles: select this row, then drag the green dots (tangents) or the blue dot (the point) on the body.`:'the shortest path over the skin.');
     const run=curve.runs.find(r=>r.side===side);
     if(curve.blocked||!run){
@@ -189,8 +191,9 @@ function renderCurveRows(curve,tbody){
     els.sides[side]={tr,index:measureRowData.length,title:tr.title};
     measureRowData.push({label,paths:[run.points],color:parseInt(curve.colour.slice(1),16),curve:curve.id,side,tangents:null,grabs:[]});
   }
-  const handleRows=curve.kind==='control_curve'
-    ?[['control','Control',`The control point: its distance from ${curveEndText(curve.from,'L')}, and its angle from the shortest path over the skin toward ${curveEndText(curve.to,'L')} (positive turns it up). The curve bends toward it. Drag its dot on the body to change it; ↺ puts it back to the contract's.`]]
+  const handleRows=curve.kind==='joined_curve'
+    ?[['cf','At CF','How the two sides meet at the centre front: U, level and smooth across it, or V, each side rising at the angle shown, in the skin (they meet at 180° less twice it). Drag the green dot at the centre front to change it; near level snaps to U. ↺ puts the shape back to the contract\'s.'],
+      ['depth','Depth',`How far the curve bows below the shortest path over the skin from ${curveEndText(curve.from,'L')} to ${curveEndText(curve.to,'L')}. It always runs on into the strap along the strap's inner edge; drag the green dot in its middle to make it fuller or flatter. ↺ puts the shape back to the contract's.`]]
     :[['from','Tangent at strap'],['to','Tangent at wing']].map(([end,name])=>[end,name,
       `The tangent handle ${name.slice(8)}: its length, and its angle from the shortest path over the skin toward the ${curve.through?'armhole point':'other end'} (positive turns it up toward the shoulder). Drag its dot on the body to change it; ↺ puts both handles back to the contract's.`]);
   if(shaped&&!curve.blocked)for(const [k,[end,name,title]] of handleRows.entries()){
@@ -213,8 +216,8 @@ export function updateCurveRows(curve){
   const els=curveRowEls[curve.id];
   if(!els)return;
   const base=(levelContract?.curves||[]).find(c=>c.id===curve.id)?.handles;
-  const moved=Boolean(base&&curve.handles&&Object.keys(base).some(end=>
-    Math.abs(curve.handles[end].angle_deg-base[end].angle_deg)>0.05||Math.abs(curve.handles[end].length_mm-base[end].length_mm)>0.05));
+  const moved=Boolean(base&&curve.handles&&Object.keys(base).some(end=>Object.keys(base[end]).some(field=>
+    Math.abs(curve.handles[end][field]-base[end][field])>(field==='fullness'?0.0005:0.05))));
   for(const run of curve.runs){
     const el=els.sides[run.side];
     if(!el)continue;
@@ -230,13 +233,30 @@ export function updateCurveRows(curve){
       +` Shortest path${run.through?' through the point':''} ${CM(run.guide_length_m)} cm; this curve ${CM(run.length_m)} cm.`;
   }
   for(const [end,tr] of Object.entries(els.handles)){
-    const h=curve.handles[end],length=h.length_mm/1000,a=Math.round(h.angle_deg);
-    tr.querySelector('.angle').textContent=`${a>0?'+':a<0?'−':''}${Math.abs(a)}°`;
-    tr.querySelector('.val').textContent=CM(length);
-    tr.querySelector('.in').textContent=inchFraction(length,den).replace(/^0 /,'');
+    const cells=handleCells(curve,end,den);
+    tr.querySelector('.angle').textContent=cells.angle;
+    tr.querySelector('.val').textContent=cells.val;
+    tr.querySelector('.in').textContent=cells.inch;
     const reset=tr.querySelector('button');
     if(reset)reset.hidden=!moved;
   }
+}
+
+// What a handle's row shows: a tangent's angle and length; a joined curve's U
+// or V at the centre front, and how far it bows.
+function handleCells(curve,end,den){
+  const h=curve.handles[end];
+  const signed=v=>(v<0?'−':'')+inchFraction(Math.abs(v),den).replace(/^0 /,'');
+  if(curve.kind==='joined_curve'&&end==='cf'){
+    const a=Math.round(h.angle_deg);
+    return {angle:a===0?'U':`V ${a}°`,val:'',inch:''};
+  }
+  if(curve.kind==='joined_curve'&&end==='depth'){
+    const d=curve.runs[0]?.depth_m??0;
+    return {angle:'',val:(d<0?'−':'')+CM(Math.abs(d)),inch:signed(d)};
+  }
+  const length=h.length_mm/1000,a=Math.round(h.angle_deg);
+  return {angle:`${a>0?'+':a<0?'−':''}${Math.abs(a)}°`,val:CM(length),inch:inchFraction(length,den).replace(/^0 /,'')};
 }
 
 function resetCurveHandles(id){

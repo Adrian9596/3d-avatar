@@ -1,6 +1,6 @@
 /* The reference geometry measured on this body, and the shapes dragged in this
-   browser: tangent handles and control points per curve, and points moved off
-   their contract place. A per-viewer convenience — the contract's values are
+   browser: tangent handles, or a joined curve's angle and fullness, per curve,
+   and points moved off their contract place. A per-viewer convenience — the contract's values are
    the record — kept in localStorage and dropped when they no longer lie on the
    skin. */
 
@@ -10,15 +10,17 @@ import { landmarkValue } from '../landmark_values.mjs';
 import { levelContract, measureGrid, torsoTris, marks, registry, poms } from '../measurement.mjs';
 
 export let measuredLevels=null,measuredShapes=[],measuredTapes=[],measuredLines=[],measuredTicks=[],measuredStraps=[],measuredCurves=[],measuredPoints=[];
-// Handles dragged on a curve (the cup armhole's tangents, a control point), per
-// curve id. A per-viewer convenience: the contract's handles are the record.
+// Handles dragged on a curve (the cup armhole's tangents, the CF → strap
+// curve's angle and fullness), per curve id. A per-viewer convenience: the
+// contract's handles are the record, and one the engine finds unsound for its
+// curve falls back to it.
 export let curveHandles={},pointMoves={},levelMarks={};
 try{
   const stored=JSON.parse(localStorage.getItem('curveHandles')||'{}');
-  const ok=h=>Number.isFinite(h?.angle_deg)&&Number.isFinite(h?.length_mm)&&h.length_mm>0;
+  const ok=h=>h&&typeof h==='object'&&Object.values(h).length>0&&Object.values(h).every(Number.isFinite);
   for(const [id,handles] of Object.entries(stored||{})){
     const entries=Object.entries(handles||{});
-    if(entries.length&&entries.every(([,h])=>ok(h)))curveHandles[id]=Object.fromEntries(entries.map(([key,h])=>[key,{angle_deg:h.angle_deg,length_mm:h.length_mm}]));
+    if(entries.length&&entries.every(([,h])=>ok(h)))curveHandles[id]=Object.fromEntries(entries.map(([key,h])=>[key,{...h}]));
   }
   // and points dragged off their contract place, as the offsets that reach them
   const moved=JSON.parse(localStorage.getItem('pointMoves')||'{}');
@@ -45,8 +47,10 @@ export function saveCurveHandles(){
 
 export function syncCurveState(){
   prototypeState.curves=measuredCurves.map(c=>({id:c.id,kind:c.kind,blocked:c.blocked,
-    handles:c.handles?Object.fromEntries(Object.entries(c.handles).map(([end,h])=>[end,{angle_deg:+h.angle_deg.toFixed(1),length_mm:+h.length_mm.toFixed(1)}])):null,
+    handles:c.handles?Object.fromEntries(Object.entries(c.handles).map(([end,h])=>[end,Object.fromEntries(Object.entries(h).map(([k,v])=>[k,+v.toFixed(k==='fullness'?3:1)]))])):null,
     length_mm:Object.fromEntries(c.runs.map(r=>[r.side,+(r.length_m*1000).toFixed(1)])),
+    // how far a joined curve bows below the shortest path
+    ...(c.runs.some(r=>Number.isFinite(r.depth_m))?{depth_mm:Object.fromEntries(c.runs.map(r=>[r.side,+(r.depth_m*1000).toFixed(1)]))}:{}),
     // where each tangent's dot is, for automated checks
     tips_m:Object.fromEntries(c.runs.filter(r=>r.tangents).map(r=>[r.side,Object.fromEntries(r.tangents.map(t=>[t.end,t.tip.map(v=>+v.toFixed(5))]))]))}));
   prototypeState.points=measuredPoints.map(p=>({id:p.id,blocked:p.blocked,moved:Boolean(p.moved),
