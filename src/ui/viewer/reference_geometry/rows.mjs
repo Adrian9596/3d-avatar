@@ -4,14 +4,14 @@
    while a dot is dragged, so the selection holds. */
 
 import { inchFraction } from '../../../core/measure_core.mjs';
-import { measurePoint, bendCurve } from '../../../features/reference_geometry/index.mjs';
+import { measurePoint, measureLinePoint, bendCurve } from '../../../features/reference_geometry/index.mjs';
 import { HANDLE_COLOR } from '../draw.mjs';
 import { CM } from '../format.mjs';
 import { registry, levelContract, torsoTris, measureGrid } from '../measurement.mjs';
-import { measuredLevels, measuredShapes, measuredLines, measuredTapes, measuredTicks, measuredStraps, measuredCurves, measuredPoints, pointMoves, levelMarks, movePoint, saveCurveHandles, syncCurveState, curveHandles } from './state.mjs';
+import { measuredLevels, measuredShapes, measuredLines, measuredTapes, measuredTicks, measuredStraps, measuredCurves, measuredPoints, pointMoves, levelMarks, movePoint, reshapeCurve, saveCurveHandles, syncCurveState, curveHandles } from './state.mjs';
 import { selectableTape, measureRowData, redrawTapes } from '../table.mjs';
 
-let curveRowEls={},pointRowEls={};
+let curveRowEls={},pointRowEls={},lineRowEls={};
 
 /* Reference levels marked "tape": true in contracts/measurement-levels.json, as
    red tapes and table rows under the underbust, like the POMs. They are levels,
@@ -86,7 +86,12 @@ function renderReferenceTapeRows(fromId,tbody){
       renderCurveRows(curve,tbody);
       // points hung on a landmark the curve ends at (the armhole's wing top) follow it
       const ends=new Set([curve.from.landmark,curve.to.landmark].filter(Boolean));
-      for(const point of measuredPoints.filter(p=>ends.has(p.from.landmark)&&!listed.has(p.id))){listed.add(point.id);renderPointRow(point,tbody)}
+      for(const point of measuredPoints.filter(p=>ends.has(p.from?.landmark)&&!listed.has(p.id))){listed.add(point.id);renderPointRow(point,tbody)}
+      // and the dots that ride on it, each followed by the wires drawn from it
+      for(const point of measuredPoints.filter(p=>p.kind==='on_curve'&&p.curve===curve.id)){
+        renderCurvePointRow(point,tbody);
+        for(const wire of measuredCurves.filter(c=>c.kind==='wire_curve'&&[c.from.point,c.to.point].includes(point.id)&&!listed.has(c.id))){listed.add(wire.id);renderCurveRows(wire,tbody)}
+      }
     }
   }
 }
@@ -142,16 +147,114 @@ function resetPoint(id){
   const def=(levelContract?.points||[]).find(p=>p.id===id);
   if(!def)return;
   delete pointMoves[id];
-  const next=measurePoint(def,levelMarks,torsoTris,null);
+  const next=def.kind==='on_line'?measureLinePoint(def,measuredLines.find(l=>l.id===def.line),null):measurePoint(def,levelMarks,torsoTris,null);
   if(movePoint(next))showMovedPoint(next);
   saveCurveHandles();syncCurveState();
 }
 
 // The rows and tapes after a point moved: its own row and every curve's.
 export function showMovedPoint(point){
-  updatePointRow(point);
+  (point.kind==='on_line'?updateLinePointRow:updatePointRow)(point);
   for(const c of measuredCurves)updateCurveRows(c);
   redrawTapes();
+}
+
+/* A dot on a line ("points" of kind "on_line" in contracts/measurement-levels.json),
+   such as the one on the CF line, listed under the line: how far up the line
+   it sits from the line's lower end, along the skin. Select its row, or the
+   line's, and drag the dot: it slides along the line and nowhere else, the
+   row following it; ↺ puts it back where the contract has it. */
+function renderLinePointRow(point,tbody){
+  const tr=document.createElement('tr');
+  if(point.blocked){
+    tr.className='landmark';
+    tr.innerHTML=`<td>${point.label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;
+    tr.title=`${point.label}: ${point.blocked}`;
+    tbody.appendChild(tr);
+    return;
+  }
+  tr.setAttribute('aria-selected','false');
+  tr.innerHTML=`<td class="tangent"><span style="color:${point.colour}">●</span> ${point.label} <span class="angle">↑</span> <button type="button" class="curve-reset" aria-label="Put the point back">↺</button></td><td class="val"></td><td class="in"></td>`;
+  tr.querySelector('button').addEventListener('click',event=>{event.stopPropagation();resetPoint(point.id)});
+  selectableTape(tr,tbody);
+  tbody.appendChild(tr);
+  pointRowEls[point.id]={tr,index:measureRowData.length};
+  measureRowData.push({label:point.label,paths:[],dots:[],color:parseInt(point.colour.slice(1),16),point:point.id});
+  updateLinePointRow(point);
+}
+
+function updateLinePointRow(point){
+  const el=pointRowEls[point.id];
+  if(!el||point.blocked)return;
+  const den=registry.reporting.inch_denominator;
+  const inch=v=>inchFraction(v,den).replace(/^0 /,'');
+  const line=measuredLines.find(l=>l.id===point.line);
+  el.tr.querySelector('.val').textContent=CM(point.up_m);
+  el.tr.querySelector('.in').textContent=inch(point.up_m);
+  el.tr.querySelector('button').hidden=!point.moved;
+  el.tr.title=`${CM(point.up_m)} cm (${inch(point.up_m)}) up the ${line?.kind==='centre_front'?'CF':'CB'} line (${line?.label||point.line}) from its lower end, along the skin;`
+    +` ${CM(point.down_m)} cm (${inch(point.down_m)}) below its top.`
+    +(point.moved?' Moved here by dragging; ↺ puts it back.':' Where the contract puts it.')
+    +' Select this row or the line\'s, then drag the dot: it slides along the line.';
+  const grab=p=>({kind:'line_point',id:p.id,at:p.at});
+  const row=measureRowData[el.index];
+  row.dots=[point.at];row.grabs=[grab(point)];
+  // the line's row carries its dots too, drawn with it when it is selected
+  const lineEl=lineRowEls[point.line];
+  if(lineEl){
+    const on=measuredPoints.filter(p=>p.line===point.line&&!p.blocked);
+    Object.assign(measureRowData[lineEl.index],{dots:on.map(p=>p.at),grabs:on.map(grab),dotColors:on.map(p=>parseInt(p.colour.slice(1),16))});
+  }
+}
+
+/* A dot on a curve ("points" of kind "on_curve" in contracts/measurement-levels.json),
+   such as the armhole mark, 1 1/4" along the cup armhole from the wing top: a
+   dot on each side, listed under the curve. It is not dragged: it rides on the
+   curve, the same distance along whatever shape the curve is given, and is
+   drawn with the curve when a side's row is selected. The row gives that
+   distance; how far the curve runs on past it, and where the point the curve
+   passes through is, are on hover. */
+const endShort=(curve,end)=>{
+  const e=curve[end];
+  if(e.strap)return 'strap';
+  if(e.line)return measuredLines.find(l=>l.id===e.line)?.kind==='centre_front'?'CF':'CB';
+  return /^SIDE_WING/.test(e.landmark)?'wing':e.landmark;
+};
+function renderCurvePointRow(point,tbody){
+  const tr=document.createElement('tr');
+  if(point.blocked){
+    tr.className='landmark';
+    tr.innerHTML=`<td>${point.label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;
+    tr.title=`${point.label}: ${point.blocked}`;
+    tbody.appendChild(tr);
+    return;
+  }
+  tr.setAttribute('aria-selected','false');
+  tr.innerHTML=`<td><span style="color:${point.colour}">●</span> ${point.label} <span class="angle"></span></td><td class="val"></td><td class="in"></td>`;
+  selectableTape(tr,tbody);
+  tbody.appendChild(tr);
+  pointRowEls[point.id]={tr,index:measureRowData.length};
+  measureRowData.push({label:point.label,paths:[],dots:[],color:parseInt(point.colour.slice(1),16),point:point.id});
+  updateCurvePointRow(point);
+}
+
+function updateCurvePointRow(point){
+  const el=pointRowEls[point.id];
+  const curve=measuredCurves.find(c=>c.id===point.curve);
+  if(!el||point.blocked||!curve)return;
+  const den=registry.reporting.inch_denominator;
+  const inch=v=>inchFraction(v,den).replace(/^0 /,'');
+  const m=point.marks[0],other=point.end==='to'?'from':'to';
+  const through=curve.through&&measuredPoints.find(p=>p.id===curve.through.point);
+  el.tr.querySelector('.angle').textContent=`from ${endShort(curve,point.end)}`;
+  el.tr.querySelector('.val').textContent=CM(m.along_m);
+  el.tr.querySelector('.in').textContent=inch(m.along_m);
+  el.tr.title=`${CM(m.along_m)} cm (${inch(m.along_m)}) along the ${curve.label.toLowerCase()} from ${curveEndText(curve[point.end],'L/R')}, on the skin, on each side;`
+    +` the curve runs on ${CM(m.rest_m)} cm to ${curveEndText(curve[other],'L/R')}.`
+    +(through&&Number.isFinite(m.to_through_m)?` The ${through.label.toLowerCase()} is ${(Math.abs(m.to_through_m)*1000).toFixed(1)} mm ${m.to_through_m>=0?'further along':`back toward the ${endShort(curve,point.end)}`}.`:'')
+    +' It rides on the curve: the same distance along whatever shape the curve is given. It is not dragged.';
+  const row=measureRowData[el.index];
+  row.dots=point.marks.map(k=>k.point);
 }
 
 /* A curve on the skin ("curves" in contracts/measurement-levels.json), such as
@@ -160,11 +263,24 @@ export function showMovedPoint(point){
    the strap along its edge and leaves the centre front level (a U) or at an
    angle (a V), and is shaped by how full it is. Select a side's row and drag
    the round dots on the body; the handles shape both sides, mirrored, and every
-   number here follows the drag. */
+   number here follows the drag. A "wire_curve" has no handles: it runs between
+   points, through its lowest one, and follows them (listed after the dot it
+   starts from). */
+const lowerFirst=s=>/^[A-Z][a-z]/.test(s)?s[0].toLowerCase()+s.slice(1):s;
 function curveEndText(end,side){
   if(end.strap)return `the strap's ${end.corner.replace('_',' ')} corner`;
   if(end.line)return `the ${end.end} of the ${measuredLines.find(l=>l.id===end.line)?.kind==='centre_front'?'CF':'CB'} line`;
+  if(end.point)return `the ${lowerFirst(measuredPoints.find(p=>p.id===end.point)?.label||end.point)}`;
   return `${end.landmark}_${side}`;
+}
+// What a wire's row says it is, on one side: what it runs through, and which of its points can be dragged from it.
+function wireText(curve,side){
+  const low=`${curve.through.landmark}_${side}`,about=(registry.landmarks||[]).find(l=>l.id===low)?.comment;
+  const sliding=[curve.from,curve.to].map(e=>measuredPoints.find(p=>p.id===e.point)).filter(p=>p?.kind==='on_line');
+  return `through ${low}, its lowest point: a smooth curve on the skin, level where it runs lowest.`
+    +(about?` ${low}: ${lowerFirst(about)}`:'')
+    +' It has no handles; it follows its points, drawn with it when this row is selected.'
+    +sliding.map(p=>` Drag the ${p.label} dot from here: it slides along its line, and the wire follows.`).join('');
 }
 function renderCurveRows(curve,tbody){
   const den=registry.reporting.inch_denominator;
@@ -175,6 +291,7 @@ function renderCurveRows(curve,tbody){
     const tr=document.createElement('tr');
     tr.title=`From ${curveEndText(curve.from,side)} to ${curveEndText(curve.to,side)}, `
       +(curve.kind==='joined_curve'?'running into the strap along its inner edge and out of the centre front level (a U) or at an angle (a V): select this row, then drag the green dots on the body, the one at the centre front for its angle, the one in the middle for how full it is.'
+        :curve.kind==='wire_curve'?wireText(curve,side)
         :shaped?`${curve.through?'through the armhole point, ':''}shaped by two tangent handles: select this row, then drag the green dots (tangents) or the blue dot (the point) on the body.`:'the shortest path over the skin.');
     const run=curve.runs.find(r=>r.side===side);
     if(curve.blocked||!run){
@@ -225,12 +342,23 @@ export function updateCurveRows(curve){
     el.tr.querySelector('.in').textContent=inchFraction(run.length_m,den);
     const row=measureRowData[el.index];
     row.paths=[run.points];row.tangents=run.tangents||null;
-    row.dots=run.through?[run.through]:[];
+    // the point it passes through (or a wire runs lowest at), the dots riding on it, and a
+    // wire's end points, drawn with it, each in its point's colour
+    const colour=p=>parseInt(p.colour.slice(1),16);
+    const riding=measuredPoints.filter(p=>p.kind==='on_curve'&&p.curve===curve.id&&!p.blocked)
+      .map(p=>({colour:colour(p),at:p.marks.find(k=>k.side===run.side)?.point})).filter(d=>d.at);
+    const ends=[[curve.from,run.from],[curve.to,run.to]].map(([e,at])=>({p:e.point&&measuredPoints.find(q=>q.id===e.point),at})).filter(e=>e.p);
+    row.dots=[...(run.through?[run.through]:[]),...riding.map(d=>d.at),...ends.map(e=>e.at)];
+    row.dotColors=[...(run.through?[null]:[]),...riding.map(d=>d.colour),...ends.map(e=>colour(e.p))];
     row.grabs=[...(run.tangents||[]).map(t=>({kind:'handle',end:t.end,curve:curve.id,side:run.side,at:t.tip})),
-      ...(run.through?[{kind:'point',id:curve.through.point,side:run.side,at:run.through}]:[])];
+      ...(run.through&&curve.through.point?[{kind:'point',id:curve.through.point,side:run.side,at:run.through}]:[]),
+      // a dot on a line that a wire ends on is dragged from the wire's row too, along its line
+      ...ends.filter(e=>e.p.kind==='on_line').map(e=>({kind:'line_point',id:e.p.id,at:e.at}))];
     if(run.guide_length_m)el.tr.title=el.title
       +(run.leg_lengths_m?` Through the armhole point: ${CM(run.leg_lengths_m[0])} cm from the strap to it, ${CM(run.leg_lengths_m[1])} cm from it to the wing.`:'')
       +` Shortest path${run.through?' through the point':''} ${CM(run.guide_length_m)} cm; this curve ${CM(run.length_m)} cm.`;
+    else if(curve.kind==='wire_curve')el.tr.title=el.title
+      +` ${CM(run.leg_lengths_m[0])} cm from ${curveEndText(curve.from,run.side)} to its lowest point, ${CM(run.leg_lengths_m[1])} cm from there to ${curveEndText(curve.to,run.side)}.`;
   }
   for(const [end,tr] of Object.entries(els.handles)){
     const cells=handleCells(curve,end,den);
@@ -240,6 +368,7 @@ export function updateCurveRows(curve){
     const reset=tr.querySelector('button');
     if(reset)reset.hidden=!moved;
   }
+  for(const point of measuredPoints.filter(p=>p.kind==='on_curve'&&p.curve===curve.id))updateCurvePointRow(point);
 }
 
 // What a handle's row shows: a tangent's angle and length; a joined curve's U
@@ -263,11 +392,11 @@ function resetCurveHandles(id){
   const i=measuredCurves.findIndex(c=>c.id===id);
   const base=(levelContract?.curves||[]).find(c=>c.id===id)?.handles;
   if(i<0||!base)return;
-  delete curveHandles[id];
   const next=bendCurve(measuredCurves[i],base,measureGrid);
-  if(next.blocked)return;
-  measuredCurves[i]=next;
-  saveCurveHandles();updateCurveRows(next);redrawTapes();syncCurveState();
+  if(next.blocked||!reshapeCurve(next))return;
+  delete curveHandles[id];
+  // a wire from a dot on it follows it
+  saveCurveHandles();for(const c of measuredCurves)updateCurveRows(c);redrawTapes();syncCurveState();
 }
 
 /* A strap over the shoulder ("straps" in contracts/measurement-levels.json): a
@@ -329,7 +458,7 @@ function renderTickRow(tick,tbody){
 
 /* A centre-back or centre-front line ("lines" in contracts/measurement-levels.json):
    its length down the back (up the front) along the skin; the straight chord is
-   on hover. */
+   on hover. A dot on it follows it, in a row of its own. */
 function renderLineRow(line,tbody){
   const den=registry.reporting.inch_denominator;
   const tr=document.createElement('tr');
@@ -348,7 +477,9 @@ function renderLineRow(line,tbody){
   tr.innerHTML=`<td>${label}</td><td class="val">${CM(line.length_m)}</td><td class="in">${inchFraction(line.length_m,den)}</td>`;
   selectableTape(tr,tbody);
   tbody.appendChild(tr);
-  measureRowData.push({label,path:line.points});
+  lineRowEls[line.id]={index:measureRowData.length};
+  measureRowData.push({label,path:line.points,line:line.id});
+  for(const point of measuredPoints.filter(p=>p.line===line.id))renderLinePointRow(point,tbody);
 }
 
 /* A reference shape declared on a tape level (contracts/measurement-levels.json

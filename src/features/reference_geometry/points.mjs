@@ -1,25 +1,47 @@
-/* --- points offset from a landmark -------------------------------------------------
-   A point found the way a tape finds it on a form: from a registry landmark on
-   each side (the wing top, say), `up_in` straight up the skin -- the upright
-   cut through the landmark square to the body's side, x along the side and y
-   up -- and then `forward_in` toward the front along the level section at the
-   height reached. Both distances are on the skin. -------------------------------- */
+/* --- points on the skin ----------------------------------------------------------
+   Two kinds. An "offset_on_skin" point is found the way a tape finds it on a
+   form: from a registry landmark on each side (the wing top, say), `up_in`
+   straight up the skin -- the upright cut through the landmark square to the
+   body's side, x along the side and y up -- and then `forward_in` toward the
+   front along the level section at the height reached. Both distances are on
+   the skin, and there is one point per side.
+   An "on_line" point is a dot on one of the lines (the CF line, say), `up_in`
+   up it from its lower end, along the skin: what a tape laid up the line from
+   that end reads. It stays on the line, and a line runs on the centre plane,
+   so there is one dot, not a pair.
+   An "on_curve" point is a dot on each side's run of a curve (the cup armhole,
+   say), `along_in` along it from one of its ends (`end`: "from" or "to"). It
+   rides on the curve: whenever the curve is reshaped it is measured again, the
+   same distance along. A curve is measured after the points it passes through,
+   so these are measured once the curves are (measureCurvePoints). ------------------ */
 
 import { sectionSegments } from '../../core/measure_core.mjs';
+import { nearestOnPolyline } from '../../core/pen_snap.mjs';
 import { uprightSegments, walkContour, byLength, byCoordinate, polylineLength } from './contour.mjs';
 import { METRES_PER_INCH } from './units.mjs';
 
 /** Validate the contract's `points`. Returns the valid points. */
 export function validatePoints(contract, { errors, heightIds, shapeIds, lines, ticks, straps, known }) {
-  // Points on the skin, an offset up and then forward from a registry landmark, one per side.
+  // Points on the skin: an offset up and then forward from a registry landmark,
+  // one per side, or a dot some way up a line.
   const points = [];
   const taken = (id) => heightIds.has(id) || shapeIds.has(id) || [lines, ticks, straps, points].some((list) => list.some((x) => x.id === id));
   for (const point of contract?.points || []) {
     const problems = [];
     if (!point.id || taken(point.id)) problems.push('missing or duplicate id');
-    if (point.kind !== 'offset_on_skin') problems.push(`unknown kind ${point.kind}`);
-    for (const side of ['L', 'R']) if (!known.has(`${point.from?.landmark}_${side}`)) problems.push(`from ${point.from?.landmark}_${side} is not a registry landmark`);
-    for (const key of ['up_in', 'forward_in']) if (!Number.isFinite(point[key])) problems.push(`${key} must be a number of inches`);
+    if (point.kind === 'offset_on_skin') {
+      for (const side of ['L', 'R']) if (!known.has(`${point.from?.landmark}_${side}`)) problems.push(`from ${point.from?.landmark}_${side} is not a registry landmark`);
+      for (const key of ['up_in', 'forward_in']) if (!Number.isFinite(point[key])) problems.push(`${key} must be a number of inches`);
+    } else if (point.kind === 'on_line') {
+      if (!lines.some((l) => l.id === point.line)) problems.push(`line ${point.line} is not a valid line`);
+      if (!Number.isFinite(point.up_in) || point.up_in < 0) problems.push('up_in must be a number of inches, 0 or more, up the line from its lower end');
+    } else if (point.kind === 'on_curve') {
+      // curves are validated after the points (they may pass through one), so this names a declared curve;
+      // one that does not validate leaves the dot blocked when it is measured
+      if (!(contract?.curves || []).some((c) => c.id === point.curve)) problems.push(`curve ${point.curve} is not a declared curve`);
+      if (!['from', 'to'].includes(point.end)) problems.push(`end ${point.end} is not from or to (the end of the curve it is measured from)`);
+      if (!Number.isFinite(point.along_in) || point.along_in < 0) problems.push('along_in must be a number of inches, 0 or more, along the curve from that end');
+    } else problems.push(`unknown kind ${point.kind}`);
     if (!/^#[0-9a-f]{6}$/i.test(point.colour || '')) problems.push('colour must be #rrggbb');
     if (typeof point.label !== 'string' || !point.label) problems.push('label must be a string');
     if (problems.length) errors.push(`${point.id || '?'}: ${problems.join('; ')}`);
@@ -112,7 +134,92 @@ export function pointOffsets(point, side, q, landmarks, tri) {
   return { up_in: up / METRES_PER_INCH, forward_in: forward / METRES_PER_INCH };
 }
 
-/** Every declared point. */
-export function measurePoints(loaded, landmarks, tri, offsets = {}) {
-  return (loaded.points || []).map((point) => measurePoint(point, landmarks, tri, offsets[point.id] || null));
+// A line's points run top first; a dot on it is measured up from the lower end.
+const upward = (line) => line.points.slice().reverse();
+const gap = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+// The point `distance` along a polyline from its first point (its last point, past the end).
+function pointAlong(path, distance) {
+  let walked = 0;
+  for (let i = 1; i < path.length; i++) {
+    const step = gap(path[i], path[i - 1]);
+    if (walked + step >= distance) {
+      const t = step > 0 ? (distance - walked) / step : 0;
+      return path[i - 1].map((v, k) => v + (path[i][k] - v) * t);
+    }
+    walked += step;
+  }
+  return path[path.length - 1].slice();
+}
+
+/** An "on_line" point on its measured `line`. `offsets` ({ up_in }) overrides
+ *  the contract's (a dot dragged in the viewer). The dot is where a tape laid
+ *  up the line from its lower end reads `up_in`; past either end it is blocked,
+ *  not moved to the end. */
+export function measureLinePoint(point, line, offsets = null) {
+  if (!line || line.blocked) return { ...point, blocked: `needs ${point.line}`, at: null };
+  const upIn = offsets?.up_in ?? point.up_in;
+  const up = upIn * METRES_PER_INCH;
+  if (!(up >= 0) || up > line.length_m + 1e-9) {
+    return { ...point, blocked: `${+Number(upIn).toFixed(3)}in up is past the ends of ${line.id} (${(line.length_m / METRES_PER_INCH).toFixed(2)}in long)`, at: null };
+  }
+  return {
+    ...point, up_in: upIn, moved: Boolean(offsets), blocked: null,
+    at: pointAlong(upward(line), up), up_m: up, down_m: Math.max(0, line.length_m - up), line_length_m: line.length_m,
+  };
+}
+
+/** The inverse, for a dot dragged to `q`: the { up_in } of the point of the
+ *  line nearest q, so a place beside the line (or past an end) slides to the
+ *  line (or stops at that end). */
+export function linePointOffsets(line, q) {
+  if (!line || line.blocked || !Array.isArray(q)) return null;
+  const path = upward(line);
+  const near = nearestOnPolyline(path, q);
+  if (!near) return null;
+  let up = 0;
+  for (let i = 1; i <= near.index; i++) up += gap(path[i], path[i - 1]);
+  if (near.index + 1 < path.length) up += near.t * gap(path[near.index + 1], path[near.index]);
+  return { up_in: Math.min(up, line.length_m) / METRES_PER_INCH };
+}
+
+/** An "on_curve" point on its measured `curve`: on each side, `along_in`
+ *  along the run from the curve's `end`, on the skin, with how far on the run
+ *  goes (`rest_m`) and, for a curve through a point, how far on that point is
+ *  (`to_through_m`, negative if the dot is past it). Past the other end it is
+ *  blocked. */
+export function measureCurvePoint(point, curve) {
+  if (!curve || curve.blocked || !curve.runs?.length) return { ...point, blocked: `needs ${point.curve}`, marks: [] };
+  const along = point.along_in * METRES_PER_INCH;
+  const marks = [];
+  for (const run of curve.runs) {
+    const path = point.end === 'to' ? run.points.slice().reverse() : run.points;
+    const length = polylineLength(path);
+    if (along > length + 1e-9) {
+      return { ...point, blocked: `${point.along_in}in along is past the other end of ${point.curve} (${(length / METRES_PER_INCH).toFixed(2)}in on the ${run.side} side)`, marks: [] };
+    }
+    const legs = run.leg_lengths_m;
+    marks.push({
+      side: run.side, point: pointAlong(path, along), along_m: along, rest_m: Math.max(0, length - along),
+      ...(legs ? { to_through_m: (point.end === 'to' ? legs[1] : legs[0]) - along } : {}),
+    });
+  }
+  return { ...point, blocked: null, marks };
+}
+
+/** Every declared point; `lines` are the measured lines (measureLines), for a
+ *  dot on one, and `curves` the measured curves (measureCurves), for a dot on
+ *  one. Curves are measured after the points they pass through, so a dot on a
+ *  curve reads `needs …` here until measureCurvePoints places it. */
+export function measurePoints(loaded, landmarks, tri, offsets = {}, lines = [], curves = []) {
+  return (loaded.points || []).map((point) => (point.kind === 'on_line'
+    ? measureLinePoint(point, lines.find((l) => l.id === point.line), offsets[point.id] || null)
+    : point.kind === 'on_curve' ? measureCurvePoint(point, curves.find((c) => c.id === point.curve))
+      : measurePoint(point, landmarks, tri, offsets[point.id] || null)));
+}
+
+/** The measured `points` with each dot on a curve placed on the measured
+ *  `curves`, again: after the curves are measured, or one is reshaped. */
+export function measureCurvePoints(points, curves) {
+  return points.map((p) => (p.kind === 'on_curve' ? measureCurvePoint(p, curves.find((c) => c.id === p.curve)) : p));
 }
