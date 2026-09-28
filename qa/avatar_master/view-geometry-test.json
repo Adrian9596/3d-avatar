@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T12:31:01Z",
+  "generated_at": "2026-09-28T00:59:20Z",
   "purpose": "The maths behind the grazing guard, the F key and the turntable, against analytic answers.",
   "module": {
-    "file": "scripts/view_geometry.mjs",
+    "file": "src/core/view_geometry.mjs",
     "sha256": "f45080f8adc40c36be1b89d6839a5851e0674761aca1b153c653594c70aee7b2"
   },
   "viewer_framing": {

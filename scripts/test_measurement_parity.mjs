@@ -2,7 +2,7 @@
 /**
  * Cross-implementation parity gate.
  *
- * The viewer measures in JavaScript (scripts/measure_core.mjs); the authority
+ * The viewer measures in JavaScript (src/core/measure_core.mjs); the authority
  * pass measures in Python (scripts/measure_avatar.py). Two independent
  * implementations are only an asset if their agreement is enforced, so this
  * test runs the JS engine over the same GLB and fails the build when any POM or
@@ -21,7 +21,7 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { trianglesByMaterial } from './glb_reader.mjs';
-import { buildGrid } from './surface_path.mjs';
+import { buildGrid } from '../src/core/surface_path.mjs';
 import {
   DEFAULT_SCAN,
   scanSurface,
@@ -32,7 +32,7 @@ import {
   findWingLandmarks,
   findFoldLandmarks,
   applyLandmarkOverrides,
-} from './measure_core.mjs';
+} from '../src/core/measure_core.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY_PATH = join(ROOT, 'contracts', 'measurement-registry.json');

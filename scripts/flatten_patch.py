@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""From a drawn loop to a patch — port of scripts/flatten_patch.mjs.
+"""From a drawn loop to a patch — port of src/core/flatten/flatten_patch.mjs.
 
 Sampling the loop onto the mesh, flood-filling its inside, chord constraints,
 cutting an outline into two panels along a seam."""

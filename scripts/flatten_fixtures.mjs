@@ -13,8 +13,8 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { trianglesByMaterial } from './glb_reader.mjs';
-import { buildGrid, closestOnMesh } from './surface_path.mjs';
-import { weld, geodesicDisc, extractPatch, submesh, loopChords, splitLoopBySeam, loopCentroidSeed } from './flatten_core.mjs';
+import { buildGrid, closestOnMesh } from '../src/core/surface_path.mjs';
+import { weld, geodesicDisc, extractPatch, submesh, loopChords, splitLoopBySeam, loopCentroidSeed } from '../src/core/flatten/flatten_core.mjs';
 
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 

@@ -7,7 +7,7 @@ import {
   REQUIRED_MORPHS,
   validateAnimationContract,
   validateMorphContract,
-} from "./avatar_contracts.mjs";
+} from "../src/features/avatar/avatar_contracts.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const exportReportPath = path.join(root, "qa/avatar_master/prototype-export-report.json");

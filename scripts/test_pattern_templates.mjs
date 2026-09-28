@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Gate for contracts/pattern-templates.json and scripts/pattern_templates.mjs —
+ * Gate for contracts/pattern-templates.json and src/features/pattern/pattern_templates.mjs —
  * template drafts as proposals.
  *
  * What it proves, against a DECLARED SYNTHETIC landmark set
@@ -24,8 +24,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGate, sha256File, sha256Bytes } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
-import { draftPieces, flattenDraft, draftSummary, draftExport, asciiPieceName, SEAM_TOLERANCE_MM } from './pattern_draft.mjs';
-import { loadTemplates, resolveTemplate, templatesFor, templateRecord, templateAnnotation, templatePolyline, TEMPLATE_LIMIT } from './pattern_templates.mjs';
+import { draftPieces, flattenDraft, draftSummary, draftExport, asciiPieceName, SEAM_TOLERANCE_MM } from '../src/features/pattern/pattern_draft.mjs';
+import { loadTemplates, resolveTemplate, templatesFor, templateRecord, templateAnnotation, templatePolyline, TEMPLATE_LIMIT } from '../src/features/pattern/pattern_templates.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTRACT = join(ROOT, 'contracts', 'pattern-templates.json');

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Gate for contracts/body-grid.json and scripts/body_grid.mjs — the vertical
+ * Gate for contracts/body-grid.json and src/features/body_grid/body_grid.mjs — the vertical
  * half of the reference frame.
  *
  * The claim being gated is not "these curves are in the right place" (a curve
@@ -43,9 +43,9 @@ import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
-import { sectionSegments, segmentPoints } from './measure_core.mjs';
-import { DEFAULT_WELD_QUANTUM } from './flatten_mesh.mjs';
-import { loadGrid, sampleCurves, sampleBoundaries, gridRecord, GRID_LIMIT } from './body_grid.mjs';
+import { sectionSegments, segmentPoints } from '../src/core/measure_core.mjs';
+import { DEFAULT_WELD_QUANTUM } from '../src/core/flatten/flatten_mesh.mjs';
+import { loadGrid, sampleCurves, sampleBoundaries, gridRecord, GRID_LIMIT } from '../src/features/body_grid/body_grid.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTRACT = join(ROOT, 'contracts', 'body-grid.json');

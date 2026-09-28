@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Gate for scripts/landmark_placement.mjs — the logic behind placing a landmark
+ * Gate for src/features/landmarks/landmark_placement.mjs — the logic behind placing a landmark
  * by hand in the authoring lane.
  *
  * What it proves: the guided order covers exactly the registry's manual-only
@@ -19,11 +19,11 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
-import { DEFAULT_POLAR_LIMITS } from './view_geometry.mjs';
+import { DEFAULT_POLAR_LIMITS } from '../src/core/view_geometry.mjs';
 import {
   GUIDED_ORDER, PLACEMENT_NOTE_MM_PX, sideOf, oppositeOf, nextNeeded, framingFor, poseFor,
   mirrorOffer, landmarkRecord, placementRecord, placementNotes,
-} from './landmark_placement.mjs';
+} from '../src/features/landmarks/landmark_placement.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = join(ROOT, 'qa', 'avatar_master', 'landmark-placement-test.json');
@@ -95,7 +95,7 @@ gate.finish({
   reportPath: REPORT, relativeTo: ROOT, okDecision: 'PLACEMENT_LOGIC_OK',
   body: {
     purpose: 'The logic behind hand placement in the authoring lane: guided order, framing per landmark, the mirror offer, and the record a placed point carries.',
-    module: { file: 'scripts/landmark_placement.mjs', sha256: sha256File(join(ROOT, 'scripts', 'landmark_placement.mjs')) },
+    module: { file: 'src/features/landmarks/landmark_placement.mjs', sha256: sha256File(join(ROOT, 'src', 'features', 'landmarks', 'landmark_placement.mjs')) },
     asset: { file: 'assets/export/avatar_master.glb', sha256: ctx.assetSha },
     guided_order: GUIDED_ORDER,
     framings: framings.map((f, i) => ({ id: f.id, target_m: f.framing.target.map((v) => Number(v.toFixed(4))), distance_m: f.framing.distance_m, target_to_skin_mm: offBody[i].target_to_skin_mm })),

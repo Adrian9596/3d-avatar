@@ -3,9 +3,9 @@ import { Line2 } from "three/addons/lines/Line2.js";
 import { LineGeometry } from "three/addons/lines/LineGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 
-import { buildGrid, surfaceRun, pointAtFraction, closestOnMesh } from "./surface_path.mjs";
-import { placement, poseFacing } from "./view_geometry.mjs";
-import { resolveSnap, nearestOnPolyline, levelCandidate, mirrorCandidate, mirrorPoints, snapRecord, SNAP_RADIUS_PX } from "./pen_snap.mjs";
+import { buildGrid, surfaceRun, pointAtFraction, closestOnMesh } from "../../core/surface_path.mjs";
+import { placement, poseFacing } from "../../core/view_geometry.mjs";
+import { resolveSnap, nearestOnPolyline, levelCandidate, mirrorCandidate, mirrorPoints, snapRecord, SNAP_RADIUS_PX } from "../../core/pen_snap.mjs";
 
 /**
  * The pen: drafting measured lines on a body, the way a pattern is drafted on a
@@ -14,10 +14,10 @@ import { resolveSnap, nearestOnPolyline, levelCandidate, mirrorCandidate, mirror
  * re-centre it or an anchor to delete it. Dragging empty skin ORBITS — the pen
  * claims the pointer only when it lands on a pin, so the body is turned without
  * leaving the tool (AUTHORING_UX_PLAN.md §5.1); a touch long-press is the
- * right-click. Keys are the host's: it dispatches scripts/keymap.mjs bindings to
+ * right-click. Keys are the host's: it dispatches src/ui/keymap.mjs bindings to
  * the actions exposed below, so the map is the one source of what a key means.
  *
- * Snapping (scripts/pen_snap.mjs) moves an anchor onto what it should meet —
+ * Snapping (src/core/pen_snap.mjs) moves an anchor onto what it should meet —
  * the first anchor, another line's anchor or run, a landmark the host supplies,
  * the previous anchor's height while Shift is held, the mirror of the previous
  * anchor while Alt is held — and records the snap and its residual on the
@@ -27,7 +27,7 @@ import { resolveSnap, nearestOnPolyline, levelCandidate, mirrorCandidate, mirror
  *
  * Every anchor records how well it was placed — camera distance, incidence
  * angle, what one pixel was worth on the skin there (`placed_with`, via
- * scripts/view_geometry.mjs) — because a point pinned at 80° from 1.6 m is a
+ * src/core/view_geometry.mjs) — because a point pinned at 80° from 1.6 m is a
  * different kind of number from one pinned facing at 0.35 m, and the evidence
  * should be able to tell them apart.
  *
@@ -39,7 +39,7 @@ import { resolveSnap, nearestOnPolyline, levelCandidate, mirrorCandidate, mirror
  * `onChange` and `getLabels()`.
  *
  * Every run between two points is the shortest path along the surface
- * (scripts/surface_path.mjs) and nothing else — the one path model, chosen
+ * (src/core/surface_path.mjs) and nothing else — the one path model, chosen
  * because a sub-path of a shortest path is itself a shortest path, which is what
  * stops a reading from jumping when a segment gains control points.
  */

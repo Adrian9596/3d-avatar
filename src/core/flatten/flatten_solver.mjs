@@ -1,7 +1,7 @@
 /**
  * The flattening solver: hinge-unfolding start, then the seam-exact Jacobi
  * relaxation with fold-over guard, rigid-drift removal and Chebyshev
- * acceleration. One start, one objective — scripts/flatten_core.mjs explains
+ * acceleration. One start, one objective — src/core/flatten/flatten_core.mjs explains
  * why. Port: scripts/flatten_solver.py; the parity gate compares the two to a
  * micrometre, so every arithmetic step here is mirrored there in the same order.
  */

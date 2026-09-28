@@ -32,7 +32,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "contracts" / "measurement-registry.json"
 EVIDENCE_PATH = ROOT / "qa" / "avatar_master" / "measurements.json"
-PLACEMENT_NOTE_MM_PX = 3   # AUTHORING_UX_PLAN.md §7.2; the same figure scripts/landmark_placement.mjs uses
+PLACEMENT_NOTE_MM_PX = 3   # AUTHORING_UX_PLAN.md §7.2; the same figure src/features/landmarks/landmark_placement.mjs uses
 CSV_PATH = ROOT / "qa" / "avatar_master" / "pom-sheet.csv"
 JSON_PATH = ROOT / "qa" / "avatar_master" / "pom-sheet.json"
 

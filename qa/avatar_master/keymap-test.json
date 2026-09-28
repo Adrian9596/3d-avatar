@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T12:31:01Z",
+  "generated_at": "2026-09-28T00:59:20Z",
   "purpose": "One keyboard map: conflict-free, browser-safe, and the doc regenerated from it.",
   "module": {
-    "file": "scripts/keymap.mjs",
+    "file": "src/ui/keymap.mjs",
     "sha256": "0108ab3c3c5a174f2b43e8a3d5a502fd6db67118e2a249fa852223236f1c8c46"
   },
   "keymap_sha256": "ca4699c59e0b17da17ad3c837d244b5b701af1dd371c90976120d795a76b4428",

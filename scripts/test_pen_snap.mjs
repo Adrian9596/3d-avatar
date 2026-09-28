@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Gate for scripts/pen_snap.mjs — where a pen anchor goes when a click lands
+ * Gate for src/core/pen_snap.mjs — where a pen anchor goes when a click lands
  * near something it should meet.
  *
  * What it proves: the nearest candidate within the pick radius wins and priority
@@ -17,13 +17,13 @@
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGate, sha256File, mm } from './gate_report.mjs';
-import { buildGrid, closestOnMesh } from './surface_path.mjs';
-import { sectionSegments, segmentPoints } from './measure_core.mjs';
+import { buildGrid, closestOnMesh } from '../src/core/surface_path.mjs';
+import { sectionSegments, segmentPoints } from '../src/core/measure_core.mjs';
 import { cylinderSoup, loadAvatarContext } from './flatten_fixtures.mjs';
 import {
   resolveSnap, nearestOnPolyline, levelCandidate, mirrorCandidate, mirrorPoints, snapRecord,
   SNAP_RADIUS_PX, SNAP_PRIORITY, MIRROR_FLAG_MM,
-} from './pen_snap.mjs';
+} from '../src/core/pen_snap.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = join(ROOT, 'qa', 'avatar_master', 'pen-snap-test.json');
@@ -96,7 +96,7 @@ gate.finish({
   reportPath: REPORT, relativeTo: ROOT, okDecision: 'SNAP_RESOLVES',
   body: {
     purpose: 'Where a pen anchor goes when a click lands near something it should meet: nearest within the radius, priority on ties, held constraints first; level and mirror on the skin with residuals recorded.',
-    module: { file: 'scripts/pen_snap.mjs', sha256: sha256File(join(ROOT, 'scripts', 'pen_snap.mjs')) },
+    module: { file: 'src/core/pen_snap.mjs', sha256: sha256File(join(ROOT, 'src', 'core', 'pen_snap.mjs')) },
     asset: { file: 'assets/export/avatar_master.glb', sha256: ctx.assetSha },
     radius_px: SNAP_RADIUS_PX, priority: SNAP_PRIORITY, mirror_flag_mm: MIRROR_FLAG_MM,
     avatar: {

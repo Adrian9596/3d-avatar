@@ -48,7 +48,7 @@
 
 ## Consumer obligations
 
-- Viewers must not claim morph or rig capability this asset doesn't have — show a blocked state instead (see `scripts/avatar_contracts.mjs` for the pattern).
+- Viewers must not claim morph or rig capability this asset doesn't have — show a blocked state instead (see `src/features/avatar/avatar_contracts.mjs` for the pattern).
 - Treat `assets/source/avatar_master.blend` as the editable source; the GLB is a derived export. To rebuild from the refined source, run `scripts/build_refined_l_avatar.py` (usage in its docstring); it rewrites the `.blend`, the GLB and `qa/avatar_master/prototype-export-report.json`.
 - Render with a neutral tone mapper (the app uses `THREE.NeutralToneMapping` plus a `RoomEnvironment` IBL). ACES Filmic desaturates this skin tone to a flat off-white.
 - After any re-export: update the SHA-256 in `digital_bra_fit_model_360.html`, run `npm run measure:avatar`, regenerate the pattern-template fixture with `node scripts/build_pattern_template_fixture.mjs` (it is pinned to the asset), run `npm run validate:measurements`, `npm run export:pom-sheet` and `npm run validate:gltf -- assets/export/avatar_master.glb qa/avatar_master/gltf-validator-report.json` (required: zero errors).

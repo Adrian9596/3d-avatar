@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-27T12:30:58Z",
+  "generated_at": "2026-09-28T00:59:18Z",
   "purpose": "Agreement between the JavaScript flattening engine and its independent Python port on the same patches.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
@@ -11,7 +11,7 @@
     "sha256": "a1a8e4e76738637ed5bc5f53e0fb167387f394816cc17a5ecac43a8451b312a1"
   },
   "engines": {
-    "javascript": "scripts/flatten_core.mjs",
+    "javascript": "src/core/flatten/flatten_core.mjs",
     "python": "scripts/flatten.py"
   },
   "tolerance_mm": 0.001,

@@ -5,7 +5,7 @@
 Status: **Phases 1–4 implemented** — engine, loop-as-seam, joint multi-panel solve, ASTM/Gerber DXF export, four gates, and the pen-tool UI in the authoring lane. Ease/grading (§11) remains deliberately out of scope. No
 shape produced here is an approved pattern, and nothing is wired into either viewer lane
 yet. §4–§7 record what a numerical spike found on a real patch of `avatar_master.glb`;
-§8–§10 describe what was then built from it — `scripts/flatten_core.mjs`, its independent
+§8–§10 describe what was then built from it — `src/core/flatten/flatten_core.mjs`, its independent
 port `scripts/flatten.py`, and the two gates whose evidence sits in
 `qa/avatar_master/flatten-accuracy.json` and `flatten-parity.json`, both pinned to the
 asset SHA below and to the SHA of the shared case list `scripts/flatten_cases.json`.
@@ -73,7 +73,7 @@ millimetres.
 
 From `digital_bra_fit_model_360.html`'s pen tool, already implemented and in production use:
 
-- A shortest-surface-path engine (`scripts/surface_path.mjs`), which is exactly the object a
+- A shortest-surface-path engine (`src/core/surface_path.mjs`), which is exactly the object a
   pattern seam should be: geodesic, camera-independent, and — critically — its sub-paths are
   themselves shortest paths, so a length does not jump when a segment gains control points.
 - Closed draft loops (`line.closed`), hand-correctable control points, and a length that is
@@ -214,7 +214,7 @@ without the two viewer lanes silently diverging": one shared engine, one indepen
 one parity gate. The same shape applies here.
 
 ```
-scripts/flatten_core.mjs       — barrel: the one import the lanes and gates use
+src/core/flatten/flatten_core.mjs       — barrel: the one import the lanes and gates use
   flatten_mesh.mjs             — weld, edges, face adjacency, edge geodesics, sub-meshes,
                                  boundary loops/components
   flatten_patch.mjs            — loop → samples (canonical resampling), flood fill,
@@ -228,11 +228,11 @@ scripts/flatten_{mesh,patch,solver,report}.py
 scripts/flatten_fixtures.{mjs,py} — the test patches, built identically on both sides
 scripts/flatten.py             — Python CLI the parity gate runs
 scripts/flatten_cases.json     — the one list of patches both engines are tested on
-scripts/pattern_draft.mjs      — pen lines → pieces → reports → DXF + evidence (no DOM);
+src/features/pattern/pattern_draft.mjs      — pen lines → pieces → reports → DXF + evidence (no DOM);
                                  what the authoring lane's pattern block calls
-scripts/dxf_pieces.mjs         — flattened piece → DXF record (outline, turn points,
+src/features/pattern/dxf_pieces.mjs         — flattened piece → DXF record (outline, turn points,
                                  default grain, annotation)
-scripts/dxf_writer.mjs         — ASTM D6673-10 / Gerber-dialect serializer
+src/features/pattern/dxf_writer.mjs         — ASTM D6673-10 / Gerber-dialect serializer
 scripts/gate_report.mjs        — shared plumbing of the flatten-family gates
 ```
 
@@ -323,11 +323,11 @@ construction rather than by coincidence.
 
 ### 8.3 Export (built)
 
-`scripts/dxf_pieces.mjs` turns a flattened piece into a record — outline (the loop's image
+`src/features/pattern/dxf_pieces.mjs` turns a flattened piece into a record — outline (the loop's image
 for a loop-cut piece, the ordered boundary for a face-set piece, counter-clockwise, in mm),
 turn points where the outline turns more than 30°, a default grain line (the flat image of
 the body's vertical through the face nearest the piece centre) and annotation stating what
-the piece is not — and `scripts/dxf_writer.mjs` serialises it. The writer refuses (throws)
+the piece is not — and `src/features/pattern/dxf_writer.mjs` serialises it. The writer refuses (throws)
 rather than truncating: names over Gerber's 20 characters, non-ASCII text, an outline that
 repeats its first point, a piece without a grain line. Seam allowance and notches remain out
 of scope (§2); when a boundary *with* allowance is drawn, the net line moves to layer 14.

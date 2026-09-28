@@ -1,5 +1,5 @@
 /**
- * From a flattened piece to the record scripts/dxf_writer.mjs serializes:
+ * From a flattened piece to the record src/features/pattern/dxf_writer.mjs serializes:
  * the outline, which vertices are corners, a default grain line, and the
  * annotation that keeps the piece honest about what it is.
  *
@@ -8,7 +8,7 @@
  * here in millimetres.
  */
 
-import { boundaryLoops, mapLoopToFlat } from './flatten_core.mjs';
+import { boundaryLoops, mapLoopToFlat } from '../../core/flatten/flatten_core.mjs';
 
 export const TURN_ANGLE_DEG = 30;   // a vertex turning more than this is a corner (layer 2)
 

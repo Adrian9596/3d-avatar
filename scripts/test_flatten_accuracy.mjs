@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Accuracy gate for the flattening engine (scripts/flatten_core.mjs).
+ * Accuracy gate for the flattening engine (src/core/flatten/flatten_core.mjs).
  *
  * 1. ANALYTIC, on surfaces that unroll with no distortion at all. A cylinder
  *    patch is a rectangle of width (chord sum) x height; a cone frustum is a fan
@@ -30,7 +30,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { flattenPatch, flattenPieces, patchStats, chordReport, mapLoopToFlat, edgeList } from './flatten_core.mjs';
+import { flattenPatch, flattenPieces, patchStats, chordReport, mapLoopToFlat, edgeList } from '../src/core/flatten/flatten_core.mjs';
 import { loadAvatarContext, resolveCase } from './flatten_fixtures.mjs';
 import { createGate, sha256File as sha256, mm } from './gate_report.mjs';
 
@@ -250,7 +250,7 @@ finish({ reportPath: REPORT_PATH, relativeTo: ROOT, okDecision: 'FLATTEN_OK', li
   purpose: 'Accuracy of the flattening engine against analytic developable surfaces, and soundness on patches of the avatar.',
   asset: { file: 'assets/export/avatar_master.glb', sha256: ctx.assetSha },
   cases: { file: relative(ROOT, CASES_PATH), sha256: sha256(CASES_PATH) },
-  engine: 'scripts/flatten_core.mjs',
+  engine: 'src/core/flatten/flatten_core.mjs',
   solver,
   budgets: { developable_edge_um: DEVELOPABLE_EDGE_BUDGET_M * 1e6, developable_angle_rad: DEVELOPABLE_ANGLE_BUDGET_RAD, leak_slack_edges: LEAK_SLACK_EDGES },
   mesh: { vertices: ctx.mesh.positions.length / 3, faces: ctx.mesh.faces.length / 3, max_edge_mm: mm(meshMaxEdge), materials: ctx.materials },

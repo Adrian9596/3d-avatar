@@ -5,7 +5,7 @@
  *
  * The one-cup loop is cut through the apex into two panels (scripts/
  * flatten_cases.json, case apex_panels_75mm) and the two are flattened TOGETHER
- * (scripts/flatten_core.mjs flattenPieces), with every chord of the shared seam
+ * (src/core/flatten/flatten_core.mjs flattenPieces), with every chord of the shared seam
  * pulled towards a common length in both pieces. This gate then measures the
  * shared seam in each flat piece and budgets the difference against the
  * conventional bra-seam tolerance of 1/8 in.
@@ -21,12 +21,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { flattenPieces, patchStats, chordReport } from './flatten_core.mjs';
+import { flattenPieces, patchStats, chordReport } from '../src/core/flatten/flatten_core.mjs';
 import { loadAvatarContext, resolveCase } from './flatten_fixtures.mjs';
 import { createGate, sha256File as sha256, mm } from './gate_report.mjs';
 // 1/8 in, the tolerance a bra seam is conventionally held to — one definition,
 // shared with the viewer's pattern block; a factory reference pending TD confirmation.
-import { SEAM_TOLERANCE_MM } from './pattern_draft.mjs';
+import { SEAM_TOLERANCE_MM } from '../src/features/pattern/pattern_draft.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CASES_PATH = process.argv[2] ? join(process.cwd(), process.argv[2]) : join(ROOT, 'scripts', 'flatten_cases.json');
@@ -101,7 +101,7 @@ finish({ reportPath: REPORT_PATH, relativeTo: ROOT, okDecision: 'SEAMS_CLOSE', b
   purpose: 'Two pattern pieces flattened together must agree on the length of the seam they share.',
   asset: { file: 'assets/export/avatar_master.glb', sha256: ctx.assetSha },
   cases: { file: relative(ROOT, CASES_PATH), sha256: sha256(CASES_PATH) },
-  engine: 'scripts/flatten_core.mjs',
+  engine: 'src/core/flatten/flatten_core.mjs',
   solver: cases.solver,
   tolerance_mm: SEAM_TOLERANCE_MM,
   tolerance_basis: '1/8 in, the conventional bra-seam tolerance; a factory reference pending TD confirmation',

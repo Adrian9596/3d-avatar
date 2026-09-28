@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mesh topology for the flattening engine — port of scripts/flatten_mesh.mjs.
+"""Mesh topology for the flattening engine — port of src/core/flatten/flatten_mesh.mjs.
 
 Welding, edges, face adjacency, edge-graph geodesics, sub-meshes, boundary
 structure. Standard library only, like every project-side validator."""

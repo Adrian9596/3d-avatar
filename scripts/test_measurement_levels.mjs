@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Gate for contracts/measurement-levels.json and scripts/measurement_levels.mjs —
+ * Gate for contracts/measurement-levels.json and src/features/reference_geometry/ —
  * the house "how to measure" stack drawn on this avatar.
  *
  * Two separate claims are gated, because they can fail independently.
@@ -34,11 +34,11 @@ import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
-import { measureSection } from './measure_core.mjs';
+import { measureSection } from '../src/core/measure_core.mjs';
 import {
   loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, measurePoint, measurePoints, pointOffsets, levelsRecord, outOfRange, sectionChains,
   METRES_PER_INCH, LEVELS_LIMIT,
-} from './measurement_levels.mjs';
+} from '../src/features/reference_geometry/index.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTRACT = join(ROOT, 'contracts', 'measurement-levels.json');

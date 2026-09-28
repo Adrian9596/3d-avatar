@@ -3,7 +3,7 @@
  * DXF round-trip gate for the pattern-draft export.
  *
  * Writes the flattened cup panels (scripts/flatten_cases.json, apex_panels_75mm)
- * as an ASTM D6673-10 DXF in Gerber's dialect (scripts/dxf_writer.mjs), then
+ * as an ASTM D6673-10 DXF in Gerber's dialect (src/features/pattern/dxf_writer.mjs), then
  * reads the file back with an INDEPENDENT parser written here — a different
  * author of the same rules, so a writer that misremembers the layout is caught
  * rather than confirmed — and checks:
@@ -33,10 +33,10 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { flattenPieces, chordReport } from './flatten_core.mjs';
+import { flattenPieces, chordReport } from '../src/core/flatten/flatten_core.mjs';
 import { loadAvatarContext, resolveCase } from './flatten_fixtures.mjs';
-import { writeAstmDxf, ASTM_LAYERS, NAME_LIMIT } from './dxf_writer.mjs';
-import { dxfPiece } from './dxf_pieces.mjs';
+import { writeAstmDxf, ASTM_LAYERS, NAME_LIMIT } from '../src/features/pattern/dxf_writer.mjs';
+import { dxfPiece } from '../src/features/pattern/dxf_pieces.mjs';
 import { createGate, sha256Bytes as sha256 } from './gate_report.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
