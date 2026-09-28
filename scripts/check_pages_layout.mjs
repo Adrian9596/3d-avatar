@@ -10,7 +10,10 @@
  * publish a blank page -- and the failure would only appear after merge.
  *
  * The layout rules exist because the prototype is the landing page: getting
- * `/` and `/viewer/` the wrong way round is silent, not an error.
+ * `/` and `/viewer/` the wrong way round is silent, not an error. The site is
+ * exactly two pages -- the app at `/` and the 2D pattern workspace its 2D tab
+ * frames at `/pattern2d/` -- and it serves no DXF: the repo is public and
+ * carries code, never a pattern.
  *
  * Run by both the PR gates and the deploy workflow, so the build that gets
  * published is the build that was checked.
@@ -51,10 +54,12 @@ if (mjs.length) {
   );
 }
 
-// One app, served at the root. There was a second lane under /viewer/ until it
-// was merged into this one; nothing should publish there any more.
+// One app, served at the root, with the 2D pattern workspace its 2D tab frames
+// beside it. There was a second viewer lane under /viewer/ until it was merged
+// into the app; nothing should publish there any more.
 const required = [
   ['index.html', 'the app is the landing page'],
+  ['pattern2d/index.html', 'the 2D pattern workspace (the 2D tab loads it in an iframe)'],
   ['assets/export/avatar_master.glb', 'the GLB (a runtime string the bundler cannot see)'],
   ['contracts/measurement-registry.json', 'the registry (also fetched at runtime)'],
   ['contracts/pattern-templates.json', 'the template drafts (fetched at runtime)'],
@@ -70,6 +75,16 @@ for (const [path, why] of required) {
 if (existsSync(join(DIST, 'viewer'))) {
   problems.push('dist/viewer/ exists — the second lane was merged away; delete dist/ and rebuild');
 }
+
+// Exactly two pages: the app and the workspace. A third would be a page no tab leads to.
+const pages = files.map((f) => relative(DIST, f).split('\\').join('/')).filter((f) => f.endsWith('.html')).sort();
+const PAGES = ['index.html', 'pattern2d/index.html'];
+if (pages.join() !== PAGES.join()) problems.push(`the site's pages are ${pages.join(', ') || 'none'}, expected ${PAGES.join(', ')}`);
+
+// The site publishes code, never a pattern: no DXF of any kind is served (the
+// 2D workspace opens empty; the repo carries no pattern file for it).
+const dxf = files.filter((f) => /\.dxf$/i.test(f));
+if (dxf.length) problems.push(`${dxf.length} DXF file(s) would be published: ${dxf.map((f) => relative(DIST, f)).join(', ')}`);
 
 console.log(`checked ${files.length} file(s) in ${DIST}/`);
 if (problems.length) {

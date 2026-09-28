@@ -1,0 +1,11 @@
+.empty{position:absolute; inset:0; display:grid; place-items:center; color:var(--ink-3)}
+/* nothing open (open.md O1): a heading, the Open DXF control, the drop hint */
+.empty .emptybox{display:grid; justify-items:center; gap:8px}
+.empty b{color:var(--ink-2); font-weight:500}
+.empty .btn{color:var(--ink)}
+body.hot .stage{outline:2px dashed var(--accent); outline-offset:-8px}
+
+/* the unit badge: quiet when the file says mm, loud when it says nothing */
+.ubadge{font-size:11.5px; color:var(--ink-3); padding:2px 7px; border-radius:5px; border:1px solid var(--rule)}
+.ubadge:empty{display:none}
+.ubadge.warn{color:var(--l-notch); border-color:var(--l-notch)}

@@ -40,3 +40,18 @@ backups/
 # Local Claude Code session state (machine-specific paths, runtime locks)
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# The repo is public and carries code, never a pattern: no DXF but the 3D
+# export the dxf-roundtrip gate writes and the 2D workspace's synthetic engine
+# fixtures (a 2D export, <name>_edit.dxf, is often a factory pattern), and none
+# of the private 2D workspace's data folders. The workspace's tests read that
+# data from PATTERN2D_DATA, outside the repo. validate:pattern2d-rules checks
+# the same list over every file git would take.
+*.dxf
+*.DXF
+!qa/avatar_master/flatten-draft.dxf
+!pattern2d/tests/fixtures/engine/*.dxf
+pattern2d/output/
+pattern2d/DXF file/
+pattern2d/tests/fixtures/3380*
+pattern2d/tests/fixtures/cad_corpus.json

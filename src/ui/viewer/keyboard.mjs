@@ -17,6 +17,7 @@ import { sectionToggle } from './section.mjs';
 import { cameraGoal, camera, controls, setCameraGoal, setView } from './stage.mjs';
 import { tapeToggle } from './table.mjs';
 import { tipEl, tipBase } from './tip.mjs';
+import { activeTab } from '../tabs.mjs';
 
 const PLATFORM=detectPlatform();
 const keySheet=document.getElementById('keySheet');
@@ -94,6 +95,7 @@ const KEY_ACTIONS={
   'pattern.template':()=>clickIfEnabled('patternDraft'),'pattern.compare':()=>clickIfEnabled('patternCompare'),
 };
 window.addEventListener('keydown',event=>{
+  if(activeTab()!=='3d')return;   // 2D covers the view: its keys are its own, in its frame
   const contexts=activeContexts();
   const hasSelection=contexts.includes('landmarks')?Boolean(placingLandmark):Boolean(pen?.hasSelection());
   const binding=matchBinding(event,{contexts,hasSelection,platform:PLATFORM});

@@ -142,12 +142,31 @@ button{font:inherit}
 .asset-tag{position:absolute;left:50%;bottom:70px;transform:translateX(-50%);font-size:9px;color:#948c85;letter-spacing:.07em;text-transform:uppercase;pointer-events:none;white-space:nowrap}
 .error-card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:16;width:min(390px,calc(100% - 32px));padding:15px;border-radius:15px;background:rgba(255,250,242,.96);border:1px solid #e6cfa9;color:#704e28;text-align:center;box-shadow:0 18px 50px rgba(60,42,20,.12)}.error-card[hidden]{display:none}.error-card strong{font-size:13px}.error-card p{font-size:11px;line-height:1.5;margin:7px 0 0}
 @media(max-width:740px){.topbar{padding:0 10px}.status-pill span:last-child{display:none}.status-pill::after{content:'DRAFT';font-size:10px;font-weight:750}.pop{right:10px;left:10px;width:auto}.bottom-nav{bottom:18px}.bottom-nav button{padding:8px 10px}.asset-tag{bottom:112px}.tip{top:66px}}
+/* the page's two tabs (src/ui/tabs.mjs): fixed over the top-left corner of both, above everything */
+.ws-tabs{position:fixed;left:18px;top:13px;z-index:60;display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);background:var(--panel);border-radius:999px;box-shadow:0 4px 18px rgba(42,34,27,.05);backdrop-filter:blur(12px)}
+.ws-tabs button{border:0;background:transparent;border-radius:999px;min-width:38px;height:28px;padding:0 10px;font-size:12px;font-weight:650;color:#756e68;cursor:pointer}
+.ws-tabs button:hover{background:#fff}
+.ws-tabs button[aria-selected="true"]{background:var(--accent);color:#fff}
+.ws-tabs button:focus-visible{outline:2px solid #2f4f6f;outline-offset:1px}
+.top-left{margin-left:94px}
+/* 2D: the workspace's frame covers the 3D, which stays laid out (and inert) underneath */
+.pane2d{position:fixed;inset:0;z-index:50;background:#fff;visibility:hidden}
+html[data-tab="2d"] .pane2d{visibility:visible}
+html[data-tab="2d"] .ws-tabs{top:6px}
+.pane2d iframe{display:block;width:100%;height:100%;border:0}
+@media(max-width:740px){.ws-tabs{left:10px}.top-left{margin-left:90px}.top-left .pill:first-child span{display:none}}
+@media(max-width:340px){.top-left .pill:first-child{display:none}}
 </style>
 <script type="importmap">
 {"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}
 </script>
 </head>
 <body>
+<div class="ws-tabs" id="workspaceTabs" role="tablist" aria-label="Workspace">
+  <button role="tab" id="tab2d" aria-controls="pane2d" aria-selected="false" tabindex="-1" title="2D pattern workspace — open, draw and edit DXF patterns (#2d)">2D</button>
+  <button role="tab" id="tab3d" aria-controls="app" aria-selected="true" title="3D avatar (#3d)">3D</button>
+</div>
+<section class="pane2d" id="pane2d" role="tabpanel" aria-labelledby="tab2d" inert></section>
 <main class="app" id="app">
   <header class="topbar">
     <div class="top-left">
@@ -216,7 +235,7 @@ button{font:inherit}
       <div class="ptitle">2D pattern draft <span>shell 1:1 · not a pattern</span></div>
       <div class="prow"><label for="patternOutline">Outline</label><select id="patternOutline"></select></div>
       <div class="prow"><label for="patternSeam">Seam</label><select id="patternSeam"><option value="">none — one piece</option></select></div>
-      <div class="mtools"><button id="patternFlatten">Flatten</button><button id="patternExport" disabled>Export DXF</button></div>
+      <div class="mtools"><button id="patternFlatten">Flatten</button><button id="patternExport" disabled>Export DXF</button><button id="patternOpen2d" disabled title="Open the flattened pieces in the 2D tab, to edit them there">Open in 2D</button></div>
       <div class="prow"><label for="patternTemplate">Template</label><select id="patternTemplate"></select></div>
       <div class="mtools"><button id="patternDraft" disabled title="Draft the chosen template as pen lines (Shift+T)">Draft</button><button id="patternCompare" disabled title="Flatten every available template and list what each cut costs (Shift+C)">Compare</button></div>
       <table class="mtable" id="patternCompareTable" hidden></table>

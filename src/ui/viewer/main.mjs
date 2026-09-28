@@ -23,6 +23,7 @@ import { fitSectionSlider } from './section.mjs';
 import { canvas, setAvatarRoot, avatarRoot, scene, prepareModel, camera, controls, cameraGoal, setCameraGoal, renderer, initScene } from './stage.mjs';
 import { renderMeasurements, setRowsAfterPom } from './table.mjs';
 import { showFootprint } from './tip.mjs';
+import { onTabChange } from '../tabs.mjs';
 import './display.mjs';
 import './keyboard.mjs';
 
@@ -81,8 +82,9 @@ function loadAvatar(){
   },error=>fail(error?.message||'The GLB request failed.'));
 }
 
+let frameId=0;
 function animate(){
-  requestAnimationFrame(animate);
+  frameId=requestAnimationFrame(animate);
   if(cameraGoal){
     camera.position.lerp(cameraGoal.position,.11);controls.target.lerp(cameraGoal.target,.11);
     if(camera.position.distanceTo(cameraGoal.position)<.003){camera.position.copy(cameraGoal.position);controls.target.copy(cameraGoal.target);setCameraGoal(null)}
@@ -97,6 +99,10 @@ function animate(){
   renderer?.render(scene,camera);
   renderLoupe();
 }
+// The loop runs while the 3D shows. Under the 2D tab the view is covered, so it
+// stops; resuming drops the paused time, so the animation clock does not jump.
+function startLoop(){if(frameId)return;animationClock.getDelta();animate()}
+function stopLoop(){cancelAnimationFrame(frameId);frameId=0}
 
 // The views that follow a measurement, the rows hung under a POM and what
 // follows the pen's lines, in the order they have always run.
@@ -116,4 +122,4 @@ setMeasurementViews({
 setRowsAfterPom(listReferenceRows);
 onDraftChange(renderPatternControls);
 
-try{initScene();loadAvatar();animate()}catch(error){fail(error?.message||error)}
+try{initScene();loadAvatar();onTabChange(tab=>tab==='3d'?startLoop():stopLoop())}catch(error){fail(error?.message||error)}

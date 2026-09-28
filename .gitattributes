@@ -10,3 +10,5 @@
 *.hdr filter=lfs diff=lfs merge=lfs -text
 *.ktx2 filter=lfs diff=lfs merge=lfs -text
 
+# The 2D workspace's engine fixtures are pinned by sha256: keep their bytes (LF) as written.
+pattern2d/tests/fixtures/engine/*.dxf -text

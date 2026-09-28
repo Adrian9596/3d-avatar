@@ -1,0 +1,8 @@
+/* Edit: its bar rides on Arrange's dock (.dock · .arrangebar · .grp · .gapf); only its own boxes here */
+#svg.editing{cursor:default}
+.dock.edit .arrangebar{gap:6px}
+.dock.edit .gapf input{width:58px}
+.dock.edit .gapf + .gapf{margin-left:8px}                     /* "in" of one box, "Angle" of the next: apart */
+.dock.edit .grp .btn + .btn{margin-left:2px}
+.dock.edit select{font-size:11.5px; padding:3px 6px}
+.dock.edit input:disabled{opacity:.35}

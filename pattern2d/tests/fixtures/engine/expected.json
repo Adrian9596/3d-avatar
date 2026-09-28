@@ -1,0 +1,273 @@
+{
+ "_generator": "scripts/make_engine_fixtures.py",
+ "_ezdxf": "1.4.2",
+ "_note": "expected values from ezdxf + closed forms + Gauss-Legendre in Python — never from the JS kernel",
+ "files": {
+  "lines.dxf": {
+   "path": "tests/fixtures/engine/lines.dxf",
+   "sha256": "3fdd7077c2dfdc8acd63f03a550d704e0d283e9d1307ba08f45156c747e3ff27"
+  },
+  "arcs.dxf": {
+   "path": "tests/fixtures/engine/arcs.dxf",
+   "sha256": "b0c789b686caf18b76f13b32041bd6cdafd96cb9a321939846d548d591a0623b"
+  },
+  "bulge.dxf": {
+   "path": "tests/fixtures/engine/bulge.dxf",
+   "sha256": "6e6e6959adbf42dab139a763b7f3c619d9d1531b0c522685a3d69cb4d0f98193"
+  },
+  "splines.dxf": {
+   "path": "tests/fixtures/engine/splines.dxf",
+   "sha256": "72fed8ad7ae2f0c693877ad0c505f00215ea3629544176e401f4cddf6e017173"
+  },
+  "insert.dxf": {
+   "path": "tests/fixtures/engine/insert.dxf",
+   "sha256": "506d756315e4c785534d4ad32dc3f69b5190233107642820d7b1bc7124563cfb"
+  },
+  "units_metric.dxf": {
+   "path": "tests/fixtures/engine/units_metric.dxf",
+   "sha256": "a25e532905dfa38566ec173fb19e33cb70e3cbfb7c40a78cdc08f6662ccd61c0"
+  },
+  "units_english.dxf": {
+   "path": "tests/fixtures/engine/units_english.dxf",
+   "sha256": "e2d63309455bab2753ab819f940df66b809547fea88c4820246231b1ba1a3e24"
+  },
+  "units_upper.dxf": {
+   "path": "tests/fixtures/engine/units_upper.dxf",
+   "sha256": "843915516648cefcefdb4ce46cce6762822284d48a09ae9b72da137f606c5ad1"
+  },
+  "units_none.dxf": {
+   "path": "tests/fixtures/engine/units_none.dxf",
+   "sha256": "6aa7425cc83960e65087cb8bd7a940a14829313d2dbdb5e07296f1a2975d395c"
+  },
+  "units_insunits6.dxf": {
+   "path": "tests/fixtures/engine/units_insunits6.dxf",
+   "sha256": "a47ac27b9e3ba516304acb6a53ff83e6ba19bea86edc822f8dc4016bc0742c07"
+  },
+  "units_conflict.dxf": {
+   "path": "tests/fixtures/engine/units_conflict.dxf",
+   "sha256": "c31919128cd3a58f5e07ebcf2ecad64977adbd29c67cb77613e976c8cdf5b086"
+  },
+  "units_bogus.dxf": {
+   "path": "tests/fixtures/engine/units_bogus.dxf",
+   "sha256": "9078c5c5fa4b0efb9483eac60ced8b4040532038f8712cb201db292a15f77176"
+  },
+  "open_ring.dxf": {
+   "path": "tests/fixtures/engine/open_ring.dxf",
+   "sha256": "98e639ceb38a0436226035ac3181b492abdb341575ead6575e7cda999ad76427"
+  },
+  "corrupt.dxf": {
+   "path": "tests/fixtures/engine/corrupt.dxf",
+   "sha256": "c94eba78403f72ae25bacd6cb04949f8bcaa5e97bb072c6d6a54a2438255ebd3"
+  }
+ },
+ "expected": {
+  "lines": {
+   "insert": [
+    10,
+    20
+   ],
+   "perimeter": 400.0,
+   "A": [
+    40.0,
+    20.0
+   ],
+   "B": [
+    130.0,
+    60.0
+   ],
+   "short": 130.0,
+   "long": 270.0,
+   "straight": 98.48857801796105,
+   "bbox_x0": 10.0
+  },
+  "arcs": {
+   "track_perimeter": 714.1592653589794,
+   "track_A": [
+    50,
+    0
+   ],
+   "track_B": [
+    50,
+    100
+   ],
+   "track_short": 257.0796326794897,
+   "track_long": 457.0796326794897,
+   "hole_perimeter": 188.49555921538757,
+   "hole_A": [
+    429.5442325903662,
+    44.79055466999209
+   ],
+   "hole_B": [
+    429.5442325903662,
+    55.20944533000791
+   ],
+   "hole_short": 10.471975511965978,
+   "mirror_start": [
+    -100.0,
+    300.0
+   ],
+   "mirror_end": [
+    -50.0,
+    350.0
+   ],
+   "mirror_from": [
+    -100.0,
+    250.0
+   ],
+   "mirror_along": 128.53981633974485
+  },
+  "bulge": {
+   "lw_open": 171.07207345395915,
+   "lw_open_arc": 111.07207345395916,
+   "lw_d": 457.0796326794897,
+   "old_d": 457.0796326794897,
+   "old_rect": 160.0,
+   "old_rect_vertices": 4,
+   "d_far_point": [
+    450,
+    50
+   ]
+  },
+  "splines": {
+   "QUARTER": {
+    "length": 157.0796326794897,
+    "at": [
+     0,
+     1000
+    ],
+    "start": [
+     100.0,
+     1000.0
+    ],
+    "end": [
+     0.0,
+     1100.0
+    ]
+   },
+   "CIRCLE9": {
+    "length": 251.3274122871835,
+    "at": [
+     400,
+     1000
+    ],
+    "start": [
+     440.0,
+     1000.0
+    ],
+    "end": [
+     440.0,
+     1000.0
+    ]
+   },
+   "BEZ3": {
+    "length": 210.21506156145767,
+    "at": [
+     800,
+     1000
+    ],
+    "start": [
+     800.0,
+     1000.0
+    ],
+    "end": [
+     950.0,
+     1000.0
+    ]
+   },
+   "STRING": {
+    "length": 311.9141339108081,
+    "at": [
+     1200,
+     1000
+    ],
+    "start": [
+     1200.0,
+     1000.0
+    ],
+    "end": [
+     1440.0,
+     1000.0
+    ]
+   },
+   "LIN1": {
+    "length": 150.00000000000003,
+    "at": [
+     1600,
+     1000
+    ],
+    "start": [
+     1600.0,
+     1000.0
+    ],
+    "end": [
+     1700.0,
+     1050.0
+    ]
+   },
+   "closed_forms": {
+    "QUARTER": 157.07963267948966,
+    "CIRCLE9": 251.32741228718345,
+    "LIN1": 150.0
+   }
+  },
+  "insert": {
+   "perimeter": 600.0,
+   "bbox": [
+    400.0,
+    100.0,
+    500.0,
+    300.0
+   ],
+   "notch": [
+    500.0,
+    160.0
+   ],
+   "vertices": [
+    [
+     500.0,
+     100.0
+    ],
+    [
+     500.0,
+     300.0
+    ],
+    [
+     400.0,
+     300.0
+    ],
+    [
+     400.0,
+     100.0
+    ]
+   ]
+  },
+  "units": {
+   "metric_perimeter": 300.0,
+   "english_perimeter_mm": 304.79999999999995,
+   "english_diag_mm": 113.59225325698931,
+   "english_notch_mm": [
+    25.4,
+    0.0
+   ],
+   "english_bbox_w_mm": 101.6,
+   "raw_perimeter": 12.0
+  },
+  "open_ring": {
+   "perimeter": 320.0,
+   "A": [
+    0,
+    10
+   ],
+   "B": [
+    10,
+    0
+   ],
+   "short": 20.0,
+   "long": 300.0
+  },
+  "corrupt": {
+   "bad_line": 30,
+   "line_length": 100.0
+  }
+ }
+}

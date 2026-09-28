@@ -33,6 +33,8 @@
     "validate:requirements": "python3 scripts/validate_platform_requirements.py",
     "validate:platform": "python3 scripts/validate_platform.py",
     "validate:viewer-contracts": "node scripts/test_viewer_contracts.mjs",
+    "validate:pattern2d": "node pattern2d/tests/run.js",
+    "validate:pattern2d-rules": "node scripts/test_pattern2d.mjs",
     "build:pages": "rm -rf dist && vite build",
     "validate:pages-layout": "node scripts/check_pages_layout.mjs",
     "export:prototype": "/Applications/Blender.app/Contents/MacOS/Blender --background avatar_36C_master.blend --python scripts/export_prototype_glb.py --python-exit-code 1",

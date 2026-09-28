@@ -21,6 +21,7 @@ import { overrides } from './landmark_store.mjs';
 import { LANDMARK_ROWS, landmarkValue } from './landmark_values.mjs';
 import { templates, torsoTris, measureGrid, closestOnSurface, registry, registrySha, marks } from './measurement.mjs';
 import { pen } from './pen_host.mjs';
+import { openIn2D } from '../tabs.mjs';
 
 let patternMesh=null,patternResult=null;
 export const patternPanel=document.getElementById('patternPanel');
@@ -30,6 +31,9 @@ const patternStatus=document.getElementById('patternStatus');
 const patternPreview=document.getElementById('patternPreview');
 const patternTable=document.getElementById('patternTable');
 const patternExportBtn=document.getElementById('patternExport');
+const patternOpen2dBtn=document.getElementById('patternOpen2d');
+// Export DXF and Open in 2D take the same file, so they are offered together
+function setExportable(ok){patternExportBtn.disabled=!ok;patternOpen2dBtn.disabled=!ok}
 function setPatternStatus(text,isError){patternStatus.textContent=text;patternStatus.classList.toggle('err',!!isError)}
 const lineLabel=l=>`${l.name} · ${(l.length*100).toFixed(1)}cm`;
 
@@ -39,14 +43,14 @@ export function renderPatternControls(summary){
   patternPanel.hidden=closed.length===0&&templates.length===0;
   renderTemplateChooser();
   document.getElementById('patternFlatten').disabled=closed.length===0;
-  if(patternPanel.hidden||closed.length===0){patternResult=null;patternExportBtn.disabled=true;patternOutline.innerHTML='';if(closed.length===0){patternPreview.hidden=true;patternTable.hidden=true}return}
+  if(patternPanel.hidden||closed.length===0){patternResult=null;setExportable(false);patternOutline.innerHTML='';if(closed.length===0){patternPreview.hidden=true;patternTable.hidden=true}return}
   const keepO=patternOutline.value,keepS=patternSeam.value;
   patternOutline.innerHTML=closed.map(l=>`<option value="${l.index}">${lineLabel(l)}</option>`).join('');
   patternSeam.innerHTML='<option value="">none — one piece</option>'+open.map(l=>`<option value="${l.index}">${lineLabel(l)}</option>`).join('');
   if([...patternOutline.options].some(o=>o.value===keepO))patternOutline.value=keepO;
   if([...patternSeam.options].some(o=>o.value===keepS))patternSeam.value=keepS;
   // a result belongs to the lines it was made from; any edit stales it
-  if(patternResult){patternResult=null;patternExportBtn.disabled=true;patternPreview.hidden=true;patternTable.hidden=true;
+  if(patternResult){patternResult=null;setExportable(false);patternPreview.hidden=true;patternTable.hidden=true;
     setPatternStatus('Lines changed — Flatten again.');}
 }
 
@@ -103,7 +107,7 @@ function renderPatternResult(){
   });
   patternPreview.innerHTML=svg;
   patternPreview.hidden=false;
-  patternExportBtn.disabled=!sound;
+  setExportable(sound);
 }
 
 function buildPatternDxf(){
@@ -240,6 +244,15 @@ patternExportBtn.addEventListener('click',()=>{
     downloadText('pattern-draft.json',out.evidence,'application/json');
     setPatternStatus('Exported pattern-draft.dxf (ASTM D6673-10, Gerber dialect, mm) and pattern-draft.json — save both into qa/avatar_master/. Import into AccuMark is not verified.');
   }catch(error){setPatternStatus(`Export refused: ${error.message}`,true)}
+});
+// the same DXF, handed to the 2D tab instead of the disk; nothing is recorded in qa/
+patternOpen2dBtn.addEventListener('click',()=>{
+  if(!patternResult)return;
+  try{
+    const out=buildPatternDxf();
+    if(openIn2D(new File([out.dxf],'pattern-draft.dxf',{type:'application/dxf'})))
+      setPatternStatus('Opened pattern-draft.dxf in the 2D tab. Nothing is saved to qa/avatar_master/ — Export DXF does that.');
+  }catch(error){setPatternStatus(`Open in 2D refused: ${error.message}`,true)}
 });
 // automated checks read the same objects the buttons use
 window.__patternDebug={run:()=>{runPattern();return prototypeState.pattern},dxf:()=>buildPatternDxf(),result:()=>patternResult,

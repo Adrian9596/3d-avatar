@@ -78,6 +78,17 @@ jobs:
       - name: Viewer contract gate (must report BLOCKED, not invent controls)
         run: npm run validate:viewer-contracts
 
+      # The 2D tab's workspace (pattern2d/). Its suite runs without the private
+      # pattern data this public repo does not carry: the tests that need it
+      # (the factory 3380 fixture, BLOCK_36C, the DXF library) are counted as
+      # SKIPPED, never as passed, and run in full only where PATTERN2D_DATA
+      # names a local copy of the 2D Pattern workspace.
+      - name: 2D workspace tests (pattern2d/, private-data tests skipped)
+        run: npm run validate:pattern2d
+
+      - name: 2D workspace rules (no pattern data, plain modules, kernel rules, the tab bridge)
+        run: npm run validate:pattern2d-rules
+
       - name: glTF validator (zero errors required)
         run: npm run validate:gltf -- assets/export/avatar_master.glb qa/avatar_master/gltf-validator-report.json
 
