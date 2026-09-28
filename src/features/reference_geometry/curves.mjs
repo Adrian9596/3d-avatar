@@ -2,7 +2,7 @@
    The cup armhole, say: from a corner of a strap to a registry landmark on the
    same side (its _L / _R point). An end may also be an end of a line, such as
    the top of the centre-front line: on the centre plane, so both sides start
-   from the same point.
+   from the same point. A wire's ends are points ("points" in the contract).
 
    kind "shortest_surface_path": the shortest path over the skin -- the one path
    model the pen and the surface POMs use (scripts/surface_path.mjs), so the
@@ -34,9 +34,22 @@
    level section through it), not to the closest point, so seen from the front
    the curve is the one drafted: a U stays level into the cleavage instead of
    being pulled up its walls. Its bow is reported as the largest distance from
-   the shortest path over the skin. ------------------------------------------------ */
+   the shortest path over the skin.
+
+   kind "wire_curve": a wire, drawn between points: from one (the armhole mark,
+   on each side) through a registry landmark that is its lowest point (the
+   bottom of the breast root, where cup depth starts) to another (the CF point,
+   one for both sides). It is two cubic Beziers joined at the lowest point,
+   smoothly and level there: the tangent runs along the level section through
+   it, each side of it a third of its own leg's chord long. At the ends it does
+   not bend (a natural spline: each end's inner point half way to the handle at
+   the lowest point). Each sample is carried onto the skin at its own height,
+   as a joined curve's is. It has no handles: it follows its points. Its end may
+   be a dot riding on a curve declared before it, so curves are measured in the
+   contract's order, with the dots on the curves before a wire placed first. -- */
 
 import { surfaceRun, closestOnMesh } from '../../core/surface_path.mjs';
+import { measureCurvePoints } from './points.mjs';
 
 // The handles each shaped kind of curve carries (see the curves section).
 export const HANDLE_KEYS = { tangent_curve: ['from', 'to'], joined_curve: ['cf', 'depth'] };
@@ -58,8 +71,10 @@ export function validHandle(kind, key, h) {
  *  Returns the valid curves. */
 export function validateCurves(contract, { errors, heightIds, shapeIds, lines, ticks, straps, points, known }) {
   // Curves on the skin, one per side, between two of: a strap corner, a registry
-  // landmark (its _L / _R point), or an end of a line (on the centre plane).
+  // landmark (its _L / _R point), an end of a line (on the centre plane), or a
+  // point (a wire's ends).
   const CORNERS = ['front_inner', 'front_outer', 'back_inner', 'back_outer'];
+  const curves = [];
   const endProblems = (end, name) => {
     if (end?.strap !== undefined) {
       return [
@@ -73,13 +88,19 @@ export function validateCurves(contract, { errors, heightIds, shapeIds, lines, t
         ...(['top', 'bottom'].includes(end.end) ? [] : [`${name} end ${end.end} is not top or bottom`]),
       ];
     }
+    if (end?.point !== undefined) {
+      const point = points.find((p) => p.id === end.point);
+      if (!point) return [`${name} point ${end.point} is not a valid point`];
+      // a dot riding on a curve is placed once that curve is measured, so it must be one declared before this
+      return point.kind === 'on_curve' && !curves.some((c) => c.id === point.curve)
+        ? [`${name} point ${end.point} rides on ${point.curve}, which is not a valid curve declared before this one`] : [];
+    }
     return ['L', 'R'].filter((side) => !known.has(`${end?.landmark}_${side}`)).map((side) => `${name} ${end?.landmark}_${side} is not a registry landmark`);
   };
-  const curves = [];
   for (const curve of contract?.curves || []) {
     const problems = [];
     if (!curve.id || heightIds.has(curve.id) || shapeIds.has(curve.id) || lines.some((l) => l.id === curve.id) || ticks.some((t) => t.id === curve.id) || straps.some((t) => t.id === curve.id) || points.some((t) => t.id === curve.id) || curves.some((c) => c.id === curve.id)) problems.push('missing or duplicate id');
-    if (!['shortest_surface_path', ...Object.keys(HANDLE_KEYS)].includes(curve.kind)) problems.push(`unknown kind ${curve.kind}`);
+    if (!['shortest_surface_path', 'wire_curve', ...Object.keys(HANDLE_KEYS)].includes(curve.kind)) problems.push(`unknown kind ${curve.kind}`);
     if (curve.kind === 'tangent_curve') for (const key of HANDLE_KEYS[curve.kind]) {
       const h = curve.handles?.[key];
       if (!(Number.isFinite(h?.angle_deg) && Math.abs(h.angle_deg) <= 180)) problems.push(`handles.${key}.angle_deg must be a number of degrees`);
@@ -90,9 +111,15 @@ export function validateCurves(contract, { errors, heightIds, shapeIds, lines, t
       if (!validHandle(curve.kind, 'depth', curve.handles?.depth)) problems.push(`handles.depth.fullness must be ${FULLNESS_RANGE[0]} to ${FULLNESS_RANGE[1]}`);
       if (curve.from?.line === undefined || curve.to?.strap === undefined) problems.push('a joined curve runs from a line\'s end on the centre plane to a strap corner');
     }
+    if (curve.kind === 'wire_curve') {
+      if (curve.from?.point === undefined || curve.to?.point === undefined || curve.through?.landmark === undefined) problems.push('a wire runs from a point, through a registry landmark (its lowest point), to a point');
+    } else if ([curve.from, curve.to].some((e) => e?.point !== undefined)) problems.push('only a wire runs from or to a point');
     problems.push(...endProblems(curve.from, 'from'), ...endProblems(curve.to, 'to'));
-    // a point it passes through is one per side, offset from a landmark (a dot on a line is one for both)
-    if (curve.through !== undefined && (curve.kind !== 'tangent_curve' || !points.some((p) => p.id === curve.through?.point && p.kind === 'offset_on_skin'))) problems.push(`through ${curve.through?.point} is not a valid point offset on the skin (and only a tangent curve passes through one)`);
+    // what it passes through: for a wire, a registry landmark on each side, its lowest point; for a
+    // tangent curve, a point per side, offset from a landmark (a dot on a line is one for both)
+    if (curve.kind === 'wire_curve') {
+      if (curve.through?.landmark !== undefined) problems.push(...endProblems({ landmark: curve.through.landmark }, 'through'));
+    } else if (curve.through !== undefined && (curve.kind !== 'tangent_curve' || !points.some((p) => p.id === curve.through?.point && p.kind === 'offset_on_skin'))) problems.push(`through ${curve.through?.point} is not a valid point offset on the skin (and only a tangent curve passes through one)`);
     if (!/^#[0-9a-f]{6}$/i.test(curve.colour || '')) problems.push('colour must be #rrggbb');
     if (typeof curve.label !== 'string' || !curve.label) problems.push('label must be a string');
     if (problems.length) errors.push(`${curve.id || '?'}: ${problems.join('; ')}`);
@@ -208,6 +235,21 @@ function levelOnMesh(grid, p) {
     if (best && Math.sqrt(bestSq) <= r * cell) break;
   }
   return best ? { point: [best[0], y, best[1]] } : null;
+}
+
+const LEVEL_REACH_M = 0.005;    // how far to either side a level section's direction is read
+
+/* The direction of the level section through p: the chord between the
+   section's points nearest p -+ LEVEL_REACH_M along `toward` (laid level),
+   pointing the way `toward` does. It is read from the section, not from the
+   skin's normal, which at a crease (the underbust fold) turns from one
+   triangle to the next. Null if the section is not there. */
+function levelDirection(grid, p, toward) {
+  const h = unit([toward[0], 0, toward[2]]);
+  const [a, b] = [-1, 1].map((s) => levelOnMesh(grid, p.map((v, i) => v + s * LEVEL_REACH_M * h[i]))?.point);
+  if (!a || !b || Math.hypot(...sub(b, a)) < 1e-6) return null;
+  const t = unit(sub(b, a));
+  return dot(t, h) < 0 ? t.map((v) => -v) : t;
 }
 
 // A cubic Bezier's samples, t in (0, 1], carried onto the skin (by `carry`, the
@@ -354,6 +396,30 @@ function joinedRun(grid, side, frames, handles, guideLength) {
   };
 }
 
+/** One side's wire, from A through M, its lowest point, to C: two cubic
+ *  Beziers joined at M, level there along the level section, each handle a
+ *  third of its own leg's chord long; at A and C no bend. */
+function wireRun(grid, side, A, M, C) {
+  const t = levelDirection(grid, M, sub(C, A));
+  if (!t) return { side, blocked: `no level section through the lowest point on the ${side} side` };
+  const [la, lb] = [Math.hypot(...sub(M, A)) / 3, Math.hypot(...sub(C, M)) / 3];
+  const inA = M.map((v, i) => v - la * t[i]), outC = M.map((v, i) => v + lb * t[i]);
+  // a natural spline's ends (no second derivative there): each end's inner point half way to the handle at M
+  const A1 = A.map((v, i) => (v + inA[i]) / 2), C1 = C.map((v, i) => (v + outC[i]) / 2);
+  const share = Math.max(8, Math.round((CURVE_SAMPLES * la) / (la + lb)));
+  // carried at its own heights, so it stays level through M as drawn
+  const a = bezierOnSkin(grid, A, A1, inA, M, share, levelOnMesh);
+  const b = bezierOnSkin(grid, M, outC, C1, C, Math.max(8, CURVE_SAMPLES - share), levelOnMesh);
+  if (!a || !b) return { side, blocked: `the curve leaves the skin on the ${side} side` };
+  const points = [A.slice(), ...a, ...b];
+  const jumped = jumpAcross(points, side);
+  if (jumped) return { side, blocked: jumped };
+  return {
+    side, from: A, to: C, through: M, length_m: polyLength(points), points,
+    leg_lengths_m: [polyLength(points.slice(0, a.length + 1)), polyLength(points.slice(a.length))],
+  };
+}
+
 /** The handle a dragged dot asks for: handle `key` of `curve`, its dot dragged
  *  to `point` on the skin on `run`'s side. Null when the drag gives no sound one
  *  (the curve then keeps the shape it had). */
@@ -406,7 +472,7 @@ export function bendCurve(measured, handles, grid) {
 }
 
 // A curve's end on one side: { at: [x, y, z] }, or { needs } naming what is missing.
-function curveEnd(end, side, straps, landmarks, lines) {
+function curveEnd(end, side, straps, landmarks, lines, points) {
   if (end.strap !== undefined) {
     const strap = straps.find((s) => s.id === end.strap);
     if (!strap || strap.blocked) return { needs: end.strap };
@@ -417,6 +483,12 @@ function curveEnd(end, side, straps, landmarks, lines) {
     const line = lines.find((l) => l.id === end.line);
     return line && !line.blocked ? { at: line[end.end] } : { needs: end.line };
   }
+  if (end.point !== undefined) {
+    // a dot on a line is one for both sides; a point offset from a landmark, or a dot on a curve, is one per side
+    const point = points.find((p) => p.id === end.point);
+    if (!point || point.blocked) return { needs: end.point };
+    return { at: point.kind === 'on_line' ? point.at : point.marks.find((m) => m.side === side).point };
+  }
   const id = `${end.landmark}_${side}`;
   return Array.isArray(landmarks?.[id]) ? { at: landmarks[id] } : { needs: id };
 }
@@ -425,13 +497,24 @@ function curveEnd(end, side, straps, landmarks, lines) {
  *  `handles` overrides a shaped curve's contract handles ({ from, to } for a
  *  tangent curve, { cf, depth } for a joined curve; one missing or unsound
  *  keeps the contract's); `points` are the measured points (measurePoints), for a curve
- *  with `through`; `lines` the measured lines, for a curve ending on one.
+ *  with `through` or a wire ending on one; `lines` the measured lines, for a curve ending on one.
  *  Each handle is read against the shortest path over the skin from its end to
  *  the next point the curve must meet (the through point, or the other end). */
 export function measureCurve(curve, straps, landmarks, grid, handles = null, points = [], lines = []) {
-  const ends = ['L', 'R'].map((side) => [curveEnd(curve.from, side, straps, landmarks, lines), curveEnd(curve.to, side, straps, landmarks, lines)]);
-  const missing = [...new Set(ends.flat().filter((e) => e.needs).map((e) => e.needs))];
+  const ends = ['L', 'R'].map((side) => [curveEnd(curve.from, side, straps, landmarks, lines, points), curveEnd(curve.to, side, straps, landmarks, lines, points)]);
+  // a wire's lowest point is a registry landmark on each side
+  const lows = curve.kind === 'wire_curve' ? ['L', 'R'].map((side) => curveEnd(curve.through, side, straps, landmarks, lines, points)) : [];
+  const missing = [...new Set([...ends.flat(), ...lows].filter((e) => e.needs).map((e) => e.needs))];
   if (missing.length) return { ...curve, blocked: `needs ${missing.join(', ')}`, runs: [] };
+  if (curve.kind === 'wire_curve') {
+    const runs = [];
+    for (const [s, side] of ['L', 'R'].entries()) {
+      const run = wireRun(grid, side, ends[s][0].at, lows[s].at, ends[s][1].at);
+      if (run.blocked) return { ...curve, blocked: run.blocked, runs: [] };
+      runs.push(run);
+    }
+    return { ...curve, blocked: null, runs };
+  }
   const via = curve.through ? points.find((p) => p.id === curve.through.point) : null;
   if (curve.through && (!via || via.blocked)) return { ...curve, blocked: `needs ${curve.through.point}`, runs: [] };
   const keys = HANDLE_KEYS[curve.kind];
@@ -456,8 +539,27 @@ export function measureCurve(curve, straps, landmarks, grid, handles = null, poi
   return { ...curve, handles: use, blocked: null, runs };
 }
 
-/** Every declared curve, from the measured straps and lines. `handles` maps a
+/** Every declared curve, from the measured straps and lines, in the contract's
+ *  order: a wire may end on a dot riding on a curve before it, so the dots on
+ *  the curves measured so far are placed before a wire is. `handles` maps a
  *  curve id to handles that override the contract's (the viewer's dragged ones). */
 export function measureCurves(loaded, straps, landmarks, grid, handles = {}, points = [], lines = []) {
-  return (loaded.curves || []).map((curve) => measureCurve(curve, straps, landmarks, grid, handles[curve.id] || null, points, lines));
+  const curves = [];
+  for (const curve of loaded.curves || []) {
+    const placed = curve.kind === 'wire_curve' ? measureCurvePoints(points, curves) : points;
+    curves.push(measureCurve(curve, straps, landmarks, grid, handles[curve.id] || null, placed, lines));
+  }
+  return curves;
+}
+
+/** The measured `curves` again after a point moved or a curve was reshaped,
+ *  finding no shortest path again: each wire drawn on `points` as they are now
+ *  (the dots on the curves before it placed first), every other curve kept. */
+export function measureWires(loaded, curves, landmarks, grid, points) {
+  const out = [];
+  for (const curve of curves) {
+    const declared = curve.kind === 'wire_curve' && (loaded.curves || []).find((c) => c.id === curve.id);
+    out.push(declared ? measureCurve(declared, [], landmarks, grid, null, measureCurvePoints(points, out), []) : curve);
+  }
+  return out;
 }

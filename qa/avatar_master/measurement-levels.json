@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-28T03:40:35Z",
+  "generated_at": "2026-09-28T04:15:29Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "af97a85284ece169768a81304e218200d55961f434f84c861bb8c31482cbf416"
+    "sha256": "a264432726fb36c3c25290aee912fef9348a129bccc3152b0e7eb980ebf5a2db"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-28T03:40:20Z"
+    "generated_at": "2026-09-28T04:15:15Z"
   },
   "sheets": [
     {
@@ -588,6 +588,70 @@
           "depth_mm": 47.2
         }
       ]
+    },
+    {
+      "id": "CURVE_WIRE",
+      "from": {
+        "point": "POINT_ARMHOLE_1_1_4_FROM_WING"
+      },
+      "to": {
+        "point": "POINT_ON_CF_LINE"
+      },
+      "colour": "#e3001b",
+      "blocked": null,
+      "kind": "wire_curve",
+      "handles": null,
+      "through": {
+        "landmark": "ROOT_BOTTOM"
+      },
+      "runs": [
+        {
+          "side": "L",
+          "length_mm": 240.4,
+          "legs_mm": [
+            167.2,
+            73.2
+          ],
+          "through_m": [
+            -0.06742,
+            1.265,
+            0.08948
+          ],
+          "from_m": [
+            -0.15809,
+            1.36323,
+            0.02427
+          ],
+          "to_m": [
+            0,
+            1.28712,
+            0.10276
+          ]
+        },
+        {
+          "side": "R",
+          "length_mm": 240.4,
+          "legs_mm": [
+            167.2,
+            73.2
+          ],
+          "through_m": [
+            0.06742,
+            1.265,
+            0.08948
+          ],
+          "from_m": [
+            0.15809,
+            1.36323,
+            0.02427
+          ],
+          "to_m": [
+            0,
+            1.28712,
+            0.10276
+          ]
+        }
+      ]
     }
   ],
   "points": [
@@ -883,7 +947,7 @@
     {
       "name": "every declared curve validates",
       "status": "PASS",
-      "detail": "2 curve(s): CURVE_CUP_ARMHOLE tangent_curve STRAP_MAXP2_CF_TO_CB.front_outer -> SIDE_WING_HIGH_L/R, CURVE_CF_TO_STRAP joined_curve LINE_CF_M1_3_4_TO_MAXGIRTH.top -> STRAP_MAXP2_CF_TO_CB.front_inner"
+      "detail": "3 curve(s): CURVE_CUP_ARMHOLE tangent_curve STRAP_MAXP2_CF_TO_CB.front_outer -> SIDE_WING_HIGH_L/R, CURVE_CF_TO_STRAP joined_curve LINE_CF_M1_3_4_TO_MAXGIRTH.top -> STRAP_MAXP2_CF_TO_CB.front_inner, CURVE_WIRE wire_curve POINT_ARMHOLE_1_1_4_FROM_WING -> POINT_ON_CF_LINE"
     },
     {
       "name": "a curve from an unknown strap, corner or landmark is refused",
@@ -946,9 +1010,34 @@
       "detail": "168.1, 168.1mm, bowing 47.2mm below the shortest path (131.9mm)"
     },
     {
+      "name": "CURVE_WIRE: from POINT_ARMHOLE_1_1_4_FROM_WING to POINT_ON_CF_LINE on each side, over the skin",
+      "status": "PASS",
+      "detail": "L 240.4mm; R 240.4mm"
+    },
+    {
+      "name": "CURVE_WIRE: through ROOT_BOTTOM_L/R on each side, its lowest point and level there; mirrored, the two sides meeting on the centre plane",
+      "status": "PASS",
+      "detail": "L 167.2 + 73.2mm, lowest at y = 1.2650m (sample 65), rising 0.87/0.84deg to the samples either side; R 167.2 + 73.2mm, lowest at y = 1.2650m (sample 65), rising 0.87/0.84deg to the samples either side"
+    },
+    {
+      "name": "CURVE_WIRE: follows its points: the CF point slid along its line, the armhole reshaped or its point moved (the mark rides on it); drawn again with nothing moved it is the same wire",
+      "status": "PASS",
+      "detail": "CF point 1.5in up its line: L 236.4mm, R 236.4mm; armhole handles turned: L 235.3mm, R 235.3mm; armhole point moved: L 253.3mm, R 253.3mm (as declared L 240.4mm, R 240.4mm)"
+    },
+    {
+      "name": "CURVE_WIRE: without its lowest point, or with either end blocked, it reads needs …, never a curve",
+      "status": "PASS",
+      "detail": "needs ROOT_BOTTOM_L, ROOT_BOTTOM_R; needs POINT_ON_CF_LINE; needs POINT_ARMHOLE_1_1_4_FROM_WING"
+    },
+    {
       "name": "a curve cannot pass through a dot on a line or on a curve, only a point offset on each side",
       "status": "PASS",
       "detail": "CURVE_CUP_ARMHOLE: through POINT_ON_CF_LINE is not a valid point offset on the skin (and only a tangent curve passes through one) | CURVE_CUP_ARMHOLE: through POINT_ARMHOLE_1_1_4_FROM_WING is not a valid point offset on "
+    },
+    {
+      "name": "a wire from or to anything but a point, through anything but a registry landmark, or from a dot on a curve declared after it, is refused; nothing but a wire runs to a point",
+      "status": "PASS",
+      "detail": "CURVE_WIRE: a wire runs from a point, through a registry landmark (its lowest point), to a point | CURVE_WIRE: a wire runs from a point, through a registry landmark (its lowest point), to a point | CURVE_WIRE: to point NOPE is not a valid point | CURVE_WIRE: through NOPE_L is not a registry landmark; through NOPE_R is not a registry landmark | CURVE_WIRE: from point POINT_ARMHOLE_1_1_4_FROM_WING r"
     },
     {
       "name": "a tangent curve without a sound pair of handles is refused",

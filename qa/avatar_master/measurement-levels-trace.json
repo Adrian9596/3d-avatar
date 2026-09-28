@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-28T03:40:20Z",
+  "generated_at": "2026-09-28T04:15:15Z",
   "tool": "scripts/trace_measurement_levels.py",
   "purpose": "What the how-to-measure sheets actually draw, measured from the pixels: one red leader per printed inch value, and the fit that says whether those values read as a linear inch scale with its zero in the sheets' one unlabelled gap.",
   "contract": "contracts/measurement-levels.json",
-  "contract_sha256": "af97a85284ece169768a81304e218200d55961f434f84c861bb8c31482cbf416",
+  "contract_sha256": "a264432726fb36c3c25290aee912fef9348a129bccc3152b0e7eb980ebf5a2db",
   "declared_values_in": [
     4.25,
     3.75,

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-28T03:07:13Z",
+  "generated_at": "2026-09-28T04:15:30Z",
   "purpose": "Static guard that the app's modules stay in their layers (ui -> features -> core) with no cycle.",
   "layers": {
     "core": [
@@ -80,7 +80,7 @@
       "src/ui/viewer/tip.mjs"
     ]
   },
-  "imports": 187,
+  "imports": 188,
   "checks": [
     {
       "name": "every module under src/ is in a layer: core, a feature, or the ui",
@@ -90,7 +90,7 @@
     {
       "name": "every relative import resolves",
       "status": "PASS",
-      "detail": "187 imports between modules"
+      "detail": "188 imports between modules"
     },
     {
       "name": "nothing under src/ imports the gates or tools in scripts/",

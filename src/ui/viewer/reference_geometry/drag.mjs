@@ -89,9 +89,11 @@ function applyCurveDrag(){
   const handle=dragHandle(curve,run,drag.end,drag.point,measureGrid);
   if(!handle)return;
   const next=bendCurve(curve,{...curve.handles,[drag.end]:handle},measureGrid);
-  if(next.blocked)return;                          // keep the last shape that lay on the skin
-  reshapeCurve(next);curveHandles[curve.id]=next.handles;
-  updateCurveRows(next);redrawTapes();
+  if(next.blocked||!reshapeCurve(next))return;     // keep the last shape that lay on the skin (its wires too)
+  curveHandles[curve.id]=next.handles;
+  // a wire from a dot on the curve follows it
+  for(const c of measuredCurves)updateCurveRows(c);
+  redrawTapes();
 }
 canvas.addEventListener('pointerdown',event=>{
   if(event.button!==0||placingLandmark)return;

@@ -4,7 +4,7 @@
    them). A per-viewer convenience — the contract's values are the record — kept
    in localStorage and dropped when they no longer lie on the skin (or the line). */
 
-import { measureCurves, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measurePoints, measureCurvePoints } from '../../../features/reference_geometry/index.mjs';
+import { measureCurves, measureWires, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measurePoints, measureCurvePoints } from '../../../features/reference_geometry/index.mjs';
 import { prototypeState, syncDiagnostics } from '../diagnostics.mjs';
 import { landmarkValue } from '../landmark_values.mjs';
 import { levelContract, measureGrid, torsoTris, marks, registry, poms } from '../measurement.mjs';
@@ -28,26 +28,33 @@ try{
   for(const [id,o] of Object.entries(moved||{}))if(ok(o))pointMoves[id]={...o};
 }catch(error){/* private mode */}
 
+// A curve that `curves` has gone off the skin where `before` had it on it.
+const lost=(curves,before)=>curves.some((c,i)=>c.blocked&&!before[i]?.blocked);
+
 /* A point at its new place, and every curve through it after it (and every
-   dot on those curves). False if a curve would then leave the skin (the point
-   stays where it was). */
+   dot on those curves, and every wire). False if a curve would then leave the
+   skin (the point stays where it was). */
 export function movePoint(next){
   if(next.blocked)return false;
   const points=measuredPoints.map(p=>p.id===next.id?next:p);
-  if(!measuredCurves.some(c=>c.through?.point===next.id)){measuredPoints=points;return true}
-  const curves=measureCurves(levelContract,measuredStraps,levelMarks,measureGrid,curveHandles,points,measuredLines);
-  if(curves.some(c=>c.blocked&&c.through?.point===next.id))return false;
+  // a curve through the point is found again (and the wires after it); else only the wires are drawn again
+  const curves=measuredCurves.some(c=>c.through?.point===next.id)
+    ?measureCurves(levelContract,measuredStraps,levelMarks,measureGrid,curveHandles,points,measuredLines)
+    :measureWires(levelContract,measuredCurves,levelMarks,measureGrid,points);
+  if(lost(curves,measuredCurves))return false;
   measuredCurves=curves;measuredPoints=measureCurvePoints(points,curves);
   return true;
 }
 
 /* A curve at its new shape (its handles dragged or put back), and every dot
-   on it after it. */
+   on it and every wire after it. False if a wire would then leave the skin
+   (nothing changes). */
 export function reshapeCurve(next){
-  const i=measuredCurves.findIndex(c=>c.id===next.id);
-  if(i<0)return;
-  measuredCurves[i]=next;
-  measuredPoints=measureCurvePoints(measuredPoints,measuredCurves);
+  if(!measuredCurves.some(c=>c.id===next.id))return false;
+  const curves=measureWires(levelContract,measuredCurves.map(c=>c.id===next.id?next:c),levelMarks,measureGrid,measuredPoints);
+  if(lost(curves,measuredCurves))return false;
+  measuredCurves=curves;measuredPoints=measureCurvePoints(measuredPoints,curves);
+  return true;
 }
 
 export function saveCurveHandles(){
@@ -64,7 +71,9 @@ export function syncCurveState(){
     // how far a joined curve bows below the shortest path
     ...(c.runs.some(r=>Number.isFinite(r.depth_m))?{depth_mm:Object.fromEntries(c.runs.map(r=>[r.side,+(r.depth_m*1000).toFixed(1)]))}:{}),
     // where each tangent's dot is, for automated checks
-    tips_m:Object.fromEntries(c.runs.filter(r=>r.tangents).map(r=>[r.side,Object.fromEntries(r.tangents.map(t=>[t.end,t.tip.map(v=>+v.toFixed(5))]))]))}));
+    tips_m:Object.fromEntries(c.runs.filter(r=>r.tangents).map(r=>[r.side,Object.fromEntries(r.tangents.map(t=>[t.end,t.tip.map(v=>+v.toFixed(5))]))])),
+    // where a wire starts, runs lowest and ends
+    ...(c.kind==='wire_curve'?{ends_m:Object.fromEntries(c.runs.map(r=>[r.side,Object.fromEntries(['from','through','to'].map(k=>[k,r[k].map(v=>+v.toFixed(5))]))]))}:{})}));
   const perSide=(p,f)=>Object.fromEntries((p.marks||[]).map(m=>[m.side,f(m)]));
   prototypeState.points=measuredPoints.map(p=>p.kind==='on_line'
     // a dot on a line: how far up it and to its top, and where (one dot, on the centre plane)
@@ -98,9 +107,10 @@ export function measureReferenceGeometry(){
   measuredLines=levelContract&&torsoTris?measureLines(levelContract,measuredLevels,measuredTapes,torsoTris,heights):[];
   measuredTicks=levelContract&&torsoTris?measureTicks(levelContract,measuredLevels,measuredTapes,torsoTris):[];
   measuredStraps=levelContract&&torsoTris?measureStraps(levelContract,measuredLevels,measuredTapes,measuredTicks,torsoTris):[];
-  // curves end on a registry landmark on each side (the wing top, say), as the table places it
+  // curves end on a registry landmark on each side (the wing top, say), or a
+  // wire runs lowest at one (the root bottom), as the table places it
   const curveMarks=levelMarks={};
-  for(const landmark of [...(levelContract?.curves||[]).flatMap(c=>[c.from.landmark,c.to.landmark]),...(levelContract?.points||[]).map(p=>p.from?.landmark)].filter(Boolean))for(const side of ['L','R']){
+  for(const landmark of [...(levelContract?.curves||[]).flatMap(c=>[c.from.landmark,c.to.landmark,c.through?.landmark]),...(levelContract?.points||[]).map(p=>p.from?.landmark)].filter(Boolean))for(const side of ['L','R']){
     const id=`${landmark}_${side}`,p=landmarkValue(id);
     if(p&&Number.isFinite(p.x))curveMarks[id]=[p.x,p.y,p.z];
   }
@@ -113,8 +123,10 @@ export function measureReferenceGeometry(){
     measuredPoints=measurePoints(levelContract,curveMarks,torsoTris,pointMoves,measuredLines);
   }
   measuredCurves=levelContract&&measureGrid?measureCurves(levelContract,measuredStraps,curveMarks,measureGrid,curveHandles,measuredPoints,measuredLines):[];
-  if(measuredCurves.some(c=>c.blocked&&(curveHandles[c.id]||pointMoves[c.through?.point]))){
-    for(const c of measuredCurves)if(c.blocked){delete curveHandles[c.id];if(c.through)delete pointMoves[c.through.point]}
+  // the points a curve is drawn through or (a wire) between
+  const on=c=>[c.through?.point,c.from.point,c.to.point].filter(Boolean);
+  if(measuredCurves.some(c=>c.blocked&&(curveHandles[c.id]||on(c).some(id=>pointMoves[id])))){
+    for(const c of measuredCurves)if(c.blocked){delete curveHandles[c.id];for(const id of on(c))delete pointMoves[id]}
     measuredPoints=measurePoints(levelContract,curveMarks,torsoTris,pointMoves,measuredLines);
     measuredCurves=measureCurves(levelContract,measuredStraps,curveMarks,measureGrid,curveHandles,measuredPoints,measuredLines);
   }

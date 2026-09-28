@@ -39,5 +39,5 @@ export { sectionChains, measureReferenceTapes } from './tapes.mjs';
 export { measureLine, measureLines } from './lines.mjs';
 export { measureTick, measureTicks } from './ticks.mjs';
 export { measureStrap, measureStraps } from './straps.mjs';
-export { handleTip, handleFromPoint, bendCurve, dragHandle, validHandle, measureCurve, measureCurves } from './curves.mjs';
+export { handleTip, handleFromPoint, bendCurve, dragHandle, validHandle, measureCurve, measureCurves, measureWires } from './curves.mjs';
 export { measurePoint, pointOffsets, measureLinePoint, linePointOffsets, measureCurvePoint, measurePoints, measureCurvePoints } from './points.mjs';
