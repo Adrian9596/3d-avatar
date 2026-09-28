@@ -39,16 +39,26 @@
    kind "wire_curve": a wire, drawn between points: from one (the armhole mark,
    on each side) through a registry landmark that is its lowest point (the
    bottom of the breast root, where cup depth starts) to another (the CF point,
-   one for both sides). It is two cubic Beziers joined at the lowest point,
-   smoothly and level there: the tangent runs along the level section through
-   it, each side of it a third of its own leg's chord long. At the ends it does
-   not bend (a natural spline: each end's inner point half way to the handle at
-   the lowest point). Each sample is carried onto the skin at its own height,
-   as a joined curve's is. It has no handles: it follows its points. Its end may
-   be a dot riding on a curve declared before it, so curves are measured in the
-   contract's order, with the dots on the curves before a wire placed first. -- */
+   one for both sides). It is drawn round the body, not across it: each point
+   is placed by its angle about an upright axis through the middle of the body
+   (on the centre plane) and by its height, and in that flat chart the wire is
+   two cubic Beziers joined at the lowest point, smoothly and level there, each
+   handle a third of its own leg's chord long. At the ends it does not bend (a
+   natural spline: each end's inner point half way to the handle at the lowest
+   point). Each sample is carried onto the skin along its level ray out from
+   the axis, to where the ray first leaves the body (under a breast that hangs
+   over the fold, the chest wall, where a wire sits), and the run is then eased
+   twice, each sample a quarter of the way toward each neighbour, which takes
+   out the kinks of the mesh's flat facets and keeps it within a fraction of a
+   millimetre of the skin. (Drawn across the body instead, a Bezier through
+   these three points runs centimetres inside it, and carried to the nearest
+   skin it comes out jagged.) It has no handles: it follows its points. Its end
+   may be a dot riding on a curve declared before it, so curves are measured in
+   the contract's order, with the dots on the curves before a wire placed
+   first. ------------------------------------------------------------------------ */
 
 import { surfaceRun, closestOnMesh } from '../../core/surface_path.mjs';
+import { verticalSegments, backCrossing } from './contour.mjs';
 import { measureCurvePoints } from './points.mjs';
 
 // The handles each shaped kind of curve carries (see the curves section).
@@ -237,19 +247,60 @@ function levelOnMesh(grid, p) {
   return best ? { point: [best[0], y, best[1]] } : null;
 }
 
-const LEVEL_REACH_M = 0.005;    // how far to either side a level section's direction is read
+const RAY_REACH_M = 0.4;         // how far out from the axis a level ray looks for the skin
+const EASE_PASSES = 2;           // how many times a wire is eased once it is on the skin
 
-/* The direction of the level section through p: the chord between the
-   section's points nearest p -+ LEVEL_REACH_M along `toward` (laid level),
-   pointing the way `toward` does. It is read from the section, not from the
-   skin's normal, which at a crease (the underbust fold) turns from one
-   triangle to the next. Null if the section is not there. */
-function levelDirection(grid, p, toward) {
-  const h = unit([toward[0], 0, toward[2]]);
-  const [a, b] = [-1, 1].map((s) => levelOnMesh(grid, p.map((v, i) => v + s * LEVEL_REACH_M * h[i]))?.point);
-  if (!a || !b || Math.hypot(...sub(b, a)) < 1e-6) return null;
-  const t = unit(sub(b, a));
-  return dot(t, h) < 0 ? t.map((v) => -v) : t;
+/* The upright axis a wire is drawn round, at height y: on the centre plane,
+   half way between the front and the back of the body there. Null if the body
+   does not cross the centre plane at that height. */
+function axisAt(grid, y) {
+  const cut = verticalSegments(grid.tri, 0);
+  const [front, back] = [backCrossing(cut, y, true), backCrossing(cut, y)];
+  return front && back ? (front[1] + back[1]) / 2 : null;
+}
+
+/* Where the level ray from the axis (x = 0, z = axisZ) out through p first
+   leaves the body. It looks only at the triangles in the grid's cells along the
+   ray, nearest first, as closestOnMesh does ring by ring. */
+function outAlongLevelRay(grid, p, axisZ) {
+  const { cells, cell, tri } = grid;
+  const y = p[1], cj = Math.floor(y / cell);
+  const reach = Math.hypot(p[0], p[2] - axisZ);
+  if (reach < 1e-9) return null;
+  const ux = p[0] / reach, uz = (p[2] - axisZ) / reach;
+  const seen = new Set();
+  let best = Infinity;
+  for (let s = 0; s <= RAY_REACH_M; s += cell / 3) {
+    const ci = Math.floor((s * ux) / cell), ck = Math.floor((axisZ + s * uz) / cell);
+    for (let i = ci - 1; i <= ci + 1; i++) for (let k = ck - 1; k <= ck + 1; k++) {
+      const bucket = cells.get(`${i},${cj},${k}`);
+      if (!bucket) continue;
+      for (const t of bucket) {
+        if (seen.has(t)) continue;
+        seen.add(t);
+        // the triangle cut at height y, and where the ray crosses that piece
+        const hits = [];
+        for (let e = 0; e < 3; e++) {
+          const a = t + e * 3, b = t + ((e + 1) % 3) * 3;
+          const d0 = tri[a + 1] - y, d1 = tri[b + 1] - y;
+          if ((d0 > 0) !== (d1 > 0)) {
+            const f = d0 / (d0 - d1);
+            hits.push([tri[a] + (tri[b] - tri[a]) * f, tri[a + 2] + (tri[b + 2] - tri[a + 2]) * f]);
+          }
+        }
+        if (hits.length !== 2) continue;
+        const [h0, h1] = hits, ex = h1[0] - h0[0], ez = h1[1] - h0[1];
+        const det = ex * uz - ux * ez;
+        if (Math.abs(det) < 1e-14) continue;
+        const qx = h0[0], qz = h0[1] - axisZ;
+        const along = (ex * qz - qx * ez) / det, on = (ux * qz - uz * qx) / det;
+        if (along > 1e-9 && on >= -1e-9 && on <= 1 + 1e-9 && along < best) best = along;
+      }
+    }
+    // a nearer crossing would lie in a cell already looked at
+    if (best < s - 2 * cell) break;
+  }
+  return Number.isFinite(best) ? { point: [best * ux, y, axisZ + best * uz] } : null;
 }
 
 // A cubic Bezier's samples, t in (0, 1], carried onto the skin (by `carry`, the
@@ -396,27 +447,49 @@ function joinedRun(grid, side, frames, handles, guideLength) {
   };
 }
 
-/** One side's wire, from A through M, its lowest point, to C: two cubic
- *  Beziers joined at M, level there along the level section, each handle a
- *  third of its own leg's chord long; at A and C no bend. */
-function wireRun(grid, side, A, M, C) {
-  const t = levelDirection(grid, M, sub(C, A));
-  if (!t) return { side, blocked: `no level section through the lowest point on the ${side} side` };
-  const [la, lb] = [Math.hypot(...sub(M, A)) / 3, Math.hypot(...sub(C, M)) / 3];
-  const inA = M.map((v, i) => v - la * t[i]), outC = M.map((v, i) => v + lb * t[i]);
+/** One side's wire, from A through M, its lowest point, to C, drawn round
+ *  the body about the upright axis at axisZ: in the chart of angle (as a length
+ *  round at M's distance from the axis) and height, two cubic Beziers joined at
+ *  M, level there, each handle a third of its own leg's chord long, and at A and
+ *  C no bend; each sample carried out along its level ray onto the skin, and the
+ *  run eased. */
+function wireRun(grid, side, A, M, C, axisZ) {
+  const radius = Math.hypot(M[0], M[2] - axisZ);
+  const chart = (p) => [Math.atan2(p[0], p[2] - axisZ) * radius, p[1]];
+  const [a, m, c] = [A, M, C].map(chart);
+  const way = Math.sign(c[0] - a[0]) || 1;   // round the body, from A's end toward C's
+  const [la, lb] = [Math.hypot(m[0] - a[0], m[1] - a[1]) / 3, Math.hypot(c[0] - m[0], c[1] - m[1]) / 3];
+  const inA = [m[0] - way * la, m[1]], outC = [m[0] + way * lb, m[1]];
   // a natural spline's ends (no second derivative there): each end's inner point half way to the handle at M
-  const A1 = A.map((v, i) => (v + inA[i]) / 2), C1 = C.map((v, i) => (v + outC[i]) / 2);
+  const a1 = [(a[0] + inA[0]) / 2, (a[1] + inA[1]) / 2], c1 = [(c[0] + outC[0]) / 2, (c[1] + outC[1]) / 2];
+  // a leg's samples, t in (0, 1], each out along its level ray, the last one the point it ends at
+  const leg = (P0, P1, P2, P3, end, samples) => {
+    const out = [];
+    for (let s = 1; s < samples; s++) {
+      const t = s / samples, u = 1 - t;
+      const [round, y] = [0, 1].map((i) => u * u * u * P0[i] + 3 * u * u * t * P1[i] + 3 * u * t * t * P2[i] + t * t * t * P3[i]);
+      const hit = outAlongLevelRay(grid, [Math.sin(round / radius), y, axisZ + Math.cos(round / radius)], axisZ);
+      if (!hit) return null;
+      out.push(hit.point);
+    }
+    out.push(end.slice());
+    return out;
+  };
   const share = Math.max(8, Math.round((CURVE_SAMPLES * la) / (la + lb)));
-  // carried at its own heights, so it stays level through M as drawn
-  const a = bezierOnSkin(grid, A, A1, inA, M, share, levelOnMesh);
-  const b = bezierOnSkin(grid, M, outC, C1, C, Math.max(8, CURVE_SAMPLES - share), levelOnMesh);
-  if (!a || !b) return { side, blocked: `the curve leaves the skin on the ${side} side` };
-  const points = [A.slice(), ...a, ...b];
+  const first = leg(a, a1, inA, m, M, share), second = leg(m, outC, c1, c, C, Math.max(8, CURVE_SAMPLES - share));
+  if (!first || !second) return { side, blocked: `the curve leaves the skin on the ${side} side` };
+  let points = [A.slice(), ...first, ...second];
+  const mid = first.length;
+  // eased, the three points it runs through held
+  for (let pass = 0; pass < EASE_PASSES; pass++) {
+    points = points.map((p, i) => (i === 0 || i === mid || i === points.length - 1 ? p
+      : p.map((v, k) => (points[i - 1][k] + 2 * v + points[i + 1][k]) / 4)));
+  }
   const jumped = jumpAcross(points, side);
   if (jumped) return { side, blocked: jumped };
   return {
     side, from: A, to: C, through: M, length_m: polyLength(points), points,
-    leg_lengths_m: [polyLength(points.slice(0, a.length + 1)), polyLength(points.slice(a.length))],
+    leg_lengths_m: [polyLength(points.slice(0, mid + 1)), polyLength(points.slice(mid))],
   };
 }
 
@@ -509,7 +582,9 @@ export function measureCurve(curve, straps, landmarks, grid, handles = null, poi
   if (curve.kind === 'wire_curve') {
     const runs = [];
     for (const [s, side] of ['L', 'R'].entries()) {
-      const run = wireRun(grid, side, ends[s][0].at, lows[s].at, ends[s][1].at);
+      const axisZ = axisAt(grid, lows[s].at[1]);
+      const run = axisZ === null ? { side, blocked: `the body does not cross the centre plane at the height of ${curve.through.landmark}_${side}` }
+        : wireRun(grid, side, ends[s][0].at, lows[s].at, ends[s][1].at, axisZ);
       if (run.blocked) return { ...curve, blocked: run.blocked, runs: [] };
       runs.push(run);
     }

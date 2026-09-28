@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-28T04:15:29Z",
+  "generated_at": "2026-09-28T04:45:14Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "a264432726fb36c3c25290aee912fef9348a129bccc3152b0e7eb980ebf5a2db"
+    "sha256": "ecbb3f898e2b5a02ff246b69bc73609d6a61b5a4745b3785186cfd3b82fd9fe6"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-28T04:15:15Z"
+    "generated_at": "2026-09-28T04:44:19Z"
   },
   "sheets": [
     {
@@ -607,10 +607,10 @@
       "runs": [
         {
           "side": "L",
-          "length_mm": 240.4,
+          "length_mm": 239.7,
           "legs_mm": [
-            167.2,
-            73.2
+            166.5,
+            73.3
           ],
           "through_m": [
             -0.06742,
@@ -630,10 +630,10 @@
         },
         {
           "side": "R",
-          "length_mm": 240.4,
+          "length_mm": 239.7,
           "legs_mm": [
-            167.2,
-            73.2
+            166.5,
+            73.3
           ],
           "through_m": [
             0.06742,
@@ -1012,17 +1012,22 @@
     {
       "name": "CURVE_WIRE: from POINT_ARMHOLE_1_1_4_FROM_WING to POINT_ON_CF_LINE on each side, over the skin",
       "status": "PASS",
-      "detail": "L 240.4mm; R 240.4mm"
+      "detail": "L 239.7mm; R 239.7mm"
     },
     {
       "name": "CURVE_WIRE: through ROOT_BOTTOM_L/R on each side, its lowest point and level there; mirrored, the two sides meeting on the centre plane",
       "status": "PASS",
-      "detail": "L 167.2 + 73.2mm, lowest at y = 1.2650m (sample 65), rising 0.87/0.84deg to the samples either side; R 167.2 + 73.2mm, lowest at y = 1.2650m (sample 65), rising 0.87/0.84deg to the samples either side"
+      "detail": "L 166.5 + 73.3mm, lowest at y = 1.2650m (sample 61), its tangent there -0.30deg from level; R 166.5 + 73.3mm, lowest at y = 1.2650m (sample 61), its tangent there -0.30deg from level"
+    },
+    {
+      "name": "CURVE_WIRE: smooth on the skin: every sample within 0.25mm of the middle of its neighbours, no turn over 6deg from one to the next",
+      "status": "PASS",
+      "detail": "L 97 samples, at most 0.09mm off, 4.5deg; R 97 samples, at most 0.09mm off, 4.5deg"
     },
     {
       "name": "CURVE_WIRE: follows its points: the CF point slid along its line, the armhole reshaped or its point moved (the mark rides on it); drawn again with nothing moved it is the same wire",
       "status": "PASS",
-      "detail": "CF point 1.5in up its line: L 236.4mm, R 236.4mm; armhole handles turned: L 235.3mm, R 235.3mm; armhole point moved: L 253.3mm, R 253.3mm (as declared L 240.4mm, R 240.4mm)"
+      "detail": "CF point 1.5in up its line: L 235.8mm, R 235.8mm; armhole handles turned: L 234.8mm, R 234.8mm; armhole point moved: L 252.4mm, R 252.4mm (as declared L 239.7mm, R 239.7mm)"
     },
     {
       "name": "CURVE_WIRE: without its lowest point, or with either end blocked, it reads needs …, never a curve",

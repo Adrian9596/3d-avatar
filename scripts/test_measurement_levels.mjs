@@ -457,14 +457,15 @@ for (const curve of curves) {
       `${curve.runs.map((r) => (r.length_m * 1000).toFixed(1)).join(', ')}mm, bowing ${(curve.runs[0].depth_m * 1000).toFixed(1)}mm below the shortest path (${(curve.runs[0].guide_length_m * 1000).toFixed(1)}mm)`);
   }
   if (curve.kind === 'wire_curve' && !curve.blocked) {
-    // through its lowest point on each side: a sample there, none lower, level there (the samples
-    // either side rise from it at under 2deg); mirrored, both sides ending at the one CF point
+    // through its lowest point on each side: a sample there, none lower, level there (the chord
+    // between the samples either side of it, its tangent there, within 1deg of level); mirrored,
+    // both sides ending at the one CF point
     const low = (side) => onBody[`${curve.through.landmark}_${side}`];
     const slope = (q, m) => (Math.atan2(q[1] - m[1], Math.hypot(q[0] - m[0], q[2] - m[2])) * 180) / Math.PI;
     const lowest = curve.runs.every((r) => {
       const m = low(r.side), i = r.points.findIndex((q) => q.every((v, k) => v === m[k]));
       return i > 0 && i < r.points.length - 1 && r.points.every((q) => q[1] >= m[1] - 1e-12)
-        && [r.points[i - 1], r.points[i + 1]].every((q) => slope(q, m) >= 0 && slope(q, m) < 2)
+        && Math.abs(slope(r.points[i + 1], r.points[i - 1])) < 1
         && Math.abs(r.leg_lengths_m[0] + r.leg_lengths_m[1] - r.length_m) < 1e-9;
     });
     const meet = curve.runs[0].to.every((v, i) => v === curve.runs[1].to[i]) && curve.runs[0].to[0] === 0;
@@ -472,8 +473,24 @@ for (const curve of curves) {
       lowest && meet && mirrored(curve.runs[0], curve.runs[1]),
       curve.runs.map((r) => {
         const m = r.through, i = r.points.findIndex((q) => q.every((v, k) => v === m[k]));
-        return `${r.side} ${(r.leg_lengths_m[0] * 1000).toFixed(1)} + ${(r.leg_lengths_m[1] * 1000).toFixed(1)}mm, lowest at y = ${m[1].toFixed(4)}m (sample ${i}), rising ${slope(r.points[i - 1], m).toFixed(2)}/${slope(r.points[i + 1], m).toFixed(2)}deg to the samples either side`;
+        return `${r.side} ${(r.leg_lengths_m[0] * 1000).toFixed(1)} + ${(r.leg_lengths_m[1] * 1000).toFixed(1)}mm, lowest at y = ${m[1].toFixed(4)}m (sample ${i}), its tangent there ${slope(r.points[i + 1], r.points[i - 1]).toFixed(2)}deg from level`;
       }).join('; '));
+    // smooth: no sample far off the middle of its neighbours, no sharp turn from one sample to the next
+    // (carried to the nearest skin, the same three points gave 1.4mm and 28deg)
+    const kinks = (r) => {
+      let off = 0, turn = 0;
+      for (let i = 1; i < r.points.length - 1; i++) {
+        const [a, p, b] = [r.points[i - 1], r.points[i], r.points[i + 1]];
+        off = Math.max(off, Math.hypot(...p.map((v, k) => v - (a[k] + b[k]) / 2)));
+        const u = p.map((v, k) => v - a[k]), w = b.map((v, k) => v - p[k]);
+        const c = (u[0] * w[0] + u[1] * w[1] + u[2] * w[2]) / (Math.hypot(...u) * Math.hypot(...w));
+        turn = Math.max(turn, (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI);
+      }
+      return { off, turn };
+    };
+    gate.record(`${curve.id}: smooth on the skin: every sample within 0.25mm of the middle of its neighbours, no turn over 6deg from one to the next`,
+      curve.runs.every((r) => { const k = kinks(r); return k.off < 2.5e-4 && k.turn < 6; }),
+      curve.runs.map((r) => { const k = kinks(r); return `${r.side} ${r.points.length} samples, at most ${(k.off * 1000).toFixed(2)}mm off, ${k.turn.toFixed(1)}deg`; }).join('; '));
     // it follows its points: the CF point slid up its line, the armhole's handles turned (the mark
     // rides on it), the armhole point moved; drawn again with nothing moved it is the same wire
     const cfEnd = points.find((p) => p.id === curve.to.point), markEnd = points.find((p) => p.id === curve.from.point);
