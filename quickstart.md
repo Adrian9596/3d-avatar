@@ -21,7 +21,7 @@ npm run build:pages
 npm run preview:pages
 ```
 
-The app runs the required morph and animation contracts at load and reports them BLOCKED while the GLB has no final rig, clips or approved semantic morphs — it offers no control it cannot back. There was a second, modular viewer lane until 2026-09-06; it was merged into `digital_bra_fit_model_360.html`, which is now the only app.
+The app runs the required morph and animation contracts at load and reports them BLOCKED while the GLB has no final rig, clips or approved semantic morphs — it offers no control it cannot back. There was a second, modular viewer lane until 2026-09-06; it was merged into `digital_bra_fit_model_360.html`, which is now the only app. Its **2D** tab (`#2d`) is a separate tool, the 2D pattern workspace (`pattern2d/`, see `pattern2d/README.md`); `npm run validate:pattern2d` and `npm run validate:pattern2d-rules` test it.
 
 ## Prototype viewer — draft asset only
 

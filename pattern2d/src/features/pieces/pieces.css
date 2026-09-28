@@ -1,0 +1,9 @@
+.pcs{display:grid; grid-template-columns:repeat(auto-fill, minmax(70px, 1fr)); gap:5px}
+.pc{position:relative; display:grid; place-items:center; aspect-ratio:1; padding:7px;
+  border:1px solid var(--rule); border-radius:6px; background:var(--bg);
+  color:var(--ink-2); cursor:pointer}
+.pc:hover{background:var(--soft); border-color:var(--rule-2); color:var(--ink)}
+.pc[aria-pressed="true"]{background:var(--accent-soft); border-color:var(--accent); color:var(--accent)}
+.pc .th{display:block; width:100%; height:100%}
+.pc .qt{position:absolute; right:4px; bottom:3px; font-size:10px; line-height:1; color:var(--ink-3)}
+.pc[aria-pressed="true"] .qt{color:var(--accent)}

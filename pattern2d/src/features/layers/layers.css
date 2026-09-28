@@ -1,0 +1,11 @@
+.lays{display:grid; grid-template-columns:repeat(auto-fill, minmax(72px, 1fr)); gap:4px}
+.lay{display:flex; align-items:center; gap:5px; padding:3px 5px; text-align:left;
+  border:1px solid var(--rule); border-radius:5px; background:var(--bg);
+  cursor:pointer; font-size:11px; line-height:1.4}
+.lay:hover{background:var(--soft); border-color:var(--rule-2)}
+.lay[aria-pressed="true"]{border-color:var(--rule-2)}
+.lay .sw{flex:none; width:16px; height:10px}
+.lay .n{color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.lay[aria-pressed="false"]{background:var(--soft)}
+.lay[aria-pressed="false"] .n{color:var(--ink-3)}
+.lay[aria-pressed="false"] .sw{filter:grayscale(1); opacity:.4}

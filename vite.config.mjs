@@ -6,7 +6,13 @@ import { copyFileSync, mkdirSync, renameSync, existsSync } from "node:fs";
 const ROOT = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Builds the app -- the whole site.
+ * Builds the site: the app, and the 2D pattern workspace its 2D tab frames.
+ *
+ * Two HTML entries. digital_bra_fit_model_360.html is the app (the 3D viewer,
+ * and the page that holds the 2D · 3D tabs); it lands as index.html.
+ * pattern2d/index.html is the 2D workspace, a separate app with no
+ * dependencies that the 2D tab loads in an iframe (src/ui/tabs.mjs); it lands
+ * as pattern2d/index.html, beside it. Neither imports the other's code.
  *
  * There was a second, modular viewer lane under viewer/ serving /viewer/. It
  * was merged into this one: it showed the same measurements through the same
@@ -26,7 +32,7 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
  * sends nothing at all), and a browser refuses to execute a module whose MIME
  * type is not JavaScript. GitHub Pages' behaviour here is not documented, so
  * rather than gamble the whole site on it, the build inlines every module into
- * one hashed `.js` and serves no `.mjs`. It also avoids vendoring ~39 MB of
+ * hashed `.js` chunks and serves no `.mjs`. It also avoids vendoring ~39 MB of
  * three.js that a verbatim copy would need.
  *
  * `three/addons/` is an importmap prefix rather than a real package path, so it
@@ -35,11 +41,13 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 
 /** The importmap only exists for the un-built file. Once every module is
  *  bundled nothing resolves through it, and leaving it would advertise
- *  node_modules paths that are deliberately not deployed. */
+ *  node_modules paths that are deliberately not deployed. Only the app has
+ *  one: the 2D workspace imports no package. */
 function stripImportmap() {
   return {
     name: "strip-importmap",
-    transformIndexHtml(html) {
+    transformIndexHtml(html, ctx) {
+      if (!ctx.filename.endsWith("digital_bra_fit_model_360.html")) return html;
       const stripped = html.replace(/\s*<script type="importmap">[\s\S]*?<\/script>/, "");
       if (stripped === html) throw new Error("importmap not found — check the prototype's <head>");
       return stripped;
@@ -92,6 +100,11 @@ export default defineConfig({
     outDir: OUT_DIR,
     emptyOutDir: true,
     sourcemap: true,
-    rollupOptions: { input: resolve(ROOT, "digital_bra_fit_model_360.html") },
+    rollupOptions: {
+      input: {
+        app: resolve(ROOT, "digital_bra_fit_model_360.html"),
+        pattern2d: resolve(ROOT, "pattern2d/index.html"),
+      },
+    },
   },
 });

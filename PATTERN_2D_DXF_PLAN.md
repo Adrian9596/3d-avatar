@@ -332,6 +332,11 @@ rather than truncating: names over Gerber's 20 characters, non-ASCII text, an ou
 repeats its first point, a piece without a grain line. Seam allowance and notches remain out
 of scope (§2); when a boundary *with* allowance is drawn, the net line moves to layer 14.
 
+*Open in 2D* (2026-09-28), beside Export DXF, hands the same `draftExport` DXF to the site's 2D tab — the 2D
+pattern workspace (`pattern2d/`), where a pattern maker can measure, edit and add to it — instead of the disk.
+It records nothing in `qa/`; Export DXF stays the record. `validate:pattern2d-rules` checks that
+`qa/avatar_master/flatten-draft.dxf` opens in the workspace's reader in mm with no warning.
+
 ## 9. Evidence and traceability
 
 Following `MEASUREMENT_PLAN.md` §8's shape, every flatten run writes

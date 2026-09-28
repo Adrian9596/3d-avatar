@@ -1,0 +1,33 @@
+<meta charset="utf-8">
+<!-- No doctype, on purpose: the workspace has always rendered in quirks mode (the single-file
+     dxf_viewer.html it came from had none). A doctype changes how it looks — the readout's table
+     text goes from 16px to 11.5px — so that is a decision to take on screen, not a side effect of
+     moving the code. -->
+<title>Pattern Plotter — 2D</title>
+<!-- the cascade order of the old single-file build: shared, shell, then the features -->
+<link rel="stylesheet" href="./src/shared/theme.css">
+<link rel="stylesheet" href="./src/app/app.css">
+<link rel="stylesheet" href="./src/features/canvas/canvas.css">
+<link rel="stylesheet" href="./src/features/layers/layers.css">
+<link rel="stylesheet" href="./src/features/pieces/pieces.css">
+<link rel="stylesheet" href="./src/features/readout/readout.css">
+<link rel="stylesheet" href="./src/features/arrange/arrange.css">
+<link rel="stylesheet" href="./src/features/geometry/geometry.css">
+<link rel="stylesheet" href="./src/features/edit/edit.css">
+<link rel="stylesheet" href="./src/features/draw/draw.css">
+<link rel="stylesheet" href="./src/features/dxf/import.css">
+
+<div class="app">
+  <header class="bar" id="bar"></header>
+  <div class="main">
+    <aside class="rail" id="rail"></aside>
+    <div class="stage" id="stage">
+      <div class="tools" id="tools"></div>
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+  </div>
+  <footer class="status" id="status"></footer>
+</div>
+
+<!-- every control below the shell is created by the feature that owns it -->
+<script type="module" src="./src/app/main.js"></script>

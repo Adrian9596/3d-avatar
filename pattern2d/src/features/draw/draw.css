@@ -1,0 +1,12 @@
+/* Vẽ: its bar rides on Arrange's dock (.dock · .arrangebar · .grp · .gapf); only its own boxes here */
+#svg.drawing{cursor:crosshair}
+/* only the bar takes the pointer: the empty band around the tip above it is canvas — a click there draws */
+.dock.drawdock{pointer-events:none}
+.dock.drawdock .arrangebar{pointer-events:auto}
+.dock.drawdock .arrangebar{gap:6px; max-width:min(1180px, 100%)}
+.dock.drawdock .gapf input{width:56px}
+.dock.drawdock .gapf + .gapf{margin-left:8px}
+.dock.drawdock .grp .btn + .btn{margin-left:2px}
+.dock.drawdock select{font-size:11.5px; padding:3px 6px}
+.dock.drawdock input:disabled{opacity:.35}
+.dock.drawdock #dsides{width:38px}

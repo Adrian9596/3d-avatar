@@ -1,8 +1,9 @@
 # 3D Avatar — Digital Bra-Fit Viewer
 
 A torso avatar (head/hands/legs excluded by design) authored in Blender from a CLO3D
-export, exported as a single GLB, and displayed in two Three.js viewer lanes for
-visual bra-fit review.
+export, exported as a single GLB, and displayed in a Three.js app for visual bra-fit
+review — the site's **3D** tab. Its **2D** tab is the pattern workspace: open, measure,
+draw and edit DXF pattern pieces ([`pattern2d/`](pattern2d/README.md)).
 
 > **Status: `DRAFT — NO MEASUREMENT RECORD`.** This body has not been TD-validated,
 > measured, or approved for production/factory use. A green glTF validator run or a
@@ -11,12 +12,12 @@ visual bra-fit review.
 
 ## Live demo
 
-Both lanes auto-deploy to GitHub Pages on every push to `main` (see [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)) — open these directly, no local setup needed to just look:
+The site auto-deploys to GitHub Pages on every push to `main` (see [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)) — open it directly, no local setup needed to just look:
 
-- **Production viewer:** https://adrian9596.github.io/3d-avatar/
-- **Authoring/prototype lane:** https://adrian9596.github.io/3d-avatar/prototype/digital_bra_fit_model_360.html
+- **The app:** https://adrian9596.github.io/3d-avatar/ — tabs `2D · 3D`, 3D open by default; `#2d` / `#3d` in the URL opens a tab directly.
+- **The 2D workspace on its own:** https://adrian9596.github.io/3d-avatar/pattern2d/
 
-The authoring lane's Save buttons trigger a browser file download (`landmarks.manual.json` / `draft-lines.json`) — there's no backend, so anything saved on the live site has to be manually downloaded and placed into `qa/avatar_master/` in a clone, then committed, for it to actually count as project evidence.
+The Save and Export buttons trigger a browser file download (`landmarks.manual.json`, `draft-lines.json`, `pattern-draft.dxf` + `.json`) — there's no backend, so anything saved on the live site has to be downloaded and placed into `qa/avatar_master/` in a clone, then committed, for it to count as project evidence. The 2D tab's export (`<name>_edit.dxf`) is the exception: it is a pattern, often a factory one, and is **never committed** — keep it outside the repo.
 
 ## What's in this repo
 
@@ -26,6 +27,7 @@ The authoring lane's Save buttons trigger a browser file download (`landmarks.ma
   - There were two viewer lanes until 2026-09-06, and a parity gate to stop them disagreeing. The second one carried none of the authoring tools, so opening it meant finding a tool missing; they were merged. What is left of the split is a gate that keeps the app from growing a second copy of the maths ([`validate:single-engine`](scripts/test_single_engine.mjs)).
   - It reads every number through the shared engine ([`src/core/measure_core.mjs`](src/core/measure_core.mjs)) and the registry ([`contracts/measurement-registry.json`](contracts/measurement-registry.json)), so there is one place to correct a measurement rule.
 - **Independent Python re-implementation** ([`scripts/measure_avatar.py`](scripts/measure_avatar.py)) that a parity gate checks against the JS engine — a second opinion, not a duplicate to clean up.
+- **The 2D pattern workspace** ([`pattern2d/`](pattern2d/README.md)) — the 2D tab: a separate app with no dependencies (plain ES modules, its own planar geometry kernel, DXF reader and writer, and its own suite), loaded by the page in an iframe ([`src/ui/tabs.mjs`](src/ui/tabs.mjs)). It shares no code with `src/`; the 3D pattern block's **Open in 2D** hands it the same DXF Export DXF writes. **Code only:** this repo carries no pattern file for it — no factory DXF, no sample — so it opens empty.
 
 ## Status & known gaps
 
@@ -73,6 +75,8 @@ Then open `http://127.0.0.1:8765/digital_bra_fit_model_360.html`. **Never open i
 
 Every tool lives in the "Mesh measurements" panel (the ⌁ button, top right): pen, section, levels, grid, landmarks and the pattern draft. `P` turns the pen on and opens that panel if it is closed; `?` lists the keys.
 
+The **2D** tab (top left, or `#2d`) is the pattern workspace. It opens empty: **Open DXF**, or drop a `.dxf` anywhere on the page. From the 3D pattern block, **Open in 2D** (after Flatten) opens the flattened pieces there. The 2D tab keeps its file while you switch back to 3D, but only in memory — export what you want to keep (Xuất DXF writes a new `<name>_edit.dxf`).
+
 To build and preview what GitHub Pages serves:
 
 ```sh
@@ -91,6 +95,14 @@ npm run validate:viewer-contracts
 
 # full measurement chain: sync registry → measure → 8 accuracy/parity gates
 npm run validate:measurements
+
+# the 2D workspace: its suite (tests that need private pattern data are skipped and counted),
+# then its rules (no pattern data in the repo, plain modules, kernel rules, the tab bridge)
+npm run validate:pattern2d
+npm run validate:pattern2d-rules
+
+# the same suite with the private data, from a local copy of the 2D Pattern workspace
+PATTERN2D_DATA="/path/to/2D Pattern" npm run validate:pattern2d
 ```
 
 `validate:measurements` chains, in order: `measure:avatar` (Python authority pass, writes SHA-pinned evidence to `qa/avatar_master/measurements.json`), then the gates —
@@ -106,7 +118,7 @@ npm run export:pom-sheet   # builds qa/avatar_master/pom-sheet.csv + .json from 
 
 ## A note on legacy scripts
 
-`package.json` and `quickstart.md` still contain scripts and instructions from **before the 2026-09-04 pivot** (`validate:stage1`, `export:prototype`, `measure:draft`, `validate:ground-alignment`, `audit:mesh`, `build:bikini-top`, and others invoking Blender against `avatar_36C_master.blend`). That source file no longer exists in this project — those commands will fail until repointed or removed. The commands listed above under [Running the viewers](#running-the-viewers) and [Validation / testing](#validation--testing) are the current, working set. See `CLAUDE.md` for the full list of what's retired.
+`package.json` and `quickstart.md` still contain scripts and instructions from **before the 2026-09-04 pivot** (`validate:stage1`, `export:prototype`, `measure:draft`, `validate:ground-alignment`, `audit:mesh`, `build:bikini-top`, and others invoking Blender against `avatar_36C_master.blend`). That source file no longer exists in this project — those commands will fail until repointed or removed. The commands listed above under [Running the app](#running-the-app) and [Validation / testing](#validation--testing) are the current, working set. See `CLAUDE.md` for the full list of what's retired.
 
 ## Asset provenance & licensing
 
@@ -118,6 +130,7 @@ npm run export:pom-sheet   # builds qa/avatar_master/pom-sheet.csv + .json from 
 
 - [`CLAUDE.md`](CLAUDE.md) — full architecture notes, non-negotiable boundaries, measurement-rule rationale.
 - [`REPOSITORY_POLICY.md`](REPOSITORY_POLICY.md) — Git/LFS/binary policy for this repo.
+- [`pattern2d/README.md`](pattern2d/README.md), [`pattern2d/CLAUDE.md`](pattern2d/CLAUDE.md), [`pattern2d/src/README.md`](pattern2d/src/README.md) — the 2D workspace: what it does, its rules, how it is put together.
 - [`MEASUREMENT_PLAN.md`](MEASUREMENT_PLAN.md) — the measurement registry's design and tolerances.
 - [`AUTHORING_UX_PLAN.md`](AUTHORING_UX_PLAN.md) — orbit-while-drafting, the grazing guard and the shared keyboard map (Phase A) and the snapping pen with undo, nudge, loupe and mirror (Phase B), landmark placement by drag with a guided order, mirror offers and `placed_with` records carried through both engines (Phase C), and template drafts from landmarks with Compare and live re-flatten (Phase D) — all four phases built.
 - [`contracts/avatar-asset-contract.md`](contracts/avatar-asset-contract.md) — the current asset's identity, coordinate convention, and consumer obligations.

@@ -1,0 +1,22 @@
+/* Design tokens and the base reset. Colours are named for what they mean in a
+   pattern (cut, sew, notch, grain), so a feature never hard-codes a hex value. */
+:root{
+  --bg:#FFFFFF; --soft:#F7F8F9; --rule:#E4E8EA; --rule-2:#CFD6DA;
+  --ink:#1A2228; --ink-2:#5C6B74; --ink-3:#95A2AA;
+  --accent:#0E7C6B; --accent-soft:#E6F2F0;
+  --ghost:#D8DEE2;                 /* pieces that are only context */
+  --halo:rgba(14,124,107,.055);    /* wash inside the highlighted piece */
+  --l-cut:#1A2228; --l-sew:#0E7C6B; --l-notch:#C2410C; --l-grain:#A16207;
+  --l-turn:#5C6B74; --l-curve:#C3CCD1; --l-ref:#6D28D9; --l-text:#5C6B74; --l-other:#0369A1;
+  --readout-w:min(340px,50vw);     /* the numbers panel at its widest — the toolbar wraps before it */
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size:13px; line-height:1.45; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
