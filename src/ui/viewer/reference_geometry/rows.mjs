@@ -87,8 +87,11 @@ function renderReferenceTapeRows(fromId,tbody){
       // points hung on a landmark the curve ends at (the armhole's wing top) follow it
       const ends=new Set([curve.from.landmark,curve.to.landmark].filter(Boolean));
       for(const point of measuredPoints.filter(p=>ends.has(p.from?.landmark)&&!listed.has(p.id))){listed.add(point.id);renderPointRow(point,tbody)}
-      // and the dots that ride on it
-      for(const point of measuredPoints.filter(p=>p.kind==='on_curve'&&p.curve===curve.id))renderCurvePointRow(point,tbody);
+      // and the dots that ride on it, each followed by the wires drawn from it
+      for(const point of measuredPoints.filter(p=>p.kind==='on_curve'&&p.curve===curve.id)){
+        renderCurvePointRow(point,tbody);
+        for(const wire of measuredCurves.filter(c=>c.kind==='wire_curve'&&[c.from.point,c.to.point].includes(point.id)&&!listed.has(c.id))){listed.add(wire.id);renderCurveRows(wire,tbody)}
+      }
     }
   }
 }
@@ -260,11 +263,24 @@ function updateCurvePointRow(point){
    the strap along its edge and leaves the centre front level (a U) or at an
    angle (a V), and is shaped by how full it is. Select a side's row and drag
    the round dots on the body; the handles shape both sides, mirrored, and every
-   number here follows the drag. */
+   number here follows the drag. A "wire_curve" has no handles: it runs between
+   points, through its lowest one, and follows them (listed after the dot it
+   starts from). */
+const lowerFirst=s=>/^[A-Z][a-z]/.test(s)?s[0].toLowerCase()+s.slice(1):s;
 function curveEndText(end,side){
   if(end.strap)return `the strap's ${end.corner.replace('_',' ')} corner`;
   if(end.line)return `the ${end.end} of the ${measuredLines.find(l=>l.id===end.line)?.kind==='centre_front'?'CF':'CB'} line`;
+  if(end.point)return `the ${lowerFirst(measuredPoints.find(p=>p.id===end.point)?.label||end.point)}`;
   return `${end.landmark}_${side}`;
+}
+// What a wire's row says it is, on one side: what it runs through, and which of its points can be dragged from it.
+function wireText(curve,side){
+  const low=`${curve.through.landmark}_${side}`,about=(registry.landmarks||[]).find(l=>l.id===low)?.comment;
+  const sliding=[curve.from,curve.to].map(e=>measuredPoints.find(p=>p.id===e.point)).filter(p=>p?.kind==='on_line');
+  return `through ${low}, its lowest point: a smooth curve on the skin, level where it runs lowest.`
+    +(about?` ${low}: ${lowerFirst(about)}`:'')
+    +' It has no handles; it follows its points, drawn with it when this row is selected.'
+    +sliding.map(p=>` Drag the ${p.label} dot from here: it slides along its line, and the wire follows.`).join('');
 }
 function renderCurveRows(curve,tbody){
   const den=registry.reporting.inch_denominator;
@@ -275,6 +291,7 @@ function renderCurveRows(curve,tbody){
     const tr=document.createElement('tr');
     tr.title=`From ${curveEndText(curve.from,side)} to ${curveEndText(curve.to,side)}, `
       +(curve.kind==='joined_curve'?'running into the strap along its inner edge and out of the centre front level (a U) or at an angle (a V): select this row, then drag the green dots on the body, the one at the centre front for its angle, the one in the middle for how full it is.'
+        :curve.kind==='wire_curve'?wireText(curve,side)
         :shaped?`${curve.through?'through the armhole point, ':''}shaped by two tangent handles: select this row, then drag the green dots (tangents) or the blue dot (the point) on the body.`:'the shortest path over the skin.');
     const run=curve.runs.find(r=>r.side===side);
     if(curve.blocked||!run){
@@ -325,16 +342,23 @@ export function updateCurveRows(curve){
     el.tr.querySelector('.in').textContent=inchFraction(run.length_m,den);
     const row=measureRowData[el.index];
     row.paths=[run.points];row.tangents=run.tangents||null;
-    // the point it passes through, and the dots riding on it, drawn with it
+    // the point it passes through (or a wire runs lowest at), the dots riding on it, and a
+    // wire's end points, drawn with it, each in its point's colour
+    const colour=p=>parseInt(p.colour.slice(1),16);
     const riding=measuredPoints.filter(p=>p.kind==='on_curve'&&p.curve===curve.id&&!p.blocked)
-      .map(p=>({colour:parseInt(p.colour.slice(1),16),at:p.marks.find(k=>k.side===run.side)?.point})).filter(d=>d.at);
-    row.dots=[...(run.through?[run.through]:[]),...riding.map(d=>d.at)];
-    row.dotColors=[...(run.through?[null]:[]),...riding.map(d=>d.colour)];
+      .map(p=>({colour:colour(p),at:p.marks.find(k=>k.side===run.side)?.point})).filter(d=>d.at);
+    const ends=[[curve.from,run.from],[curve.to,run.to]].map(([e,at])=>({p:e.point&&measuredPoints.find(q=>q.id===e.point),at})).filter(e=>e.p);
+    row.dots=[...(run.through?[run.through]:[]),...riding.map(d=>d.at),...ends.map(e=>e.at)];
+    row.dotColors=[...(run.through?[null]:[]),...riding.map(d=>d.colour),...ends.map(e=>colour(e.p))];
     row.grabs=[...(run.tangents||[]).map(t=>({kind:'handle',end:t.end,curve:curve.id,side:run.side,at:t.tip})),
-      ...(run.through?[{kind:'point',id:curve.through.point,side:run.side,at:run.through}]:[])];
+      ...(run.through&&curve.through.point?[{kind:'point',id:curve.through.point,side:run.side,at:run.through}]:[]),
+      // a dot on a line that a wire ends on is dragged from the wire's row too, along its line
+      ...ends.filter(e=>e.p.kind==='on_line').map(e=>({kind:'line_point',id:e.p.id,at:e.at}))];
     if(run.guide_length_m)el.tr.title=el.title
       +(run.leg_lengths_m?` Through the armhole point: ${CM(run.leg_lengths_m[0])} cm from the strap to it, ${CM(run.leg_lengths_m[1])} cm from it to the wing.`:'')
       +` Shortest path${run.through?' through the point':''} ${CM(run.guide_length_m)} cm; this curve ${CM(run.length_m)} cm.`;
+    else if(curve.kind==='wire_curve')el.tr.title=el.title
+      +` ${CM(run.leg_lengths_m[0])} cm from ${curveEndText(curve.from,run.side)} to its lowest point, ${CM(run.leg_lengths_m[1])} cm from there to ${curveEndText(curve.to,run.side)}.`;
   }
   for(const [end,tr] of Object.entries(els.handles)){
     const cells=handleCells(curve,end,den);
@@ -368,11 +392,11 @@ function resetCurveHandles(id){
   const i=measuredCurves.findIndex(c=>c.id===id);
   const base=(levelContract?.curves||[]).find(c=>c.id===id)?.handles;
   if(i<0||!base)return;
-  delete curveHandles[id];
   const next=bendCurve(measuredCurves[i],base,measureGrid);
-  if(next.blocked)return;
-  reshapeCurve(next);
-  saveCurveHandles();updateCurveRows(next);redrawTapes();syncCurveState();
+  if(next.blocked||!reshapeCurve(next))return;
+  delete curveHandles[id];
+  // a wire from a dot on it follows it
+  saveCurveHandles();for(const c of measuredCurves)updateCurveRows(c);redrawTapes();syncCurveState();
 }
 
 /* A strap over the shoulder ("straps" in contracts/measurement-levels.json): a

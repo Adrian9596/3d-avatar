@@ -2,7 +2,7 @@
    The cup armhole, say: from a corner of a strap to a registry landmark on the
    same side (its _L / _R point). An end may also be an end of a line, such as
    the top of the centre-front line: on the centre plane, so both sides start
-   from the same point.
+   from the same point. A wire's ends are points ("points" in the contract).
 
    kind "shortest_surface_path": the shortest path over the skin -- the one path
    model the pen and the surface POMs use (scripts/surface_path.mjs), so the
@@ -33,10 +33,34 @@
    a deeper scoop). Each sample is carried onto the skin at its own height (the
    level section through it), not to the closest point, so seen from the front
    the curve is the one drafted: a U stays level into the cleavage instead of
-   being pulled up its walls. Its bow is reported as the largest distance from
-   the shortest path over the skin. ------------------------------------------------ */
+   being pulled up its walls. The nearest point of each section jumps about a
+   little from one height to the next, so the run is then eased across the body
+   (see ease), its heights kept. Its bow is reported as the largest distance
+   from the shortest path over the skin.
+
+   kind "wire_curve": a wire, drawn between points: from one (the armhole mark,
+   on each side) through a registry landmark that is its lowest point (the
+   bottom of the breast root, where cup depth starts) to another (the CF point,
+   one for both sides). It is drawn round the body, not across it: each point
+   is placed by its angle about an upright axis through the middle of the body
+   (on the centre plane) and by its height, and in that flat chart the wire is
+   two cubic Beziers joined at the lowest point, smoothly and level there, each
+   handle a third of its own leg's chord long. At the ends it does not bend (a
+   natural spline: each end's inner point half way to the handle at the lowest
+   point). Each sample is carried onto the skin along its level ray out from
+   the axis, to where the ray first leaves the body (under a breast that hangs
+   over the fold, the chest wall, where a wire sits), and the run is then eased
+   across the body twice, its heights kept (see ease), which takes out the
+   kinks of the mesh's flat facets. (Drawn across the body instead, a Bezier through
+   these three points runs centimetres inside it, and carried to the nearest
+   skin it comes out jagged.) It has no handles: it follows its points. Its end
+   may be a dot riding on a curve declared before it, so curves are measured in
+   the contract's order, with the dots on the curves before a wire placed
+   first. ------------------------------------------------------------------------ */
 
 import { surfaceRun, closestOnMesh } from '../../core/surface_path.mjs';
+import { verticalSegments, backCrossing } from './contour.mjs';
+import { measureCurvePoints } from './points.mjs';
 
 // The handles each shaped kind of curve carries (see the curves section).
 export const HANDLE_KEYS = { tangent_curve: ['from', 'to'], joined_curve: ['cf', 'depth'] };
@@ -58,8 +82,10 @@ export function validHandle(kind, key, h) {
  *  Returns the valid curves. */
 export function validateCurves(contract, { errors, heightIds, shapeIds, lines, ticks, straps, points, known }) {
   // Curves on the skin, one per side, between two of: a strap corner, a registry
-  // landmark (its _L / _R point), or an end of a line (on the centre plane).
+  // landmark (its _L / _R point), an end of a line (on the centre plane), or a
+  // point (a wire's ends).
   const CORNERS = ['front_inner', 'front_outer', 'back_inner', 'back_outer'];
+  const curves = [];
   const endProblems = (end, name) => {
     if (end?.strap !== undefined) {
       return [
@@ -73,13 +99,19 @@ export function validateCurves(contract, { errors, heightIds, shapeIds, lines, t
         ...(['top', 'bottom'].includes(end.end) ? [] : [`${name} end ${end.end} is not top or bottom`]),
       ];
     }
+    if (end?.point !== undefined) {
+      const point = points.find((p) => p.id === end.point);
+      if (!point) return [`${name} point ${end.point} is not a valid point`];
+      // a dot riding on a curve is placed once that curve is measured, so it must be one declared before this
+      return point.kind === 'on_curve' && !curves.some((c) => c.id === point.curve)
+        ? [`${name} point ${end.point} rides on ${point.curve}, which is not a valid curve declared before this one`] : [];
+    }
     return ['L', 'R'].filter((side) => !known.has(`${end?.landmark}_${side}`)).map((side) => `${name} ${end?.landmark}_${side} is not a registry landmark`);
   };
-  const curves = [];
   for (const curve of contract?.curves || []) {
     const problems = [];
     if (!curve.id || heightIds.has(curve.id) || shapeIds.has(curve.id) || lines.some((l) => l.id === curve.id) || ticks.some((t) => t.id === curve.id) || straps.some((t) => t.id === curve.id) || points.some((t) => t.id === curve.id) || curves.some((c) => c.id === curve.id)) problems.push('missing or duplicate id');
-    if (!['shortest_surface_path', ...Object.keys(HANDLE_KEYS)].includes(curve.kind)) problems.push(`unknown kind ${curve.kind}`);
+    if (!['shortest_surface_path', 'wire_curve', ...Object.keys(HANDLE_KEYS)].includes(curve.kind)) problems.push(`unknown kind ${curve.kind}`);
     if (curve.kind === 'tangent_curve') for (const key of HANDLE_KEYS[curve.kind]) {
       const h = curve.handles?.[key];
       if (!(Number.isFinite(h?.angle_deg) && Math.abs(h.angle_deg) <= 180)) problems.push(`handles.${key}.angle_deg must be a number of degrees`);
@@ -90,9 +122,15 @@ export function validateCurves(contract, { errors, heightIds, shapeIds, lines, t
       if (!validHandle(curve.kind, 'depth', curve.handles?.depth)) problems.push(`handles.depth.fullness must be ${FULLNESS_RANGE[0]} to ${FULLNESS_RANGE[1]}`);
       if (curve.from?.line === undefined || curve.to?.strap === undefined) problems.push('a joined curve runs from a line\'s end on the centre plane to a strap corner');
     }
+    if (curve.kind === 'wire_curve') {
+      if (curve.from?.point === undefined || curve.to?.point === undefined || curve.through?.landmark === undefined) problems.push('a wire runs from a point, through a registry landmark (its lowest point), to a point');
+    } else if ([curve.from, curve.to].some((e) => e?.point !== undefined)) problems.push('only a wire runs from or to a point');
     problems.push(...endProblems(curve.from, 'from'), ...endProblems(curve.to, 'to'));
-    // a point it passes through is one per side, offset from a landmark (a dot on a line is one for both)
-    if (curve.through !== undefined && (curve.kind !== 'tangent_curve' || !points.some((p) => p.id === curve.through?.point && p.kind === 'offset_on_skin'))) problems.push(`through ${curve.through?.point} is not a valid point offset on the skin (and only a tangent curve passes through one)`);
+    // what it passes through: for a wire, a registry landmark on each side, its lowest point; for a
+    // tangent curve, a point per side, offset from a landmark (a dot on a line is one for both)
+    if (curve.kind === 'wire_curve') {
+      if (curve.through?.landmark !== undefined) problems.push(...endProblems({ landmark: curve.through.landmark }, 'through'));
+    } else if (curve.through !== undefined && (curve.kind !== 'tangent_curve' || !points.some((p) => p.id === curve.through?.point && p.kind === 'offset_on_skin'))) problems.push(`through ${curve.through?.point} is not a valid point offset on the skin (and only a tangent curve passes through one)`);
     if (!/^#[0-9a-f]{6}$/i.test(curve.colour || '')) problems.push('colour must be #rrggbb');
     if (typeof curve.label !== 'string' || !curve.label) problems.push('label must be a string');
     if (problems.length) errors.push(`${curve.id || '?'}: ${problems.join('; ')}`);
@@ -210,15 +248,93 @@ function levelOnMesh(grid, p) {
   return best ? { point: [best[0], y, best[1]] } : null;
 }
 
+const RAY_REACH_M = 0.4;         // how far out from the axis a level ray looks for the skin
+const WIRE_EASE_PASSES = 2;      // how many times a wire is eased once it is on the skin
+const JOINED_EASE_PASSES = 6;    // and a joined curve, carried to the nearest skin, which strays more
+
+/* The upright axis a wire is drawn round, at height y: on the centre plane,
+   half way between the front and the back of the body there. Null if the body
+   does not cross the centre plane at that height. */
+function axisAt(grid, y) {
+  const cut = verticalSegments(grid.tri, 0);
+  const [front, back] = [backCrossing(cut, y, true), backCrossing(cut, y)];
+  return front && back ? (front[1] + back[1]) / 2 : null;
+}
+
+/* Where the level ray from the axis (x = 0, z = axisZ) out through p first
+   leaves the body. It looks only at the triangles in the grid's cells along the
+   ray, nearest first, as closestOnMesh does ring by ring. */
+function outAlongLevelRay(grid, p, axisZ) {
+  const { cells, cell, tri } = grid;
+  const y = p[1], cj = Math.floor(y / cell);
+  const reach = Math.hypot(p[0], p[2] - axisZ);
+  if (reach < 1e-9) return null;
+  const ux = p[0] / reach, uz = (p[2] - axisZ) / reach;
+  const seen = new Set();
+  let best = Infinity;
+  for (let s = 0; s <= RAY_REACH_M; s += cell / 3) {
+    const ci = Math.floor((s * ux) / cell), ck = Math.floor((axisZ + s * uz) / cell);
+    for (let i = ci - 1; i <= ci + 1; i++) for (let k = ck - 1; k <= ck + 1; k++) {
+      const bucket = cells.get(`${i},${cj},${k}`);
+      if (!bucket) continue;
+      for (const t of bucket) {
+        if (seen.has(t)) continue;
+        seen.add(t);
+        // the triangle cut at height y, and where the ray crosses that piece
+        const hits = [];
+        for (let e = 0; e < 3; e++) {
+          const a = t + e * 3, b = t + ((e + 1) % 3) * 3;
+          const d0 = tri[a + 1] - y, d1 = tri[b + 1] - y;
+          if ((d0 > 0) !== (d1 > 0)) {
+            const f = d0 / (d0 - d1);
+            hits.push([tri[a] + (tri[b] - tri[a]) * f, tri[a + 2] + (tri[b + 2] - tri[a + 2]) * f]);
+          }
+        }
+        if (hits.length !== 2) continue;
+        const [h0, h1] = hits, ex = h1[0] - h0[0], ez = h1[1] - h0[1];
+        const det = ex * uz - ux * ez;
+        if (Math.abs(det) < 1e-14) continue;
+        const qx = h0[0], qz = h0[1] - axisZ;
+        const along = (ex * qz - qx * ez) / det, on = (ux * qz - uz * qx) / det;
+        if (along > 1e-9 && on >= -1e-9 && on <= 1 + 1e-9 && along < best) best = along;
+      }
+    }
+    // a nearer crossing would lie in a cell already looked at
+    if (best < s - 2 * cell) break;
+  }
+  return Number.isFinite(best) ? { point: [best * ux, y, axisZ + best * uz] } : null;
+}
+
+/* A run on the skin eased across the body: `passes` times, each sample but
+   the ends and the `held` ones moved a quarter of the way toward each
+   neighbour in x and z, its height kept. A curve carried at its own heights
+   strays only across the body -- on the mesh's flat facets (their edges are
+   about 7mm here), and where the nearest skin jumps -- so this takes the kinks
+   out, leaves every height as drawn (level stays level, the lowest point the
+   lowest), and keeps the run within a fraction of a millimetre of the skin. */
+function ease(points, passes, held = []) {
+  const keep = new Set([0, points.length - 1, ...held]);
+  let out = points;
+  for (let pass = 0; pass < passes; pass++) {
+    const was = out;
+    out = was.map((p, i) => (keep.has(i) ? p : [(was[i - 1][0] + 2 * p[0] + was[i + 1][0]) / 4, p[1], (was[i - 1][2] + 2 * p[2] + was[i + 1][2]) / 4]));
+  }
+  return out;
+}
+
+// A cubic Bezier's point at t.
+const bezierAt = (P0, P1, P2, P3, t) => {
+  const u = 1 - t;
+  return [0, 1, 2].map((i) => u * u * u * P0[i] + 3 * u * u * t * P1[i] + 3 * u * t * t * P2[i] + t * t * t * P3[i]);
+};
+
 // A cubic Bezier's samples, t in (0, 1], carried onto the skin (by `carry`, the
 // closest point unless said otherwise); null if one misses.
 function bezierOnSkin(grid, P0, P1, P2, P3, samples, carry = closestOnMesh) {
   const out = [];
   for (let s = 1; s <= samples; s++) {
     if (s === samples) { out.push(P3.slice()); break; }
-    const t = s / samples, u = 1 - t;
-    const b = [0, 1, 2].map((i) => u * u * u * P0[i] + 3 * u * u * t * P1[i] + 3 * u * t * t * P2[i] + t * t * t * P3[i]);
-    const hit = carry(grid, b);
+    const hit = carry(grid, bezierAt(P0, P1, P2, P3, s / samples));
     if (!hit) return null;
     out.push(hit.point);
   }
@@ -332,14 +448,18 @@ function joinedRun(grid, side, frames, handles, guideLength) {
   const k = handles.depth.fullness;
   const P1 = P0.map((v, i) => v + k * s * t0[i]);
   const P2 = P3.map((v, i) => v - k * u * t3[i]);
-  // carried at its own heights, so level out of the centre front stays level
+  // carried at its own heights, so level out of the centre front stays level; then eased across
   const b = bezierOnSkin(grid, P0, P1, P2, P3, CURVE_SAMPLES, levelOnMesh);
   if (!b) return { side, blocked: `the curve leaves the skin on the ${side} side` };
-  const points = [P0.slice(), ...b];
+  // (its last few samples held, so it still runs into the strap along the strap's edge; out of
+  // the centre front it keeps its heights, so it leaves level as drawn)
+  const held = [CURVE_SAMPLES - 2, CURVE_SAMPLES - 1];
+  const points = ease([P0.slice(), ...b], JOINED_EASE_PASSES, held);
   const jumped = jumpAcross(points, side);
   if (jumped) return { side, blocked: jumped };
-  // the middle, t = 1/2, and how it moves as the fullness changes (it is linear in it)
-  const middle = points[CURVE_SAMPLES / 2];
+  // the middle, t = 1/2, carried as it was drawn (the dot the fullness is dragged by, within
+  // a millimetre or so of the eased run), and how it moves as the fullness changes (it is linear in it)
+  const middle = levelOnMesh(grid, bezierAt(P0, P1, P2, P3, 0.5))?.point || points[CURVE_SAMPLES / 2];
   const chordMiddle = P0.map((v, i) => (v + P3[i]) / 2);
   const pull = t0.map((v, i) => (3 / 8) * (s * v - u * t3[i]));
   const cfTip = handleTip(grid, frames.cf, { angle_deg: handles.cf.angle_deg, length_mm: CF_HANDLE_MM });
@@ -351,6 +471,48 @@ function joinedRun(grid, side, frames, handles, guideLength) {
       { end: 'cf', tip: cfTip, points: onSkin(grid, P0, cfTip, TANGENT_SAMPLES) },
       { end: 'depth', tip: middle, points: [middle] },
     ],
+  };
+}
+
+/** One side's wire, from A through M, its lowest point, to C, drawn round
+ *  the body about the upright axis at axisZ: in the chart of angle (as a length
+ *  round at M's distance from the axis) and height, two cubic Beziers joined at
+ *  M, level there, each handle a third of its own leg's chord long, and at A and
+ *  C no bend; each sample carried out along its level ray onto the skin, and the
+ *  run eased. */
+function wireRun(grid, side, A, M, C, axisZ) {
+  const radius = Math.hypot(M[0], M[2] - axisZ);
+  const chart = (p) => [Math.atan2(p[0], p[2] - axisZ) * radius, p[1]];
+  const [a, m, c] = [A, M, C].map(chart);
+  const way = Math.sign(c[0] - a[0]) || 1;   // round the body, from A's end toward C's
+  const [la, lb] = [Math.hypot(m[0] - a[0], m[1] - a[1]) / 3, Math.hypot(c[0] - m[0], c[1] - m[1]) / 3];
+  const inA = [m[0] - way * la, m[1]], outC = [m[0] + way * lb, m[1]];
+  // a natural spline's ends (no second derivative there): each end's inner point half way to the handle at M
+  const a1 = [(a[0] + inA[0]) / 2, (a[1] + inA[1]) / 2], c1 = [(c[0] + outC[0]) / 2, (c[1] + outC[1]) / 2];
+  // a leg's samples, t in (0, 1], each out along its level ray, the last one the point it ends at
+  const leg = (P0, P1, P2, P3, end, samples) => {
+    const out = [];
+    for (let s = 1; s < samples; s++) {
+      const t = s / samples, u = 1 - t;
+      const [round, y] = [0, 1].map((i) => u * u * u * P0[i] + 3 * u * u * t * P1[i] + 3 * u * t * t * P2[i] + t * t * t * P3[i]);
+      const hit = outAlongLevelRay(grid, [Math.sin(round / radius), y, axisZ + Math.cos(round / radius)], axisZ);
+      if (!hit) return null;
+      out.push(hit.point);
+    }
+    out.push(end.slice());
+    return out;
+  };
+  const share = Math.max(8, Math.round((CURVE_SAMPLES * la) / (la + lb)));
+  const first = leg(a, a1, inA, m, M, share), second = leg(m, outC, c1, c, C, Math.max(8, CURVE_SAMPLES - share));
+  if (!first || !second) return { side, blocked: `the curve leaves the skin on the ${side} side` };
+  const mid = first.length;
+  // eased across, the point it runs lowest at held
+  const points = ease([A.slice(), ...first, ...second], WIRE_EASE_PASSES, [mid]);
+  const jumped = jumpAcross(points, side);
+  if (jumped) return { side, blocked: jumped };
+  return {
+    side, from: A, to: C, through: M, length_m: polyLength(points), points,
+    leg_lengths_m: [polyLength(points.slice(0, mid + 1)), polyLength(points.slice(mid))],
   };
 }
 
@@ -406,7 +568,7 @@ export function bendCurve(measured, handles, grid) {
 }
 
 // A curve's end on one side: { at: [x, y, z] }, or { needs } naming what is missing.
-function curveEnd(end, side, straps, landmarks, lines) {
+function curveEnd(end, side, straps, landmarks, lines, points) {
   if (end.strap !== undefined) {
     const strap = straps.find((s) => s.id === end.strap);
     if (!strap || strap.blocked) return { needs: end.strap };
@@ -417,6 +579,12 @@ function curveEnd(end, side, straps, landmarks, lines) {
     const line = lines.find((l) => l.id === end.line);
     return line && !line.blocked ? { at: line[end.end] } : { needs: end.line };
   }
+  if (end.point !== undefined) {
+    // a dot on a line is one for both sides; a point offset from a landmark, or a dot on a curve, is one per side
+    const point = points.find((p) => p.id === end.point);
+    if (!point || point.blocked) return { needs: end.point };
+    return { at: point.kind === 'on_line' ? point.at : point.marks.find((m) => m.side === side).point };
+  }
   const id = `${end.landmark}_${side}`;
   return Array.isArray(landmarks?.[id]) ? { at: landmarks[id] } : { needs: id };
 }
@@ -425,13 +593,26 @@ function curveEnd(end, side, straps, landmarks, lines) {
  *  `handles` overrides a shaped curve's contract handles ({ from, to } for a
  *  tangent curve, { cf, depth } for a joined curve; one missing or unsound
  *  keeps the contract's); `points` are the measured points (measurePoints), for a curve
- *  with `through`; `lines` the measured lines, for a curve ending on one.
+ *  with `through` or a wire ending on one; `lines` the measured lines, for a curve ending on one.
  *  Each handle is read against the shortest path over the skin from its end to
  *  the next point the curve must meet (the through point, or the other end). */
 export function measureCurve(curve, straps, landmarks, grid, handles = null, points = [], lines = []) {
-  const ends = ['L', 'R'].map((side) => [curveEnd(curve.from, side, straps, landmarks, lines), curveEnd(curve.to, side, straps, landmarks, lines)]);
-  const missing = [...new Set(ends.flat().filter((e) => e.needs).map((e) => e.needs))];
+  const ends = ['L', 'R'].map((side) => [curveEnd(curve.from, side, straps, landmarks, lines, points), curveEnd(curve.to, side, straps, landmarks, lines, points)]);
+  // a wire's lowest point is a registry landmark on each side
+  const lows = curve.kind === 'wire_curve' ? ['L', 'R'].map((side) => curveEnd(curve.through, side, straps, landmarks, lines, points)) : [];
+  const missing = [...new Set([...ends.flat(), ...lows].filter((e) => e.needs).map((e) => e.needs))];
   if (missing.length) return { ...curve, blocked: `needs ${missing.join(', ')}`, runs: [] };
+  if (curve.kind === 'wire_curve') {
+    const runs = [];
+    for (const [s, side] of ['L', 'R'].entries()) {
+      const axisZ = axisAt(grid, lows[s].at[1]);
+      const run = axisZ === null ? { side, blocked: `the body does not cross the centre plane at the height of ${curve.through.landmark}_${side}` }
+        : wireRun(grid, side, ends[s][0].at, lows[s].at, ends[s][1].at, axisZ);
+      if (run.blocked) return { ...curve, blocked: run.blocked, runs: [] };
+      runs.push(run);
+    }
+    return { ...curve, blocked: null, runs };
+  }
   const via = curve.through ? points.find((p) => p.id === curve.through.point) : null;
   if (curve.through && (!via || via.blocked)) return { ...curve, blocked: `needs ${curve.through.point}`, runs: [] };
   const keys = HANDLE_KEYS[curve.kind];
@@ -456,8 +637,27 @@ export function measureCurve(curve, straps, landmarks, grid, handles = null, poi
   return { ...curve, handles: use, blocked: null, runs };
 }
 
-/** Every declared curve, from the measured straps and lines. `handles` maps a
+/** Every declared curve, from the measured straps and lines, in the contract's
+ *  order: a wire may end on a dot riding on a curve before it, so the dots on
+ *  the curves measured so far are placed before a wire is. `handles` maps a
  *  curve id to handles that override the contract's (the viewer's dragged ones). */
 export function measureCurves(loaded, straps, landmarks, grid, handles = {}, points = [], lines = []) {
-  return (loaded.curves || []).map((curve) => measureCurve(curve, straps, landmarks, grid, handles[curve.id] || null, points, lines));
+  const curves = [];
+  for (const curve of loaded.curves || []) {
+    const placed = curve.kind === 'wire_curve' ? measureCurvePoints(points, curves) : points;
+    curves.push(measureCurve(curve, straps, landmarks, grid, handles[curve.id] || null, placed, lines));
+  }
+  return curves;
+}
+
+/** The measured `curves` again after a point moved or a curve was reshaped,
+ *  finding no shortest path again: each wire drawn on `points` as they are now
+ *  (the dots on the curves before it placed first), every other curve kept. */
+export function measureWires(loaded, curves, landmarks, grid, points) {
+  const out = [];
+  for (const curve of curves) {
+    const declared = curve.kind === 'wire_curve' && (loaded.curves || []).find((c) => c.id === curve.id);
+    out.push(declared ? measureCurve(declared, [], landmarks, grid, null, measureCurvePoints(points, out), []) : curve);
+  }
+  return out;
 }
