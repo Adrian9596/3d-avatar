@@ -4,7 +4,7 @@
    them). A per-viewer convenience — the contract's values are the record — kept
    in localStorage and dropped when they no longer lie on the skin (or the line). */
 
-import { measureCurves, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measurePoints } from '../../../features/reference_geometry/index.mjs';
+import { measureCurves, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measurePoints, measureCurvePoints } from '../../../features/reference_geometry/index.mjs';
 import { prototypeState, syncDiagnostics } from '../diagnostics.mjs';
 import { landmarkValue } from '../landmark_values.mjs';
 import { levelContract, measureGrid, torsoTris, marks, registry, poms } from '../measurement.mjs';
@@ -28,16 +28,26 @@ try{
   for(const [id,o] of Object.entries(moved||{}))if(ok(o))pointMoves[id]={...o};
 }catch(error){/* private mode */}
 
-/* A point at its new place, and every curve through it after it. False if a
-   curve would then leave the skin (the point stays where it was). */
+/* A point at its new place, and every curve through it after it (and every
+   dot on those curves). False if a curve would then leave the skin (the point
+   stays where it was). */
 export function movePoint(next){
   if(next.blocked)return false;
   const points=measuredPoints.map(p=>p.id===next.id?next:p);
   if(!measuredCurves.some(c=>c.through?.point===next.id)){measuredPoints=points;return true}
   const curves=measureCurves(levelContract,measuredStraps,levelMarks,measureGrid,curveHandles,points,measuredLines);
   if(curves.some(c=>c.blocked&&c.through?.point===next.id))return false;
-  measuredPoints=points;measuredCurves=curves;
+  measuredCurves=curves;measuredPoints=measureCurvePoints(points,curves);
   return true;
+}
+
+/* A curve at its new shape (its handles dragged or put back), and every dot
+   on it after it. */
+export function reshapeCurve(next){
+  const i=measuredCurves.findIndex(c=>c.id===next.id);
+  if(i<0)return;
+  measuredCurves[i]=next;
+  measuredPoints=measureCurvePoints(measuredPoints,measuredCurves);
 }
 
 export function saveCurveHandles(){
@@ -55,10 +65,17 @@ export function syncCurveState(){
     ...(c.runs.some(r=>Number.isFinite(r.depth_m))?{depth_mm:Object.fromEntries(c.runs.map(r=>[r.side,+(r.depth_m*1000).toFixed(1)]))}:{}),
     // where each tangent's dot is, for automated checks
     tips_m:Object.fromEntries(c.runs.filter(r=>r.tangents).map(r=>[r.side,Object.fromEntries(r.tangents.map(t=>[t.end,t.tip.map(v=>+v.toFixed(5))]))]))}));
+  const perSide=(p,f)=>Object.fromEntries((p.marks||[]).map(m=>[m.side,f(m)]));
   prototypeState.points=measuredPoints.map(p=>p.kind==='on_line'
     // a dot on a line: how far up it and to its top, and where (one dot, on the centre plane)
     ?{id:p.id,kind:p.kind,line:p.line,blocked:p.blocked,moved:Boolean(p.moved),up_in:+(p.up_in??0).toFixed(3),
       ...(p.at?{up_mm:+(p.up_m*1000).toFixed(1),to_top_mm:+(p.down_m*1000).toFixed(1),at_m:{C:p.at.map(v=>+v.toFixed(4))}}:{})}
+    :p.kind==='on_curve'
+    // a dot on each side of a curve: how far along from its end, how far on the curve goes, and where
+    ?{id:p.id,kind:p.kind,curve:p.curve,end:p.end,blocked:p.blocked,along_in:p.along_in,
+      along_mm:perSide(p,m=>+(m.along_m*1000).toFixed(1)),rest_mm:perSide(p,m=>+(m.rest_m*1000).toFixed(1)),
+      ...(p.marks?.some(m=>Number.isFinite(m.to_through_m))?{to_through_mm:perSide(p,m=>+(m.to_through_m*1000).toFixed(1))}:{}),
+      at_m:perSide(p,m=>m.point.map(v=>+v.toFixed(4)))}
     :{id:p.id,kind:p.kind,blocked:p.blocked,moved:Boolean(p.moved),
       up_in:+(p.up_in??0).toFixed(3),forward_in:+(p.forward_in??0).toFixed(3),
       at_m:Object.fromEntries((p.marks||[]).map(m=>[m.side,m.point.map(v=>+v.toFixed(4))]))});
@@ -101,4 +118,6 @@ export function measureReferenceGeometry(){
     measuredPoints=measurePoints(levelContract,curveMarks,torsoTris,pointMoves,measuredLines);
     measuredCurves=measureCurves(levelContract,measuredStraps,curveMarks,measureGrid,curveHandles,measuredPoints,measuredLines);
   }
+  // and the dots on a curve, now that the curves are measured
+  measuredPoints=measureCurvePoints(measuredPoints,measuredCurves);
 }

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-28T03:07:13Z",
+  "generated_at": "2026-09-28T03:40:35Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "96571d12887a45167b5ad11ebdf5b0db943d79c494245a14cfe01df80d3da972"
+    "sha256": "af97a85284ece169768a81304e218200d55961f434f84c861bb8c31482cbf416"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-28T03:06:46Z"
+    "generated_at": "2026-09-28T03:40:20Z"
   },
   "sheets": [
     {
@@ -637,6 +637,39 @@
       ],
       "up_mm": 66.67,
       "to_top_mm": 68.47
+    },
+    {
+      "id": "POINT_ARMHOLE_1_1_4_FROM_WING",
+      "kind": "on_curve",
+      "curve": "CURVE_CUP_ARMHOLE",
+      "end": "to",
+      "along_in": 1.25,
+      "colour": "#1c1c1e",
+      "blocked": null,
+      "marks": [
+        {
+          "side": "L",
+          "point_m": [
+            -0.15809,
+            1.36323,
+            0.02427
+          ],
+          "along_mm": 31.75,
+          "rest_mm": 92.9,
+          "to_through_mm": 1.84
+        },
+        {
+          "side": "R",
+          "point_m": [
+            0.15809,
+            1.36323,
+            0.02427
+          ],
+          "along_mm": 31.75,
+          "rest_mm": 92.9,
+          "to_through_mm": 1.84
+        }
+      ]
     }
   ],
   "declared_limits": [
@@ -855,12 +888,12 @@
     {
       "name": "a curve from an unknown strap, corner or landmark is refused",
       "status": "PASS",
-      "detail": "C: from strap NOPE is not a valid strap; from corner middle is not one of front_inner, front_outer, back_inner, back_outer; to NOPE_L is not a registry landmark"
+      "detail": "POINT_ARMHOLE_1_1_4_FROM_WING: curve CURVE_CUP_ARMHOLE is not a declared curve; C: from strap NOPE is not a valid strap; from corner middle is not one of front_"
     },
     {
       "name": "a curve from an unknown line or line end, a joined curve with unsound handles, or one not from the centre to a strap, is refused",
       "status": "PASS",
-      "detail": "C: handles.cf.angle_deg must be 0 (a U) to 75 degrees (a V); handles.depth.fullness must be 0.05 to 1.5; from line NOPE is not a valid line; from end middle is not top or bottom; D: a joined curve runs from a line's end "
+      "detail": "POINT_ARMHOLE_1_1_4_FROM_WING: curve CURVE_CUP_ARMHOLE is not a declared curve; C: handles.cf.angle_deg must be 0 (a U) to 75 degrees (a V); handles.depth.fullness must be 0.05 to 1.5; from line NOPE is not a valid line;"
     },
     {
       "name": "CURVE_CUP_ARMHOLE: from STRAP_MAXP2_CF_TO_CB.front_outer to SIDE_WING_HIGH_L/R on each side, over the skin",
@@ -913,9 +946,9 @@
       "detail": "168.1, 168.1mm, bowing 47.2mm below the shortest path (131.9mm)"
     },
     {
-      "name": "a curve cannot pass through a dot on a line (one dot, not a point on each side)",
+      "name": "a curve cannot pass through a dot on a line or on a curve, only a point offset on each side",
       "status": "PASS",
-      "detail": "CURVE_CUP_ARMHOLE: through POINT_ON_CF_LINE is not a valid point offset on the skin (and only a tangent curve passes through one)"
+      "detail": "CURVE_CUP_ARMHOLE: through POINT_ON_CF_LINE is not a valid point offset on the skin (and only a tangent curve passes through one) | CURVE_CUP_ARMHOLE: through POINT_ARMHOLE_1_1_4_FROM_WING is not a valid point offset on "
     },
     {
       "name": "a tangent curve without a sound pair of handles is refused",
@@ -925,12 +958,12 @@
     {
       "name": "every declared point validates",
       "status": "PASS",
-      "detail": "2 point(s): POINT_WING_HIGH_UP_3_8_FWD_1_1_4 0.375in up, 1.25in forward from SIDE_WING_HIGH_L/R, POINT_ON_CF_LINE 2.625in up LINE_CF_M1_3_4_TO_MAXGIRTH"
+      "detail": "3 point(s): POINT_WING_HIGH_UP_3_8_FWD_1_1_4 0.375in up, 1.25in forward from SIDE_WING_HIGH_L/R, POINT_ON_CF_LINE 2.625in up LINE_CF_M1_3_4_TO_MAXGIRTH, POINT_ARMHOLE_1_1_4_FROM_WING 1.25in along CURVE_CUP_ARMHOLE from its to end"
     },
     {
-      "name": "a point from an unknown landmark or with bad offsets, or a dot on an unknown line or below its end, is refused",
+      "name": "a point from an unknown landmark or with bad offsets, or a dot on an unknown line or curve, from no end or before it, is refused",
       "status": "PASS",
-      "detail": "P: from NOPE_L is not a registry landmark; from NOPE_R is not a registry landmark; up_in must be a number of inches; forward_in must be a number of inches; Q: line NOPE is not a valid line; up_in must"
+      "detail": "P: from NOPE_L is not a registry landmark; from NOPE_R is not a registry landmark; up_in must be a number of inches; forward_in must be a number of inches; Q: line NOPE is not a valid line; up_in must be a number of inches, 0 or more, up the line from its lowe"
     },
     {
       "name": "POINT_WING_HIGH_UP_3_8_FWD_1_1_4: a place on the skin reads back as the offsets that reach it (for dragging)",
@@ -956,6 +989,16 @@
       "name": "POINT_ON_CF_LINE: a place on the line reads back as how far up it is; beside it, the same; past an end, that end (for dragging)",
       "status": "PASS",
       "detail": "2.625in -> 2.625000in; 30mm to the side -> 2.625000in; above the top -> 5.3206in; below the bottom -> 0in"
+    },
+    {
+      "name": "POINT_ARMHOLE_1_1_4_FROM_WING: 1.25in along CURVE_CUP_ARMHOLE from its to end, on each side, on the curve and the skin, mirrored",
+      "status": "PASS",
+      "detail": "L at (-158.1, 1363.2, 24.3)mm, 31.75mm walked from the end, 92.9mm on to the other, the through point 1.84mm further along; R at (158.1, 1363.2, 24.3)mm, 31.75mm walked from the end, 92.9mm on to the other, the through point 1.84mm further along"
+    },
+    {
+      "name": "POINT_ARMHOLE_1_1_4_FROM_WING: it rides on CURVE_CUP_ARMHOLE, the same distance along when the curve is reshaped; past the other end, or without the curve, it is blocked",
+      "status": "PASS",
+      "detail": "handles turned: L (-157.9, 1357.3, 24.2)mm, R (157.9, 1357.3, 24.2)mm; point moved: L (-159.8, 1374.8, 18.8)mm, R (159.8, 1374.8, 18.8)mm; 40in along is past the other end of CURVE_CUP_ARMHOLE (4.91in on the L side)"
     }
   ],
   "decision": "LEVELS_RESOLVE_ON_THIS_BODY"
