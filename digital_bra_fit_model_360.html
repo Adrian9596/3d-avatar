@@ -428,13 +428,16 @@ let overrides={landmarks:{}};
 try{const stored=localStorage.getItem('landmarkOverrides');if(stored)overrides=JSON.parse(stored)}catch(error){/* private mode */}
 savedLandmarksJson=JSON.stringify(overrides.landmarks||{});
 let measureRowData=[],selectedTapeIndex=-1,tapesVisible=true;
-// Tangent handles dragged on a curve (the cup armhole), per curve id. A
-// per-viewer convenience: the contract's handles are the record.
+// Handles dragged on a curve (the cup armhole's tangents, a control point), per
+// curve id. A per-viewer convenience: the contract's handles are the record.
 let curveHandles={},curveRowEls={},curveDrag=null,pointMoves={},pointRowEls={},levelMarks={};
 try{
   const stored=JSON.parse(localStorage.getItem('curveHandles')||'{}');
   const ok=h=>Number.isFinite(h?.angle_deg)&&Number.isFinite(h?.length_mm)&&h.length_mm>0;
-  for(const [id,pair] of Object.entries(stored||{}))if(ok(pair?.from)&&ok(pair?.to))curveHandles[id]={from:pair.from,to:pair.to};
+  for(const [id,handles] of Object.entries(stored||{})){
+    const entries=Object.entries(handles||{});
+    if(entries.length&&entries.every(([,h])=>ok(h)))curveHandles[id]=Object.fromEntries(entries.map(([key,h])=>[key,{angle_deg:h.angle_deg,length_mm:h.length_mm}]));
+  }
   // and points dragged off their contract place, as the offsets that reach them
   const moved=JSON.parse(localStorage.getItem('pointMoves')||'{}');
   for(const [id,o] of Object.entries(moved||{}))if(Number.isFinite(o?.up_in)&&Number.isFinite(o?.forward_in))pointMoves[id]={up_in:o.up_in,forward_in:o.forward_in};
@@ -680,10 +683,13 @@ function renderReferenceTapeRows(fromId,tbody){
   const tickIds=new Set(measuredTicks.filter(t=>ids.has(t.on)).map(t=>t.id));
   for(const strap of measuredStraps.filter(s=>tickIds.has(s.from))){
     renderStrapRow(strap,tbody);
-    for(const curve of measuredCurves.filter(c=>c.from.strap===strap.id))renderCurveRows(curve,tbody);
-    // points hung on the landmark the armhole ends at follow it
-    const ends=new Set(measuredCurves.filter(c=>c.from.strap===strap.id).map(c=>c.to.landmark));
-    for(const point of measuredPoints.filter(p=>ends.has(p.from.landmark)))renderPointRow(point,tbody);
+    const listed=new Set();
+    for(const curve of measuredCurves.filter(c=>c.from.strap===strap.id||c.to.strap===strap.id)){
+      renderCurveRows(curve,tbody);
+      // points hung on a landmark the curve ends at (the armhole's wing top) follow it
+      const ends=new Set([curve.from.landmark,curve.to.landmark].filter(Boolean));
+      for(const point of measuredPoints.filter(p=>ends.has(p.from.landmark)&&!listed.has(p.id))){listed.add(point.id);renderPointRow(point,tbody)}
+    }
   }
 }
 
@@ -740,7 +746,7 @@ function resetPoint(id){
 function movePoint(next){
   if(next.blocked)return false;
   const points=measuredPoints.map(p=>p.id===next.id?next:p);
-  const curves=measureCurves(levelContract,measuredStraps,levelMarks,measureGrid,curveHandles,points);
+  const curves=measureCurves(levelContract,measuredStraps,levelMarks,measureGrid,curveHandles,points,measuredLines);
   if(curves.some(c=>c.blocked&&c.through?.point===next.id))return false;
   measuredPoints=points;measuredCurves=curves;
   updatePointRow(next);
@@ -749,21 +755,26 @@ function movePoint(next){
   return true;
 }
 
-/* A curve from a strap corner to a landmark ("curves" in
-   contracts/measurement-levels.json), such as the cup armhole: one row per
-   side with its length on the skin. A "tangent_curve" is shaped by two tangent
-   handles: select a side's row and drag the round dots on the body; one pair
-   shapes both sides, mirrored, and every number here follows the drag. */
+/* A curve on the skin ("curves" in contracts/measurement-levels.json), such as
+   the cup armhole: one row per side with its length on the skin. A
+   "tangent_curve" is shaped by two tangent handles, a "control_curve" by one
+   control point: select a side's row and drag the round dots on the body; the
+   handles shape both sides, mirrored, and every number here follows the drag. */
+function curveEndText(end,side){
+  if(end.strap)return `the strap's ${end.corner.replace('_',' ')} corner`;
+  if(end.line)return `the ${end.end} of the ${measuredLines.find(l=>l.id===end.line)?.kind==='centre_front'?'CF':'CB'} line`;
+  return `${end.landmark}_${side}`;
+}
 function renderCurveRows(curve,tbody){
   const den=registry.reporting.inch_denominator;
-  const corner=curve.from.corner.replace('_',' ');
-  const shaped=curve.kind==='tangent_curve';
+  const shaped=curve.kind==='tangent_curve'||curve.kind==='control_curve';
   const els=curveRowEls[curve.id]={sides:{},handles:{}};
   for(const side of ['L','R']){
     const label=`${curve.label} ${side}`;
     const tr=document.createElement('tr');
-    tr.title=`From the strap's ${corner} corner to ${curve.to.landmark}_${side}, `
-      +(shaped?`${curve.through?'through the armhole point, ':''}shaped by two tangent handles: select this row, then drag the green dots (tangents) or the blue dot (the point) on the body.`:'the shortest path over the skin.');
+    tr.title=`From ${curveEndText(curve.from,side)} to ${curveEndText(curve.to,side)}, `
+      +(curve.kind==='control_curve'?'shaped by one control point: select this row, then drag the green dot on the body.'
+        :shaped?`${curve.through?'through the armhole point, ':''}shaped by two tangent handles: select this row, then drag the green dots (tangents) or the blue dot (the point) on the body.`:'the shortest path over the skin.');
     const run=curve.runs.find(r=>r.side===side);
     if(curve.blocked||!run){
       tr.className='landmark';
@@ -779,12 +790,16 @@ function renderCurveRows(curve,tbody){
     els.sides[side]={tr,index:measureRowData.length,title:tr.title};
     measureRowData.push({label,paths:[run.points],color:parseInt(curve.colour.slice(1),16),curve:curve.id,side,tangents:null,grabs:[]});
   }
-  if(shaped&&!curve.blocked)for(const [end,where] of [['from','at strap'],['to','at wing']]){
+  const handleRows=curve.kind==='control_curve'
+    ?[['control','Control',`The control point: its distance from ${curveEndText(curve.from,'L')}, and its angle from the shortest path over the skin toward ${curveEndText(curve.to,'L')} (positive turns it up). The curve bends toward it. Drag its dot on the body to change it; ↺ puts it back to the contract's.`]]
+    :[['from','Tangent at strap'],['to','Tangent at wing']].map(([end,name])=>[end,name,
+      `The tangent handle ${name.slice(8)}: its length, and its angle from the shortest path over the skin toward the ${curve.through?'armhole point':'other end'} (positive turns it up toward the shoulder). Drag its dot on the body to change it; ↺ puts both handles back to the contract's.`]);
+  if(shaped&&!curve.blocked)for(const [k,[end,name,title]] of handleRows.entries()){
     const tr=document.createElement('tr');
-    tr.title=`The tangent handle ${where}: its length, and its angle from the shortest path over the skin toward the ${curve.through?'armhole point':'other end'} (positive turns it up toward the shoulder). Drag its dot on the body to change it; ↺ puts both handles back to the contract's.`;
-    // one reset for the pair, on the first handle's row
-    const reset=end==='from'?' <button type="button" class="curve-reset" aria-label="Reset the tangent handles">↺</button>':'';
-    tr.innerHTML=`<td class="tangent"><span style="color:#${HANDLE_COLOR.toString(16).padStart(6,'0')}">↳</span> Tangent ${where} <span class="angle"></span>${reset}</td><td class="val"></td><td class="in"></td>`;
+    tr.title=title;
+    // one reset for all the curve's handles, on the first handle's row
+    const reset=k===0?' <button type="button" class="curve-reset" aria-label="Reset the handles">↺</button>':'';
+    tr.innerHTML=`<td class="tangent"><span style="color:#${HANDLE_COLOR.toString(16).padStart(6,'0')}">↳</span> ${name} <span class="angle"></span>${reset}</td><td class="val"></td><td class="in"></td>`;
     tr.querySelector('button')?.addEventListener('click',event=>{event.stopPropagation();resetCurveHandles(curve.id)});
     tbody.appendChild(tr);
     els.handles[end]=tr;
@@ -799,7 +814,7 @@ function updateCurveRows(curve){
   const els=curveRowEls[curve.id];
   if(!els)return;
   const base=(levelContract?.curves||[]).find(c=>c.id===curve.id)?.handles;
-  const moved=Boolean(base&&curve.handles&&['from','to'].some(end=>
+  const moved=Boolean(base&&curve.handles&&Object.keys(base).some(end=>
     Math.abs(curve.handles[end].angle_deg-base[end].angle_deg)>0.05||Math.abs(curve.handles[end].length_mm-base[end].length_mm)>0.05));
   for(const run of curve.runs){
     const el=els.sides[run.side];
@@ -1420,7 +1435,7 @@ function recomputeLevels(){
   measuredStraps=levelContract&&torsoTris?measureStraps(levelContract,measuredLevels,measuredTapes,measuredTicks,torsoTris):[];
   // curves end on a registry landmark on each side (the wing top, say), as the table places it
   const curveMarks=levelMarks={};
-  for(const landmark of [...(levelContract?.curves||[]).map(c=>c.to.landmark),...(levelContract?.points||[]).map(p=>p.from.landmark)])for(const side of ['L','R']){
+  for(const landmark of [...(levelContract?.curves||[]).flatMap(c=>[c.from.landmark,c.to.landmark]).filter(Boolean),...(levelContract?.points||[]).map(p=>p.from.landmark)])for(const side of ['L','R']){
     const id=`${landmark}_${side}`,p=landmarkValue(id);
     if(p&&Number.isFinite(p.x))curveMarks[id]=[p.x,p.y,p.z];
   }
@@ -1431,11 +1446,11 @@ function recomputeLevels(){
     for(const p of measuredPoints)if(p.blocked)delete pointMoves[p.id];
     measuredPoints=measurePoints(levelContract,curveMarks,torsoTris,pointMoves);
   }
-  measuredCurves=levelContract&&measureGrid?measureCurves(levelContract,measuredStraps,curveMarks,measureGrid,curveHandles,measuredPoints):[];
+  measuredCurves=levelContract&&measureGrid?measureCurves(levelContract,measuredStraps,curveMarks,measureGrid,curveHandles,measuredPoints,measuredLines):[];
   if(measuredCurves.some(c=>c.blocked&&(curveHandles[c.id]||pointMoves[c.through?.point]))){
     for(const c of measuredCurves)if(c.blocked){delete curveHandles[c.id];if(c.through)delete pointMoves[c.through.point]}
     measuredPoints=measurePoints(levelContract,curveMarks,torsoTris,pointMoves);
-    measuredCurves=measureCurves(levelContract,measuredStraps,curveMarks,measureGrid,curveHandles,measuredPoints);
+    measuredCurves=measureCurves(levelContract,measuredStraps,curveMarks,measureGrid,curveHandles,measuredPoints,measuredLines);
   }
   syncCurveState();
   drawLevels();

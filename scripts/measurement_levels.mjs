@@ -32,6 +32,9 @@ import { surfaceRun, closestOnMesh } from './surface_path.mjs';
 export const METRES_PER_INCH = 0.0254;
 export const LEVELS_LIMIT = 'Reference levels are heights from the underbust line, not a fit recommendation and not a size.';
 
+// The handles each shaped kind of curve carries (see the curves section).
+const HANDLE_KEYS = { tangent_curve: ['from', 'to'], control_curve: ['control'] };
+
 /**
  * Validate the contract against the registry. Returns { levels, groups, datum,
  * errors, declared_limit }; `levels` holds only the entries that validated, so a
@@ -174,24 +177,36 @@ export function loadLevels(contract, registry) {
     else points.push(point);
   }
 
-  // Curves on the skin from a strap corner to a registry landmark, one per side.
+  // Curves on the skin, one per side, between two of: a strap corner, a registry
+  // landmark (its _L / _R point), or an end of a line (on the centre plane).
   const CORNERS = ['front_inner', 'front_outer', 'back_inner', 'back_outer'];
+  const endProblems = (end, name) => {
+    if (end?.strap !== undefined) {
+      return [
+        ...(straps.some((s) => s.id === end.strap) ? [] : [`${name} strap ${end.strap} is not a valid strap`]),
+        ...(CORNERS.includes(end.corner) ? [] : [`${name} corner ${end.corner} is not one of ${CORNERS.join(', ')}`]),
+      ];
+    }
+    if (end?.line !== undefined) {
+      return [
+        ...(lines.some((l) => l.id === end.line) ? [] : [`${name} line ${end.line} is not a valid line`]),
+        ...(['top', 'bottom'].includes(end.end) ? [] : [`${name} end ${end.end} is not top or bottom`]),
+      ];
+    }
+    return ['L', 'R'].filter((side) => !known.has(`${end?.landmark}_${side}`)).map((side) => `${name} ${end?.landmark}_${side} is not a registry landmark`);
+  };
   const curves = [];
   for (const curve of contract?.curves || []) {
     const problems = [];
     if (!curve.id || heightIds.has(curve.id) || shapeIds.has(curve.id) || lines.some((l) => l.id === curve.id) || ticks.some((t) => t.id === curve.id) || straps.some((t) => t.id === curve.id) || points.some((t) => t.id === curve.id) || curves.some((c) => c.id === curve.id)) problems.push('missing or duplicate id');
-    if (!['shortest_surface_path', 'tangent_curve'].includes(curve.kind)) problems.push(`unknown kind ${curve.kind}`);
-    if (curve.kind === 'tangent_curve') {
-      for (const end of ['from', 'to']) {
-        const h = curve.handles?.[end];
-        if (!(Number.isFinite(h?.angle_deg) && Math.abs(h.angle_deg) <= 180)) problems.push(`handles.${end}.angle_deg must be a number of degrees`);
-        if (!(Number.isFinite(h?.length_mm) && h.length_mm > 0)) problems.push(`handles.${end}.length_mm must be a positive number`);
-      }
+    if (!['shortest_surface_path', ...Object.keys(HANDLE_KEYS)].includes(curve.kind)) problems.push(`unknown kind ${curve.kind}`);
+    for (const key of HANDLE_KEYS[curve.kind] || []) {
+      const h = curve.handles?.[key];
+      if (!(Number.isFinite(h?.angle_deg) && Math.abs(h.angle_deg) <= 180)) problems.push(`handles.${key}.angle_deg must be a number of degrees`);
+      if (!(Number.isFinite(h?.length_mm) && h.length_mm > 0)) problems.push(`handles.${key}.length_mm must be a positive number`);
     }
-    if (!straps.some((s) => s.id === curve.from?.strap)) problems.push(`from strap ${curve.from?.strap} is not a valid strap`);
-    if (!CORNERS.includes(curve.from?.corner)) problems.push(`from corner ${curve.from?.corner} is not one of ${CORNERS.join(', ')}`);
+    problems.push(...endProblems(curve.from, 'from'), ...endProblems(curve.to, 'to'));
     if (curve.through !== undefined && (curve.kind !== 'tangent_curve' || !points.some((p) => p.id === curve.through?.point))) problems.push(`through ${curve.through?.point} is not a valid point (and only a tangent curve passes through one)`);
-    for (const side of ['L', 'R']) if (!known.has(`${curve.to?.landmark}_${side}`)) problems.push(`to ${curve.to?.landmark}_${side} is not a registry landmark`);
     if (!/^#[0-9a-f]{6}$/i.test(curve.colour || '')) problems.push('colour must be #rrggbb');
     if (typeof curve.label !== 'string' || !curve.label) problems.push('label must be a string');
     if (problems.length) errors.push(`${curve.id || '?'}: ${problems.join('; ')}`);
@@ -766,9 +781,11 @@ export function measureStraps(loaded, measured, tapes, ticks, tri) {
   return (loaded.straps || []).map((strap) => measureStrap(strap, ticks, heights, tri));
 }
 
-/* --- curves from a strap to a landmark ---------------------------------------------
+/* --- curves on the skin ------------------------------------------------------------
    The cup armhole, say: from a corner of a strap to a registry landmark on the
-   same side (its _L / _R point).
+   same side (its _L / _R point). An end may also be an end of a line, such as
+   the top of the centre-front line: on the centre plane, so both sides start
+   from the same point.
 
    kind "shortest_surface_path": the shortest path over the skin -- the one path
    model the pen and the surface POMs use (scripts/surface_path.mjs), so the
@@ -785,7 +802,16 @@ export function measureStraps(loaded, measured, tapes, ticks, tri) {
    carried onto the skin (closest point), and its length is that line on the
    skin -- what a tape laid along the drawn armhole reads. The handles are the
    contract's until someone drags them; the viewer passes its own. One handle
-   pair shapes both sides, mirrored, as the body is. ---------------------------- */
+   pair shapes both sides, mirrored, as the body is.
+
+   kind "control_curve": the same, shaped by one control point instead of two
+   tangents. The control is a handle read at the `from` end, in the same frame
+   (0 deg = along the shortest path toward the other end); its tip is the
+   control point, and the curve is the quadratic Bezier from end to end bent
+   toward it -- tangent at each end to the line to the control point, passing
+   halfway between the control point and the middle of the chord. With the
+   control at 0 deg and about half the shortest path long, the curve is close to
+   that path. ------------------------------------------------------------------ */
 
 const CURVE_SAMPLES = 96;       // Bezier samples along the curve
 const TANGENT_SAMPLES = 16;     // samples along each drawn tangent line
@@ -803,7 +829,9 @@ const polyLength = (pts) => pts.slice(1).reduce((sum, p, i) => sum + Math.hypot(
 function handleFrame(grid, points, atEnd) {
   const path = atEnd ? points.slice().reverse() : points;
   const origin = path[0];
-  const normal = closestOnMesh(grid, origin)?.normal || [0, 0, 1];
+  let normal = closestOnMesh(grid, origin)?.normal || [0, 0, 1];
+  // on the centre plane both sides read one frame, mirrored: the normal square to it
+  if (Math.abs(origin[0]) < 1e-9) normal = unit([0, normal[1], normal[2]]);
   let reach = path[path.length - 1];
   for (let i = 1, walked = 0; i < path.length; i++) {
     walked += Math.hypot(...sub(path[i], path[i - 1]));
@@ -894,10 +922,8 @@ function tangentRun(grid, side, frames, handles, guideLength, through = null) {
     mid = a.length;
   }
   const length = polyLength(points);
-  let jump = 0;
-  for (let i = 1; i < points.length; i++) jump = Math.max(jump, Math.hypot(...sub(points[i], points[i - 1])));
-  // carried across a gap in the skin (the armhole opening) rather than along it
-  if (jump > Math.max(0.012, (6 * length) / CURVE_SAMPLES)) return { side, blocked: `the curve jumps ${(jump * 1000).toFixed(0)}mm across the skin on the ${side} side` };
+  const jumped = jumpAcross(points, side);
+  if (jumped) return { side, blocked: jumped };
   return {
     side, from: P0, to: P3, through, length_m: length, points, guide_length_m: guideLength,
     ...(through ? { leg_lengths_m: [polyLength(points.slice(0, mid + 1)), polyLength(points.slice(mid))] } : {}),
@@ -909,53 +935,111 @@ function tangentRun(grid, side, frames, handles, guideLength, through = null) {
   };
 }
 
-/** Re-shape a measured tangent curve with a new handle pair, both sides, without
- *  finding the shortest paths again (its frames are kept on each run). */
+// Why a curve on the skin is not one, or null: carried across a gap in the skin
+// (the armhole opening) rather than along it.
+function jumpAcross(points, side) {
+  const length = polyLength(points);
+  let jump = 0;
+  for (let i = 1; i < points.length; i++) jump = Math.max(jump, Math.hypot(...sub(points[i], points[i - 1])));
+  return jump > Math.max(0.012, (6 * length) / CURVE_SAMPLES) ? `the curve jumps ${(jump * 1000).toFixed(0)}mm across the skin on the ${side} side` : null;
+}
+
+/** One side's control curve from its frame at the `from` end, the control handle
+ *  and the other end: the quadratic Bezier bent toward the control point. Its
+ *  two dashed guides run from each end to the control point. */
+function controlRun(grid, side, frames, handles, guideLength, P3) {
+  const P0 = frames.control.origin;
+  const C = handleTip(grid, frames.control, handles.control);
+  // the quadratic as a cubic: each inner point two thirds of the way to C
+  const P1 = P0.map((v, i) => v + (2 / 3) * (C[i] - v));
+  const P2 = P3.map((v, i) => v + (2 / 3) * (C[i] - v));
+  const b = bezierOnSkin(grid, P0, P1, P2, P3, CURVE_SAMPLES);
+  if (!b) return { side, blocked: `the curve leaves the skin on the ${side} side` };
+  const points = [P0.slice(), ...b];
+  const jumped = jumpAcross(points, side);
+  if (jumped) return { side, blocked: jumped };
+  return {
+    side, from: P0, to: P3, through: null, length_m: polyLength(points), points, guide_length_m: guideLength,
+    frames, control: C,
+    tangents: [
+      { end: 'control', tip: C, points: onSkin(grid, P0, C, TANGENT_SAMPLES) },
+      { end: 'control', tip: C, points: onSkin(grid, P3, C, TANGENT_SAMPLES) },
+    ],
+  };
+}
+
+// One side of a shaped curve, from the frames kept on its run.
+function shapeRun(kind, grid, side, frames, handles, guideLength, to, through) {
+  return kind === 'control_curve'
+    ? controlRun(grid, side, frames, handles, guideLength, to)
+    : tangentRun(grid, side, frames, handles, guideLength, through);
+}
+
+/** Re-shape a measured curve with new handles (a tangent pair, or the control),
+ *  both sides, without finding the shortest paths again (its frames are kept
+ *  on each run). */
 export function bendCurve(measured, handles, grid) {
-  if (measured.blocked || measured.kind !== 'tangent_curve') return measured;
+  if (measured.blocked || !HANDLE_KEYS[measured.kind]) return measured;
   const runs = [];
   for (const run of measured.runs) {
-    const next = tangentRun(grid, run.side, run.frames, handles, run.guide_length_m, run.through);
+    const next = shapeRun(measured.kind, grid, run.side, run.frames, handles, run.guide_length_m, run.to, run.through);
     if (next.blocked) return { ...measured, handles, blocked: next.blocked, runs: [] };
     runs.push(next);
   }
   return { ...measured, handles, blocked: null, runs };
 }
 
+// A curve's end on one side: { at: [x, y, z] }, or { needs } naming what is missing.
+function curveEnd(end, side, straps, landmarks, lines) {
+  if (end.strap !== undefined) {
+    const strap = straps.find((s) => s.id === end.strap);
+    return strap && !strap.blocked ? { at: strap.bands.find((b) => b.side === side).corners[end.corner] } : { needs: end.strap };
+  }
+  if (end.line !== undefined) {
+    const line = lines.find((l) => l.id === end.line);
+    return line && !line.blocked ? { at: line[end.end] } : { needs: end.line };
+  }
+  const id = `${end.landmark}_${side}`;
+  return Array.isArray(landmarks?.[id]) ? { at: landmarks[id] } : { needs: id };
+}
+
 /** `landmarks` maps a registry id to [x, y, z]; `grid` is surface_path's buildGrid.
- *  `handles` overrides a tangent curve's contract handles ({ from, to });
- *  `points` are the measured points (measurePoints), for a curve with `through`.
+ *  `handles` overrides a shaped curve's contract handles ({ from, to } for a
+ *  tangent curve, { control } for a control curve; one missing keeps the
+ *  contract's); `points` are the measured points (measurePoints), for a curve
+ *  with `through`; `lines` the measured lines, for a curve ending on one.
  *  Each handle is read against the shortest path over the skin from its end to
  *  the next point the curve must meet (the through point, or the other end). */
-export function measureCurve(curve, straps, landmarks, grid, handles = null, points = []) {
-  const strap = straps.find((s) => s.id === curve.from.strap);
-  if (!strap || strap.blocked) return { ...curve, blocked: `needs ${curve.from.strap}`, runs: [] };
-  const missing = ['L', 'R'].map((side) => `${curve.to.landmark}_${side}`).filter((id) => !Array.isArray(landmarks?.[id]));
+export function measureCurve(curve, straps, landmarks, grid, handles = null, points = [], lines = []) {
+  const ends = ['L', 'R'].map((side) => [curveEnd(curve.from, side, straps, landmarks, lines), curveEnd(curve.to, side, straps, landmarks, lines)]);
+  const missing = [...new Set(ends.flat().filter((e) => e.needs).map((e) => e.needs))];
   if (missing.length) return { ...curve, blocked: `needs ${missing.join(', ')}`, runs: [] };
   const via = curve.through ? points.find((p) => p.id === curve.through.point) : null;
   if (curve.through && (!via || via.blocked)) return { ...curve, blocked: `needs ${curve.through.point}`, runs: [] };
-  const use = curve.kind === 'tangent_curve' ? (handles || curve.handles) : null;
+  const keys = HANDLE_KEYS[curve.kind];
+  const use = keys ? Object.fromEntries(keys.map((k) => [k, handles?.[k] || curve.handles[k]])) : null;
   const runs = [];
-  for (const side of ['L', 'R']) {
-    const from = strap.bands.find((b) => b.side === side).corners[curve.from.corner];
-    const to = landmarks[`${curve.to.landmark}_${side}`];
+  for (const [s, side] of ['L', 'R'].entries()) {
+    const [from, to] = ends[s].map((e) => e.at);
     const M = via ? via.marks.find((m) => m.side === side).point : null;
     const legs = M ? [surfaceRun(grid, from, M), surfaceRun(grid, M, to)] : [surfaceRun(grid, from, to)];
     if (!legs.every((l) => l.onSurface)) return { ...curve, blocked: `no path over the skin on the ${side} side`, runs: [] };
     const guide = legs.reduce((sum, l) => sum + l.length, 0);
     if (!use) { runs.push({ side, from, to, length_m: guide, points: legs[0].points }); continue; }
-    const frames = { from: handleFrame(grid, legs[0].points, false), to: handleFrame(grid, legs[legs.length - 1].points, true) };
-    const bent = tangentRun(grid, side, frames, use, guide, M);
+    const frames = curve.kind === 'control_curve'
+      ? { control: handleFrame(grid, legs[0].points, false) }
+      : { from: handleFrame(grid, legs[0].points, false), to: handleFrame(grid, legs[legs.length - 1].points, true) };
+    const bent = shapeRun(curve.kind, grid, side, frames, use, guide, to, M);
     if (bent.blocked) return { ...curve, handles: use, blocked: bent.blocked, runs: [] };
     runs.push(bent);
   }
   return { ...curve, handles: use, blocked: null, runs };
 }
 
-/** Every declared curve, from the measured straps. `handles` maps a curve id to a
- *  handle pair that overrides the contract's (the viewer's dragged ones). */
-export function measureCurves(loaded, straps, landmarks, grid, handles = {}, points = []) {
-  return (loaded.curves || []).map((curve) => measureCurve(curve, straps, landmarks, grid, handles[curve.id] || null, points));
+/** Every declared curve, from the measured straps and lines. `handles` maps a
+ *  curve id to handles that override the contract's (the viewer's dragged ones). */
+export function measureCurves(loaded, straps, landmarks, grid, handles = {}, points = [], lines = []) {
+  return (loaded.curves || []).map((curve) => measureCurve(curve, straps, landmarks, grid, handles[curve.id] || null, points, lines));
 }
 
 /* --- points offset from a landmark -------------------------------------------------
