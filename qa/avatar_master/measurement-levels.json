@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-28T02:40:02Z",
+  "generated_at": "2026-09-28T03:07:13Z",
   "purpose": "The house \"how to measure\" level stack, read off the source sheets and resolved on this avatar.",
   "asset": {
     "path": "assets/export/avatar_master.glb",
@@ -8,11 +8,11 @@
   },
   "contract": {
     "path": "contracts/measurement-levels.json",
-    "sha256": "00c767b5eeedb3711d2dc2240369316a648afc67d65598e69e9a24f53ab7bb06"
+    "sha256": "96571d12887a45167b5ad11ebdf5b0db943d79c494245a14cfe01df80d3da972"
   },
   "trace": {
     "path": "qa/avatar_master/measurement-levels-trace.json",
-    "generated_at": "2026-09-28T02:37:57Z"
+    "generated_at": "2026-09-28T03:06:46Z"
   },
   "sheets": [
     {
@@ -622,6 +622,21 @@
           "forward_mm": 31.75
         }
       ]
+    },
+    {
+      "id": "POINT_ON_CF_LINE",
+      "kind": "on_line",
+      "line": "LINE_CF_M1_3_4_TO_MAXGIRTH",
+      "up_in": 2.625,
+      "colour": "#1f6fe0",
+      "blocked": null,
+      "point_m": [
+        0,
+        1.28712,
+        0.10276
+      ],
+      "up_mm": 66.67,
+      "to_top_mm": 68.47
     }
   ],
   "declared_limits": [
@@ -785,7 +800,7 @@
     {
       "name": "a line of an unknown kind or to an unknown height is refused",
       "status": "PASS",
-      "detail": "L: unknown kind sideways; to NOPE is not a valid level, reference tape or plane-section POM; CURVE_CF_TO_STRAP: from line LINE_CF_M1_3_4_TO_MAXGIRTH is not a va"
+      "detail": "L: unknown kind sideways; to NOPE is not a valid level, reference tape or plane-section POM; POINT_ON_CF_LINE: line LINE_CF_M1_3_4_TO_MAXGIRTH is not a valid li"
     },
     {
       "name": "LINE_CB_MAXP2_TO_M1_1_2: on the centre back from TAPE_MAXGIRTH_P2 down to LVL_M1_1_2, along the skin",
@@ -898,6 +913,11 @@
       "detail": "168.1, 168.1mm, bowing 47.2mm below the shortest path (131.9mm)"
     },
     {
+      "name": "a curve cannot pass through a dot on a line (one dot, not a point on each side)",
+      "status": "PASS",
+      "detail": "CURVE_CUP_ARMHOLE: through POINT_ON_CF_LINE is not a valid point offset on the skin (and only a tangent curve passes through one)"
+    },
+    {
       "name": "a tangent curve without a sound pair of handles is refused",
       "status": "PASS",
       "detail": "CURVE_CUP_ARMHOLE: handles.from.angle_deg must be a number of degrees; handles.to.length_mm must be a positive number; CURVE_CF_TO_STRAP: handles.from.angle_deg"
@@ -905,12 +925,12 @@
     {
       "name": "every declared point validates",
       "status": "PASS",
-      "detail": "1 point(s): POINT_WING_HIGH_UP_3_8_FWD_1_1_4 0.375in up, 1.25in forward from SIDE_WING_HIGH_L/R"
+      "detail": "2 point(s): POINT_WING_HIGH_UP_3_8_FWD_1_1_4 0.375in up, 1.25in forward from SIDE_WING_HIGH_L/R, POINT_ON_CF_LINE 2.625in up LINE_CF_M1_3_4_TO_MAXGIRTH"
     },
     {
-      "name": "a point from an unknown landmark or with bad offsets is refused",
+      "name": "a point from an unknown landmark or with bad offsets, or a dot on an unknown line or below its end, is refused",
       "status": "PASS",
-      "detail": "P: from NOPE_L is not a registry landmark; from NOPE_R is not a registry landmark; up_in must be a number of inches; forward_in must be a number of inches; CURV"
+      "detail": "P: from NOPE_L is not a registry landmark; from NOPE_R is not a registry landmark; up_in must be a number of inches; forward_in must be a number of inches; Q: line NOPE is not a valid line; up_in must"
     },
     {
       "name": "POINT_WING_HIGH_UP_3_8_FWD_1_1_4: a place on the skin reads back as the offsets that reach it (for dragging)",
@@ -921,6 +941,21 @@
       "name": "POINT_WING_HIGH_UP_3_8_FWD_1_1_4: 0.375in up the skin from SIDE_WING_HIGH, then 1.25in forward, on each side",
       "status": "PASS",
       "detail": "L at (-157.8, 1364.5, 25.6)mm, up 9.53mm, forward 31.75mm; R at (157.8, 1364.5, 25.6)mm, up 9.53mm, forward 31.75mm"
+    },
+    {
+      "name": "POINT_ON_CF_LINE: 2.625in up LINE_CF_M1_3_4_TO_MAXGIRTH from its lower end, along the skin, on the line",
+      "status": "PASS",
+      "detail": "at (0.0, 1287.1, 102.8)mm, 66.67mm walked up the line, 68.5mm below its top (line 135.1mm)"
+    },
+    {
+      "name": "POINT_ON_CF_LINE: moved up or down it stays on the line, from its lower end to its top, and past an end it is refused",
+      "status": "PASS",
+      "detail": "0 / 1 / 2.625 / 4 / 5.321in up: y 1.2205 < 1.2459 < 1.2871 < 1.3219 < 1.3550m; 5.821in up is past the ends of LINE_CF_M1_3_4_TO_MAXGIRTH (5.32in long); -0.5in up is past the ends of LINE_CF_M1_3_4_TO_MAXGIRTH (5.32in long)"
+    },
+    {
+      "name": "POINT_ON_CF_LINE: a place on the line reads back as how far up it is; beside it, the same; past an end, that end (for dragging)",
+      "status": "PASS",
+      "detail": "2.625in -> 2.625000in; 30mm to the side -> 2.625000in; above the top -> 5.3206in; below the bottom -> 0in"
     }
   ],
   "decision": "LEVELS_RESOLVE_ON_THIS_BODY"

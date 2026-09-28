@@ -91,7 +91,8 @@ export function validateCurves(contract, { errors, heightIds, shapeIds, lines, t
       if (curve.from?.line === undefined || curve.to?.strap === undefined) problems.push('a joined curve runs from a line\'s end on the centre plane to a strap corner');
     }
     problems.push(...endProblems(curve.from, 'from'), ...endProblems(curve.to, 'to'));
-    if (curve.through !== undefined && (curve.kind !== 'tangent_curve' || !points.some((p) => p.id === curve.through?.point))) problems.push(`through ${curve.through?.point} is not a valid point (and only a tangent curve passes through one)`);
+    // a point it passes through is one per side, offset from a landmark (a dot on a line is one for both)
+    if (curve.through !== undefined && (curve.kind !== 'tangent_curve' || !points.some((p) => p.id === curve.through?.point && p.kind === 'offset_on_skin'))) problems.push(`through ${curve.through?.point} is not a valid point offset on the skin (and only a tangent curve passes through one)`);
     if (!/^#[0-9a-f]{6}$/i.test(curve.colour || '')) problems.push('colour must be #rrggbb');
     if (typeof curve.label !== 'string' || !curve.label) problems.push('label must be a string');
     if (problems.length) errors.push(`${curve.id || '?'}: ${problems.join('; ')}`);

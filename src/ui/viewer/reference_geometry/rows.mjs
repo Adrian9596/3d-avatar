@@ -4,14 +4,14 @@
    while a dot is dragged, so the selection holds. */
 
 import { inchFraction } from '../../../core/measure_core.mjs';
-import { measurePoint, bendCurve } from '../../../features/reference_geometry/index.mjs';
+import { measurePoint, measureLinePoint, bendCurve } from '../../../features/reference_geometry/index.mjs';
 import { HANDLE_COLOR } from '../draw.mjs';
 import { CM } from '../format.mjs';
 import { registry, levelContract, torsoTris, measureGrid } from '../measurement.mjs';
 import { measuredLevels, measuredShapes, measuredLines, measuredTapes, measuredTicks, measuredStraps, measuredCurves, measuredPoints, pointMoves, levelMarks, movePoint, saveCurveHandles, syncCurveState, curveHandles } from './state.mjs';
 import { selectableTape, measureRowData, redrawTapes } from '../table.mjs';
 
-let curveRowEls={},pointRowEls={};
+let curveRowEls={},pointRowEls={},lineRowEls={};
 
 /* Reference levels marked "tape": true in contracts/measurement-levels.json, as
    red tapes and table rows under the underbust, like the POMs. They are levels,
@@ -86,7 +86,7 @@ function renderReferenceTapeRows(fromId,tbody){
       renderCurveRows(curve,tbody);
       // points hung on a landmark the curve ends at (the armhole's wing top) follow it
       const ends=new Set([curve.from.landmark,curve.to.landmark].filter(Boolean));
-      for(const point of measuredPoints.filter(p=>ends.has(p.from.landmark)&&!listed.has(p.id))){listed.add(point.id);renderPointRow(point,tbody)}
+      for(const point of measuredPoints.filter(p=>ends.has(p.from?.landmark)&&!listed.has(p.id))){listed.add(point.id);renderPointRow(point,tbody)}
     }
   }
 }
@@ -142,16 +142,64 @@ function resetPoint(id){
   const def=(levelContract?.points||[]).find(p=>p.id===id);
   if(!def)return;
   delete pointMoves[id];
-  const next=measurePoint(def,levelMarks,torsoTris,null);
+  const next=def.kind==='on_line'?measureLinePoint(def,measuredLines.find(l=>l.id===def.line),null):measurePoint(def,levelMarks,torsoTris,null);
   if(movePoint(next))showMovedPoint(next);
   saveCurveHandles();syncCurveState();
 }
 
 // The rows and tapes after a point moved: its own row and every curve's.
 export function showMovedPoint(point){
-  updatePointRow(point);
+  (point.kind==='on_line'?updateLinePointRow:updatePointRow)(point);
   for(const c of measuredCurves)updateCurveRows(c);
   redrawTapes();
+}
+
+/* A dot on a line ("points" of kind "on_line" in contracts/measurement-levels.json),
+   such as the one on the CF line, listed under the line: how far up the line
+   it sits from the line's lower end, along the skin. Select its row, or the
+   line's, and drag the dot: it slides along the line and nowhere else, the
+   row following it; ↺ puts it back where the contract has it. */
+function renderLinePointRow(point,tbody){
+  const tr=document.createElement('tr');
+  if(point.blocked){
+    tr.className='landmark';
+    tr.innerHTML=`<td>${point.label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;
+    tr.title=`${point.label}: ${point.blocked}`;
+    tbody.appendChild(tr);
+    return;
+  }
+  tr.setAttribute('aria-selected','false');
+  tr.innerHTML=`<td class="tangent"><span style="color:${point.colour}">●</span> ${point.label} <span class="angle">↑</span> <button type="button" class="curve-reset" aria-label="Put the point back">↺</button></td><td class="val"></td><td class="in"></td>`;
+  tr.querySelector('button').addEventListener('click',event=>{event.stopPropagation();resetPoint(point.id)});
+  selectableTape(tr,tbody);
+  tbody.appendChild(tr);
+  pointRowEls[point.id]={tr,index:measureRowData.length};
+  measureRowData.push({label:point.label,paths:[],dots:[],color:parseInt(point.colour.slice(1),16),point:point.id});
+  updateLinePointRow(point);
+}
+
+function updateLinePointRow(point){
+  const el=pointRowEls[point.id];
+  if(!el||point.blocked)return;
+  const den=registry.reporting.inch_denominator;
+  const inch=v=>inchFraction(v,den).replace(/^0 /,'');
+  const line=measuredLines.find(l=>l.id===point.line);
+  el.tr.querySelector('.val').textContent=CM(point.up_m);
+  el.tr.querySelector('.in').textContent=inch(point.up_m);
+  el.tr.querySelector('button').hidden=!point.moved;
+  el.tr.title=`${CM(point.up_m)} cm (${inch(point.up_m)}) up the ${line?.kind==='centre_front'?'CF':'CB'} line (${line?.label||point.line}) from its lower end, along the skin;`
+    +` ${CM(point.down_m)} cm (${inch(point.down_m)}) below its top.`
+    +(point.moved?' Moved here by dragging; ↺ puts it back.':' Where the contract puts it.')
+    +' Select this row or the line\'s, then drag the dot: it slides along the line.';
+  const grab=p=>({kind:'line_point',id:p.id,at:p.at});
+  const row=measureRowData[el.index];
+  row.dots=[point.at];row.grabs=[grab(point)];
+  // the line's row carries its dots too, drawn with it when it is selected
+  const lineEl=lineRowEls[point.line];
+  if(lineEl){
+    const on=measuredPoints.filter(p=>p.line===point.line&&!p.blocked);
+    Object.assign(measureRowData[lineEl.index],{dots:on.map(p=>p.at),grabs:on.map(grab),dotColor:parseInt(point.colour.slice(1),16)});
+  }
 }
 
 /* A curve on the skin ("curves" in contracts/measurement-levels.json), such as
@@ -329,7 +377,7 @@ function renderTickRow(tick,tbody){
 
 /* A centre-back or centre-front line ("lines" in contracts/measurement-levels.json):
    its length down the back (up the front) along the skin; the straight chord is
-   on hover. */
+   on hover. A dot on it follows it, in a row of its own. */
 function renderLineRow(line,tbody){
   const den=registry.reporting.inch_denominator;
   const tr=document.createElement('tr');
@@ -348,7 +396,9 @@ function renderLineRow(line,tbody){
   tr.innerHTML=`<td>${label}</td><td class="val">${CM(line.length_m)}</td><td class="in">${inchFraction(line.length_m,den)}</td>`;
   selectableTape(tr,tbody);
   tbody.appendChild(tr);
-  measureRowData.push({label,path:line.points});
+  lineRowEls[line.id]={index:measureRowData.length};
+  measureRowData.push({label,path:line.points,line:line.id});
+  for(const point of measuredPoints.filter(p=>p.line===line.id))renderLinePointRow(point,tbody);
 }
 
 /* A reference shape declared on a tape level (contracts/measurement-levels.json

@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from '../src/core/measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, dragHandle, measurePoint, measurePoints, pointOffsets, levelsRecord, outOfRange, sectionChains,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, dragHandle, measurePoint, measurePoints, pointOffsets, measureLinePoint, linePointOffsets, levelsRecord, outOfRange, sectionChains,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from '../src/features/reference_geometry/index.mjs';
 
@@ -385,7 +385,7 @@ gate.record('a curve from an unknown line or line end, a joined curve with unsou
   brokenEnds.curves.length === 0 && brokenEnds.errors.some((e) => /line NOPE/.test(e) && /end middle/.test(e) && /handles\.cf\.angle_deg/.test(e) && /handles\.depth\.fullness/.test(e))
     && brokenEnds.errors.some((e) => /^D: .*a joined curve runs from a line's end on the centre plane to a strap corner/.test(e)),
   brokenEnds.errors.join('; ').slice(0, 220));
-const points = measurePoints(loaded, ctx.landmarks, ctx.tri);
+const points = measurePoints(loaded, ctx.landmarks, ctx.tri, {}, lines);
 const curves = measureCurves(loaded, straps, ctx.landmarks, ctx.grid, {}, points, lines);
 const onSkin = (pts) => pts.every((p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; });
 const mirrored = (a, b) => a.points.length === b.points.length && a.points.every((p, i) => Math.hypot(p[0] + b.points[i][0], p[1] - b.points[i][1], p[2] - b.points[i][2]) < 1e-4);
@@ -492,20 +492,29 @@ for (const curve of curves) {
     bentOk && backOk,
     bent.blocked || `turned ${bent.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm`).join(', ')}; restored ${back.runs?.map((r) => (r.length_m * 1000).toFixed(1)).join(', ')}mm`);
 }
+const onLine = (contract.points || []).find((p) => p.kind === 'on_line');
+const throughDot = loadLevels({ ...contract, curves: (contract.curves || []).filter((c) => c.through).map((c) => ({ ...c, through: { point: onLine?.id } })) }, ctx.registry);
+gate.record('a curve cannot pass through a dot on a line (one dot, not a point on each side)',
+  !onLine || (throughDot.curves.length === 0 && throughDot.errors.some((e) => new RegExp(`through ${onLine.id} is not a valid point offset on the skin`).test(e))),
+  throughDot.errors.join('; ').slice(0, 160));
 const brokenHandles = loadLevels({ ...contract, curves: (contract.curves || []).map((c) => ({ ...c, kind: 'tangent_curve', handles: { from: { angle_deg: 'up', length_mm: 40 }, to: { angle_deg: 0, length_mm: -1 } } })) }, ctx.registry);
 gate.record('a tangent curve without a sound pair of handles is refused',
   (contract.curves || []).length === 0 || (brokenHandles.curves.length === 0 && brokenHandles.errors.some((e) => /handles\.from\.angle_deg/.test(e) && /handles\.to\.length_mm/.test(e))),
   brokenHandles.errors.join('; ').slice(0, 160));
 
-// ---- 10. points offset from a landmark -------------------------------------------------
+// ---- 10. points offset from a landmark, and dots on a line -------------------------------
 gate.record('every declared point validates',
   loaded.points.length === (contract.points || []).length,
-  `${loaded.points.length} point(s): ${loaded.points.map((p) => `${p.id} ${p.up_in}in up, ${p.forward_in}in forward from ${p.from.landmark}_L/R`).join(', ') || 'none'}`);
-const brokenPoint = loadLevels({ ...contract, points: [{ id: 'P', kind: 'offset_on_skin', from: { landmark: 'NOPE' }, up_in: null, forward_in: 'x', colour: '#000000', label: 'p' }] }, ctx.registry);
-gate.record('a point from an unknown landmark or with bad offsets is refused',
-  brokenPoint.points.length === 0 && brokenPoint.errors.some((e) => /NOPE_L/.test(e) && /up_in/.test(e) && /forward_in/.test(e)),
-  brokenPoint.errors.join('; ').slice(0, 160));
-for (const point of points) {
+  `${loaded.points.length} point(s): ${loaded.points.map((p) => (p.kind === 'on_line' ? `${p.id} ${p.up_in}in up ${p.line}` : `${p.id} ${p.up_in}in up, ${p.forward_in}in forward from ${p.from.landmark}_L/R`)).join(', ') || 'none'}`);
+const brokenPoint = loadLevels({ ...contract, points: [
+  { id: 'P', kind: 'offset_on_skin', from: { landmark: 'NOPE' }, up_in: null, forward_in: 'x', colour: '#000000', label: 'p' },
+  { id: 'Q', kind: 'on_line', line: 'NOPE', up_in: -1, colour: '#000000', label: 'q' },
+] }, ctx.registry);
+gate.record('a point from an unknown landmark or with bad offsets, or a dot on an unknown line or below its end, is refused',
+  brokenPoint.points.length === 0 && brokenPoint.errors.some((e) => /^P: /.test(e) && /NOPE_L/.test(e) && /up_in/.test(e) && /forward_in/.test(e))
+    && brokenPoint.errors.some((e) => /^Q: /.test(e) && /line NOPE/.test(e) && /up_in must be .* 0 or more/.test(e)),
+  brokenPoint.errors.join('; ').slice(0, 200));
+for (const point of points.filter((p) => p.kind === 'offset_on_skin')) {
   const up = point.up_in * METRES_PER_INCH, forward = point.forward_in * METRES_PER_INCH;
   const skin = (p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; };
   const ok = !point.blocked && point.marks.length === 2
@@ -535,6 +544,42 @@ for (const point of points) {
   gate.record(`${point.id}: ${point.up_in}in up the skin from ${point.from.landmark}, then ${point.forward_in}in forward, on each side`,
     ok,
     point.blocked || point.marks.map((m) => `${m.side} at (${m.point.map((v) => (v * 1000).toFixed(1)).join(', ')})mm, up ${(m.up_m * 1000).toFixed(2)}mm, forward ${(m.forward_m * 1000).toFixed(2)}mm`).join('; '));
+}
+
+// a dot on a line: `up_in` up it from its lower end along the skin, on the line and the skin,
+// read back from where it is (and from beside the line, or past an end), for dragging
+const walkedTo = (pts) => pts.reduce((sum, p, i) => (i ? sum + Math.hypot(...p.map((v, k) => v - pts[i - 1][k])) : 0), 0);
+for (const point of points.filter((p) => p.kind === 'on_line')) {
+  const line = lines.find((l) => l.id === point.line);
+  if (point.blocked || !line || line.blocked) { gate.record(`${point.id}: ${point.up_in}in up ${point.line}`, false, point.blocked || `${point.line} is blocked`); continue; }
+  const up = point.up_in * METRES_PER_INCH;
+  const skin = (p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; };
+  // the line rises from its lower end, so the piece up to the dot is the line's points below it, then the dot
+  const upTo = (at) => walkedTo([...line.points.filter((p) => p[1] < at[1]).reverse(), at]);
+  const ok = point.at[0] === 0 && skin(point.at)
+    && Math.abs(upTo(point.at) - up) < 1e-6 && Math.abs(point.up_m - up) < 1e-12 && Math.abs(point.up_m + point.down_m - line.length_m) < 1e-12
+    && point.at[1] > line.bottom[1] && point.at[1] < line.top[1];
+  gate.record(`${point.id}: ${point.up_in}in up ${point.line} from its lower end, along the skin, on the line`,
+    ok,
+    `at (${point.at.map((v) => (v * 1000).toFixed(1)).join(', ')})mm, ${(upTo(point.at) * 1000).toFixed(2)}mm walked up the line, ${(point.down_m * 1000).toFixed(1)}mm below its top (line ${(line.length_m * 1000).toFixed(1)}mm)`);
+  // moved: higher up the line is higher up the body; the ends are the line's ends; past them is refused
+  const lengthIn = line.length_m / METRES_PER_INCH;
+  const along = [0, 1, point.up_in, 4, lengthIn].map((u) => measureLinePoint(point, line, { up_in: u }));
+  const rising = along.every((p, i) => !p.blocked && skin(p.at) && (i === 0 || p.at[1] > along[i - 1].at[1]) && Math.abs(upTo(p.at) - p.up_m) < 1e-6);
+  const ends = along[0].at.every((v, i) => v === line.bottom[i]) && along[4].at.every((v, i) => Math.abs(v - line.top[i]) < 1e-9);
+  const past = [lengthIn + 0.5, -0.5].map((u) => measureLinePoint(point, line, { up_in: u }));
+  const unhungDot = measureLinePoint(point, null);
+  gate.record(`${point.id}: moved up or down it stays on the line, from its lower end to its top, and past an end it is refused`,
+    rising && ends && past.every((p) => p.blocked && p.at === null) && unhungDot.blocked === `needs ${point.line}`,
+    `0 / 1 / ${point.up_in} / 4 / ${lengthIn.toFixed(3)}in up: y ${along.map((p) => p.at ? p.at[1].toFixed(4) : p.blocked).join(' < ')}m; ${past.map((p) => p.blocked).join('; ')}`);
+  // dragged: a place reads back as how far up the line it is; beside the line it slides onto it, past an end it stops there
+  const readBack = (q) => linePointOffsets(line, q)?.up_in;
+  const beside = [0.03, point.at[1], point.at[2]];
+  const aboveTop = [0, line.top[1] + 0.05, line.top[2]], belowBottom = [0, line.bottom[1] - 0.05, line.bottom[2]];
+  gate.record(`${point.id}: a place on the line reads back as how far up it is; beside it, the same; past an end, that end (for dragging)`,
+    along.every((p) => Math.abs(readBack(p.at) - p.up_in) < 1e-6) && Math.abs(readBack(beside) - point.up_in) < 1e-6
+      && Math.abs(readBack(aboveTop) - lengthIn) < 1e-9 && readBack(belowBottom) === 0,
+    `${point.up_in}in -> ${readBack(point.at)?.toFixed(6)}in; 30mm to the side -> ${readBack(beside)?.toFixed(6)}in; above the top -> ${readBack(aboveTop)?.toFixed(4)}in; below the bottom -> ${readBack(belowBottom)}in`);
 }
 
 // ---- evidence ---------------------------------------------------------------
@@ -607,7 +652,10 @@ const body = {
       ...(Number.isFinite(r.depth_m) ? { depth_mm: Number((r.depth_m * 1000).toFixed(1)) } : {}),
     })),
   })),
-  points: points.map((p) => ({
+  points: points.map((p) => (p.kind === 'on_line' ? {
+    id: p.id, kind: p.kind, line: p.line, up_in: p.up_in, colour: p.colour, blocked: p.blocked,
+    ...(p.blocked ? {} : { point_m: p.at.map((v) => Number(v.toFixed(5))), up_mm: Number((p.up_m * 1000).toFixed(2)), to_top_mm: Number((p.down_m * 1000).toFixed(2)) }),
+  } : {
     id: p.id, from: p.from, up_in: p.up_in, forward_in: p.forward_in, colour: p.colour, blocked: p.blocked,
     marks: p.marks.map((m) => ({ side: m.side, point_m: m.point.map((v) => Number(v.toFixed(5))), up_mm: Number((m.up_m * 1000).toFixed(2)), forward_mm: Number((m.forward_m * 1000).toFixed(2)) })),
   })),

@@ -40,4 +40,4 @@ export { measureLine, measureLines } from './lines.mjs';
 export { measureTick, measureTicks } from './ticks.mjs';
 export { measureStrap, measureStraps } from './straps.mjs';
 export { handleTip, handleFromPoint, bendCurve, dragHandle, validHandle, measureCurve, measureCurves } from './curves.mjs';
-export { measurePoint, pointOffsets, measurePoints } from './points.mjs';
+export { measurePoint, pointOffsets, measureLinePoint, linePointOffsets, measurePoints } from './points.mjs';
