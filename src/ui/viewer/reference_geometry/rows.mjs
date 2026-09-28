@@ -8,7 +8,7 @@ import { measurePoint, measureLinePoint, bendCurve } from '../../../features/ref
 import { HANDLE_COLOR } from '../draw.mjs';
 import { CM } from '../format.mjs';
 import { registry, levelContract, torsoTris, measureGrid } from '../measurement.mjs';
-import { measuredLevels, measuredShapes, measuredLines, measuredTapes, measuredTicks, measuredStraps, measuredCurves, measuredPoints, pointMoves, levelMarks, movePoint, saveCurveHandles, syncCurveState, curveHandles } from './state.mjs';
+import { measuredLevels, measuredShapes, measuredLines, measuredTapes, measuredTicks, measuredStraps, measuredCurves, measuredPoints, pointMoves, levelMarks, movePoint, reshapeCurve, saveCurveHandles, syncCurveState, curveHandles } from './state.mjs';
 import { selectableTape, measureRowData, redrawTapes } from '../table.mjs';
 
 let curveRowEls={},pointRowEls={},lineRowEls={};
@@ -87,6 +87,8 @@ function renderReferenceTapeRows(fromId,tbody){
       // points hung on a landmark the curve ends at (the armhole's wing top) follow it
       const ends=new Set([curve.from.landmark,curve.to.landmark].filter(Boolean));
       for(const point of measuredPoints.filter(p=>ends.has(p.from?.landmark)&&!listed.has(p.id))){listed.add(point.id);renderPointRow(point,tbody)}
+      // and the dots that ride on it
+      for(const point of measuredPoints.filter(p=>p.kind==='on_curve'&&p.curve===curve.id))renderCurvePointRow(point,tbody);
     }
   }
 }
@@ -198,8 +200,58 @@ function updateLinePointRow(point){
   const lineEl=lineRowEls[point.line];
   if(lineEl){
     const on=measuredPoints.filter(p=>p.line===point.line&&!p.blocked);
-    Object.assign(measureRowData[lineEl.index],{dots:on.map(p=>p.at),grabs:on.map(grab),dotColor:parseInt(point.colour.slice(1),16)});
+    Object.assign(measureRowData[lineEl.index],{dots:on.map(p=>p.at),grabs:on.map(grab),dotColors:on.map(p=>parseInt(p.colour.slice(1),16))});
   }
+}
+
+/* A dot on a curve ("points" of kind "on_curve" in contracts/measurement-levels.json),
+   such as the armhole mark, 1 1/4" along the cup armhole from the wing top: a
+   dot on each side, listed under the curve. It is not dragged: it rides on the
+   curve, the same distance along whatever shape the curve is given, and is
+   drawn with the curve when a side's row is selected. The row gives that
+   distance; how far the curve runs on past it, and where the point the curve
+   passes through is, are on hover. */
+const endShort=(curve,end)=>{
+  const e=curve[end];
+  if(e.strap)return 'strap';
+  if(e.line)return measuredLines.find(l=>l.id===e.line)?.kind==='centre_front'?'CF':'CB';
+  return /^SIDE_WING/.test(e.landmark)?'wing':e.landmark;
+};
+function renderCurvePointRow(point,tbody){
+  const tr=document.createElement('tr');
+  if(point.blocked){
+    tr.className='landmark';
+    tr.innerHTML=`<td>${point.label} <em>⊘</em></td><td class="val">—</td><td class="in">—</td>`;
+    tr.title=`${point.label}: ${point.blocked}`;
+    tbody.appendChild(tr);
+    return;
+  }
+  tr.setAttribute('aria-selected','false');
+  tr.innerHTML=`<td><span style="color:${point.colour}">●</span> ${point.label} <span class="angle"></span></td><td class="val"></td><td class="in"></td>`;
+  selectableTape(tr,tbody);
+  tbody.appendChild(tr);
+  pointRowEls[point.id]={tr,index:measureRowData.length};
+  measureRowData.push({label:point.label,paths:[],dots:[],color:parseInt(point.colour.slice(1),16),point:point.id});
+  updateCurvePointRow(point);
+}
+
+function updateCurvePointRow(point){
+  const el=pointRowEls[point.id];
+  const curve=measuredCurves.find(c=>c.id===point.curve);
+  if(!el||point.blocked||!curve)return;
+  const den=registry.reporting.inch_denominator;
+  const inch=v=>inchFraction(v,den).replace(/^0 /,'');
+  const m=point.marks[0],other=point.end==='to'?'from':'to';
+  const through=curve.through&&measuredPoints.find(p=>p.id===curve.through.point);
+  el.tr.querySelector('.angle').textContent=`from ${endShort(curve,point.end)}`;
+  el.tr.querySelector('.val').textContent=CM(m.along_m);
+  el.tr.querySelector('.in').textContent=inch(m.along_m);
+  el.tr.title=`${CM(m.along_m)} cm (${inch(m.along_m)}) along the ${curve.label.toLowerCase()} from ${curveEndText(curve[point.end],'L/R')}, on the skin, on each side;`
+    +` the curve runs on ${CM(m.rest_m)} cm to ${curveEndText(curve[other],'L/R')}.`
+    +(through&&Number.isFinite(m.to_through_m)?` The ${through.label.toLowerCase()} is ${(Math.abs(m.to_through_m)*1000).toFixed(1)} mm ${m.to_through_m>=0?'further along':`back toward the ${endShort(curve,point.end)}`}.`:'')
+    +' It rides on the curve: the same distance along whatever shape the curve is given. It is not dragged.';
+  const row=measureRowData[el.index];
+  row.dots=point.marks.map(k=>k.point);
 }
 
 /* A curve on the skin ("curves" in contracts/measurement-levels.json), such as
@@ -273,7 +325,11 @@ export function updateCurveRows(curve){
     el.tr.querySelector('.in').textContent=inchFraction(run.length_m,den);
     const row=measureRowData[el.index];
     row.paths=[run.points];row.tangents=run.tangents||null;
-    row.dots=run.through?[run.through]:[];
+    // the point it passes through, and the dots riding on it, drawn with it
+    const riding=measuredPoints.filter(p=>p.kind==='on_curve'&&p.curve===curve.id&&!p.blocked)
+      .map(p=>({colour:parseInt(p.colour.slice(1),16),at:p.marks.find(k=>k.side===run.side)?.point})).filter(d=>d.at);
+    row.dots=[...(run.through?[run.through]:[]),...riding.map(d=>d.at)];
+    row.dotColors=[...(run.through?[null]:[]),...riding.map(d=>d.colour)];
     row.grabs=[...(run.tangents||[]).map(t=>({kind:'handle',end:t.end,curve:curve.id,side:run.side,at:t.tip})),
       ...(run.through?[{kind:'point',id:curve.through.point,side:run.side,at:run.through}]:[])];
     if(run.guide_length_m)el.tr.title=el.title
@@ -288,6 +344,7 @@ export function updateCurveRows(curve){
     const reset=tr.querySelector('button');
     if(reset)reset.hidden=!moved;
   }
+  for(const point of measuredPoints.filter(p=>p.kind==='on_curve'&&p.curve===curve.id))updateCurvePointRow(point);
 }
 
 // What a handle's row shows: a tangent's angle and length; a joined curve's U
@@ -314,7 +371,7 @@ function resetCurveHandles(id){
   delete curveHandles[id];
   const next=bendCurve(measuredCurves[i],base,measureGrid);
   if(next.blocked)return;
-  measuredCurves[i]=next;
+  reshapeCurve(next);
   saveCurveHandles();updateCurveRows(next);redrawTapes();syncCurveState();
 }
 

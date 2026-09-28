@@ -41,10 +41,10 @@ export function redrawTapes(){
       }
     }
     // a point's dots, a little larger when its row is selected (a curve's
-    // through point, or a line's dot, only with the curve or line, in the
-    // point's own colour)
-    const dotColor=row.dotColor??color;
-    for(const p of ((row.curve||row.line)&&!selected)?[]:row.dots||[]){
+    // through point and the dots on it, or a line's dot, only with the curve
+    // or line), each in its point's colour where the row gives one
+    for(const [i,p] of (((row.curve||row.line)&&!selected)?[]:row.dots||[]).entries()){
+      const dotColor=row.dotColors?.[i]??color;
       const at=lift([p])[0];
       const dot=new THREE.Mesh(new THREE.SphereGeometry(selected?0.0042:0.0032,16,12),new THREE.MeshBasicMaterial({color:dotColor}));
       dot.position.copy(at);tapeGroup.add(dot);

@@ -36,7 +36,7 @@ import { createGate, sha256File } from './gate_report.mjs';
 import { loadAvatarContext } from './flatten_fixtures.mjs';
 import { measureSection } from '../src/core/measure_core.mjs';
 import {
-  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, dragHandle, measurePoint, measurePoints, pointOffsets, measureLinePoint, linePointOffsets, levelsRecord, outOfRange, sectionChains,
+  loadLevels, resolveLevels, measureLevels, measureShapes, measureReferenceTapes, measureLines, measureTicks, measureStraps, measureCurves, bendCurve, handleFromPoint, dragHandle, measurePoint, measurePoints, pointOffsets, measureLinePoint, linePointOffsets, measureCurvePoint, measureCurvePoints, levelsRecord, outOfRange, sectionChains,
   METRES_PER_INCH, LEVELS_LIMIT,
 } from '../src/features/reference_geometry/index.mjs';
 
@@ -385,8 +385,10 @@ gate.record('a curve from an unknown line or line end, a joined curve with unsou
   brokenEnds.curves.length === 0 && brokenEnds.errors.some((e) => /line NOPE/.test(e) && /end middle/.test(e) && /handles\.cf\.angle_deg/.test(e) && /handles\.depth\.fullness/.test(e))
     && brokenEnds.errors.some((e) => /^D: .*a joined curve runs from a line's end on the centre plane to a strap corner/.test(e)),
   brokenEnds.errors.join('; ').slice(0, 220));
-const points = measurePoints(loaded, ctx.landmarks, ctx.tri, {}, lines);
-const curves = measureCurves(loaded, straps, ctx.landmarks, ctx.grid, {}, points, lines);
+const unplaced = measurePoints(loaded, ctx.landmarks, ctx.tri, {}, lines);
+const curves = measureCurves(loaded, straps, ctx.landmarks, ctx.grid, {}, unplaced, lines);
+// a dot on a curve is placed once the curves are measured
+const points = measureCurvePoints(unplaced, curves);
 const onSkin = (pts) => pts.every((p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; });
 const mirrored = (a, b) => a.points.length === b.points.length && a.points.every((p, i) => Math.hypot(p[0] + b.points[i][0], p[1] - b.points[i][1], p[2] - b.points[i][2]) < 1e-4);
 for (const curve of curves) {
@@ -492,11 +494,11 @@ for (const curve of curves) {
     bentOk && backOk,
     bent.blocked || `turned ${bent.runs.map((r) => `${r.side} ${(r.length_m * 1000).toFixed(1)}mm`).join(', ')}; restored ${back.runs?.map((r) => (r.length_m * 1000).toFixed(1)).join(', ')}mm`);
 }
-const onLine = (contract.points || []).find((p) => p.kind === 'on_line');
-const throughDot = loadLevels({ ...contract, curves: (contract.curves || []).filter((c) => c.through).map((c) => ({ ...c, through: { point: onLine?.id } })) }, ctx.registry);
-gate.record('a curve cannot pass through a dot on a line (one dot, not a point on each side)',
-  !onLine || (throughDot.curves.length === 0 && throughDot.errors.some((e) => new RegExp(`through ${onLine.id} is not a valid point offset on the skin`).test(e))),
-  throughDot.errors.join('; ').slice(0, 160));
+const dots = (contract.points || []).filter((p) => p.kind !== 'offset_on_skin');
+const throughDots = dots.map((dot) => loadLevels({ ...contract, curves: (contract.curves || []).filter((c) => c.through).map((c) => ({ ...c, through: { point: dot.id } })) }, ctx.registry));
+gate.record('a curve cannot pass through a dot on a line or on a curve, only a point offset on each side',
+  throughDots.every((l, i) => l.curves.length === 0 && l.errors.some((e) => e.includes(`through ${dots[i].id} is not a valid point offset on the skin`))),
+  throughDots.map((l) => l.errors.join('; ')).join(' | ').slice(0, 220));
 const brokenHandles = loadLevels({ ...contract, curves: (contract.curves || []).map((c) => ({ ...c, kind: 'tangent_curve', handles: { from: { angle_deg: 'up', length_mm: 40 }, to: { angle_deg: 0, length_mm: -1 } } })) }, ctx.registry);
 gate.record('a tangent curve without a sound pair of handles is refused',
   (contract.curves || []).length === 0 || (brokenHandles.curves.length === 0 && brokenHandles.errors.some((e) => /handles\.from\.angle_deg/.test(e) && /handles\.to\.length_mm/.test(e))),
@@ -505,15 +507,18 @@ gate.record('a tangent curve without a sound pair of handles is refused',
 // ---- 10. points offset from a landmark, and dots on a line -------------------------------
 gate.record('every declared point validates',
   loaded.points.length === (contract.points || []).length,
-  `${loaded.points.length} point(s): ${loaded.points.map((p) => (p.kind === 'on_line' ? `${p.id} ${p.up_in}in up ${p.line}` : `${p.id} ${p.up_in}in up, ${p.forward_in}in forward from ${p.from.landmark}_L/R`)).join(', ') || 'none'}`);
+  `${loaded.points.length} point(s): ${loaded.points.map((p) => (p.kind === 'on_line' ? `${p.id} ${p.up_in}in up ${p.line}` : p.kind === 'on_curve' ? `${p.id} ${p.along_in}in along ${p.curve} from its ${p.end} end`
+    : `${p.id} ${p.up_in}in up, ${p.forward_in}in forward from ${p.from.landmark}_L/R`)).join(', ') || 'none'}`);
 const brokenPoint = loadLevels({ ...contract, points: [
   { id: 'P', kind: 'offset_on_skin', from: { landmark: 'NOPE' }, up_in: null, forward_in: 'x', colour: '#000000', label: 'p' },
   { id: 'Q', kind: 'on_line', line: 'NOPE', up_in: -1, colour: '#000000', label: 'q' },
+  { id: 'S', kind: 'on_curve', curve: 'NOPE', end: 'middle', along_in: -1, colour: '#000000', label: 's' },
 ] }, ctx.registry);
-gate.record('a point from an unknown landmark or with bad offsets, or a dot on an unknown line or below its end, is refused',
+gate.record('a point from an unknown landmark or with bad offsets, or a dot on an unknown line or curve, from no end or before it, is refused',
   brokenPoint.points.length === 0 && brokenPoint.errors.some((e) => /^P: /.test(e) && /NOPE_L/.test(e) && /up_in/.test(e) && /forward_in/.test(e))
-    && brokenPoint.errors.some((e) => /^Q: /.test(e) && /line NOPE/.test(e) && /up_in must be .* 0 or more/.test(e)),
-  brokenPoint.errors.join('; ').slice(0, 200));
+    && brokenPoint.errors.some((e) => /^Q: /.test(e) && /line NOPE/.test(e) && /up_in must be .* 0 or more/.test(e))
+    && brokenPoint.errors.some((e) => /^S: /.test(e) && /curve NOPE/.test(e) && /end middle/.test(e) && /along_in must be .* 0 or more/.test(e)),
+  brokenPoint.errors.join('; ').slice(0, 260));
 for (const point of points.filter((p) => p.kind === 'offset_on_skin')) {
   const up = point.up_in * METRES_PER_INCH, forward = point.forward_in * METRES_PER_INCH;
   const skin = (p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; };
@@ -580,6 +585,45 @@ for (const point of points.filter((p) => p.kind === 'on_line')) {
     along.every((p) => Math.abs(readBack(p.at) - p.up_in) < 1e-6) && Math.abs(readBack(beside) - point.up_in) < 1e-6
       && Math.abs(readBack(aboveTop) - lengthIn) < 1e-9 && readBack(belowBottom) === 0,
     `${point.up_in}in -> ${readBack(point.at)?.toFixed(6)}in; 30mm to the side -> ${readBack(beside)?.toFixed(6)}in; above the top -> ${readBack(aboveTop)?.toFixed(4)}in; below the bottom -> ${readBack(belowBottom)}in`);
+}
+
+// a dot on a curve: `along_in` along each side's run from the curve's `end`, on the run and the
+// skin, mirrored; before the curves are measured it waits on its curve; it rides on the curve,
+// the same distance along a reshaped one (handles turned, or the point it passes through moved)
+for (const point of points.filter((p) => p.kind === 'on_curve')) {
+  const curve = curves.find((c) => c.id === point.curve);
+  if (point.blocked || !curve || curve.blocked) { gate.record(`${point.id}: ${point.along_in}in along ${point.curve}`, false, point.blocked || `${point.curve} is blocked`); continue; }
+  const along = point.along_in * METRES_PER_INCH;
+  const skin = (p) => { const c = ctx.closest(p); return c && Math.hypot(...p.map((v, i) => v - c.point[i])) < 5e-4; };
+  // how far from the end a place on a run is, walked sample by sample to the segment it lies on (null if on none)
+  const fromEnd = (run, at) => {
+    const path = point.end === 'to' ? run.points.slice().reverse() : run.points;
+    for (let i = 1; i < path.length; i++) {
+      const [a, b] = [path[i - 1], path[i]], d = b.map((v, k) => v - a[k]), ll = d.reduce((sum, v) => sum + v * v, 0);
+      const t = ll > 0 ? d.reduce((sum, v, k) => sum + (at[k] - a[k]) * v, 0) / ll : 0;
+      if (t >= -1e-9 && t <= 1 + 1e-9 && Math.hypot(...a.map((v, k) => v + d[k] * t - at[k])) < 1e-9) return walkedTo([...path.slice(0, i), at]);
+    }
+    return null;
+  };
+  const placedOn = (c, dot) => !dot.blocked && dot.marks.length === 2 && dot.marks.every((m) => {
+    const run = c.runs.find((r) => r.side === m.side), walked = fromEnd(run, m.point);
+    return walked !== null && Math.abs(walked - along) < 1e-6 && Math.abs(m.along_m + m.rest_m - walkedTo(run.points)) < 1e-9 && skin(m.point);
+  }) && Math.hypot(dot.marks[0].point[0] + dot.marks[1].point[0], dot.marks[0].point[1] - dot.marks[1].point[1], dot.marks[0].point[2] - dot.marks[1].point[2]) < 1e-4;
+  const waits = unplaced.find((p) => p.id === point.id);
+  gate.record(`${point.id}: ${point.along_in}in along ${point.curve} from its ${point.end} end, on each side, on the curve and the skin, mirrored`,
+    placedOn(curve, point) && waits.blocked === `needs ${point.curve}`,
+    point.marks.map((m) => `${m.side} at (${m.point.map((v) => (v * 1000).toFixed(1)).join(', ')})mm, ${(fromEnd(curve.runs.find((r) => r.side === m.side), m.point) * 1000).toFixed(2)}mm walked from the end, ${(m.rest_m * 1000).toFixed(1)}mm on to the other`
+      + (Number.isFinite(m.to_through_m) ? `, the through point ${(m.to_through_m * 1000).toFixed(2)}mm further along` : '')).join('; '));
+  // reshaped: handles turned, or the point it passes through moved; past the other end, or with no curve, it is blocked
+  const turned = curve.kind === 'tangent_curve' ? bendCurve(curve, { from: { angle_deg: 30, length_mm: 50 }, to: { angle_deg: -20, length_mm: 45 } }, ctx.grid) : null;
+  const via = curve.through ? points.find((p) => p.id === curve.through.point) : null;
+  const viaMoved = via ? measureCurves({ curves: [curve] }, straps, ctx.landmarks, ctx.grid, {}, [measurePoint(via, ctx.landmarks, ctx.tri, { up_in: 0.6, forward_in: 0.8 })], lines)[0] : null;
+  const rides = [turned, viaMoved].filter(Boolean).map((c) => ({ c, dot: measureCurvePoint(point, c) }));
+  const shifted = (dot) => dot.marks.every((m, i) => Math.hypot(...m.point.map((v, k) => v - point.marks[i].point[k])) > 1e-4);
+  const past = measureCurvePoint({ ...point, along_in: 40 }, curve), none = measureCurvePoint(point, null);
+  gate.record(`${point.id}: it rides on ${point.curve}, the same distance along when the curve is reshaped; past the other end, or without the curve, it is blocked`,
+    rides.length > 0 && rides.every(({ c, dot }) => !c.blocked && placedOn(c, dot) && shifted(dot)) && past.blocked && !past.marks.length && none.blocked === `needs ${point.curve}`,
+    rides.map(({ c, dot }, i) => `${i ? 'point moved' : 'handles turned'}: ${c.blocked || dot.marks.map((m) => `${m.side} (${m.point.map((v) => (v * 1000).toFixed(1)).join(', ')})mm`).join(', ')}`).join('; ') + `; ${past.blocked}`);
 }
 
 // ---- evidence ---------------------------------------------------------------
@@ -655,6 +699,12 @@ const body = {
   points: points.map((p) => (p.kind === 'on_line' ? {
     id: p.id, kind: p.kind, line: p.line, up_in: p.up_in, colour: p.colour, blocked: p.blocked,
     ...(p.blocked ? {} : { point_m: p.at.map((v) => Number(v.toFixed(5))), up_mm: Number((p.up_m * 1000).toFixed(2)), to_top_mm: Number((p.down_m * 1000).toFixed(2)) }),
+  } : p.kind === 'on_curve' ? {
+    id: p.id, kind: p.kind, curve: p.curve, end: p.end, along_in: p.along_in, colour: p.colour, blocked: p.blocked,
+    marks: p.marks.map((m) => ({
+      side: m.side, point_m: m.point.map((v) => Number(v.toFixed(5))), along_mm: Number((m.along_m * 1000).toFixed(2)), rest_mm: Number((m.rest_m * 1000).toFixed(2)),
+      ...(Number.isFinite(m.to_through_m) ? { to_through_mm: Number((m.to_through_m * 1000).toFixed(2)) } : {}),
+    })),
   } : {
     id: p.id, from: p.from, up_in: p.up_in, forward_in: p.forward_in, colour: p.colour, blocked: p.blocked,
     marks: p.marks.map((m) => ({ side: m.side, point_m: m.point.map((v) => Number(v.toFixed(5))), up_mm: Number((m.up_m * 1000).toFixed(2)), forward_mm: Number((m.forward_m * 1000).toFixed(2)) })),

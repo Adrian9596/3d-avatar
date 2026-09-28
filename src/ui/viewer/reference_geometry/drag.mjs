@@ -14,7 +14,7 @@ import { placingLandmark } from '../landmarks.mjs';
 import { levelContract, torsoTris, measureGrid } from '../measurement.mjs';
 import { surfaceHit } from '../picking.mjs';
 import { showMovedPoint, updateCurveRows } from './rows.mjs';
-import { levelMarks, movePoint, pointMoves, measuredCurves, measuredLines, curveHandles, saveCurveHandles, syncCurveState } from './state.mjs';
+import { levelMarks, movePoint, reshapeCurve, pointMoves, measuredCurves, measuredLines, curveHandles, saveCurveHandles, syncCurveState } from './state.mjs';
 import { camera, canvas, controls, setCameraGoal } from '../stage.mjs';
 import { measureRowData, selectedTapeIndex, redrawTapes } from '../table.mjs';
 
@@ -90,7 +90,7 @@ function applyCurveDrag(){
   if(!handle)return;
   const next=bendCurve(curve,{...curve.handles,[drag.end]:handle},measureGrid);
   if(next.blocked)return;                          // keep the last shape that lay on the skin
-  measuredCurves[i]=next;curveHandles[curve.id]=next.handles;
+  reshapeCurve(next);curveHandles[curve.id]=next.handles;
   updateCurveRows(next);redrawTapes();
 }
 canvas.addEventListener('pointerdown',event=>{
