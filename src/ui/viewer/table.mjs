@@ -52,11 +52,16 @@ export function redrawTapes(){
       }
     }
     // a shaped curve's two tangent handles: a dashed line to a dot you drag
+    // (a handle with no line, such as a joined curve's fullness, is its dot alone)
     if(selected&&row.tangents)for(const t of row.tangents){
       const pts=lift(t.points);
-      tapeGroup.add(makeLine(pts,{color:HANDLE_COLOR,width:1.8,dash:[0.003,0.002]}));
-      tapeGroup.add(makeLine(pts,{color:HANDLE_COLOR,width:1,opacity:.3,depthTest:false,order:3}));
-      for(const [at,radius] of [[pts[0],0.0022],[pts[pts.length-1],0.0036]]){
+      const dots=[[lift([t.tip])[0],0.0036]];
+      if(pts.length>1){
+        tapeGroup.add(makeLine(pts,{color:HANDLE_COLOR,width:1.8,dash:[0.003,0.002]}));
+        tapeGroup.add(makeLine(pts,{color:HANDLE_COLOR,width:1,opacity:.3,depthTest:false,order:3}));
+        dots.unshift([pts[0],0.0022]);
+      }
+      for(const [at,radius] of dots){
         const dot=new THREE.Mesh(new THREE.SphereGeometry(radius,16,12),new THREE.MeshBasicMaterial({color:HANDLE_COLOR,depthTest:false}));
         dot.position.copy(at);dot.renderOrder=4;tapeGroup.add(dot);
       }

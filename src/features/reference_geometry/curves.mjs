@@ -21,19 +21,38 @@
    contract's until someone drags them; the viewer passes its own. One handle
    pair shapes both sides, mirrored, as the body is.
 
-   kind "control_curve": the same, shaped by one control point instead of two
-   tangents. The control is a handle read at the `from` end, in the same frame
-   (0 deg = along the shortest path toward the other end); its tip is the
-   control point, and the curve is the quadratic Bezier from end to end bent
-   toward it -- tangent at each end to the line to the control point, passing
-   halfway between the control point and the middle of the chord. With the
-   control at 0 deg and about half the shortest path long, the curve is close to
-   that path. ------------------------------------------------------------------ */
+   kind "joined_curve": a curve whose ends take their direction from what they
+   join, from a line's end on the centre plane to a strap corner. At the strap it
+   arrives along the strap's edge from that corner, so the two read as one line
+   running on over the shoulder. At the centre front it leaves level -- the two
+   sides meet smoothly in a U -- or rising at an angle, a V (handles.cf.angle_deg,
+   0 = U). With both end directions set, what is left to shape is how full the
+   curve is (handles.depth.fullness): the cubic Bezier whose inner points lie
+   along the two end tangents, that fraction of the way to where the tangents
+   meet (2/3 is the parabola through that meeting point; less is flatter, more is
+   a deeper scoop). Each sample is carried onto the skin at its own height (the
+   level section through it), not to the closest point, so seen from the front
+   the curve is the one drafted: a U stays level into the cleavage instead of
+   being pulled up its walls. Its bow is reported as the largest distance from
+   the shortest path over the skin. ------------------------------------------------ */
 
 import { surfaceRun, closestOnMesh } from '../../core/surface_path.mjs';
 
 // The handles each shaped kind of curve carries (see the curves section).
-export const HANDLE_KEYS = { tangent_curve: ['from', 'to'], control_curve: ['control'] };
+export const HANDLE_KEYS = { tangent_curve: ['from', 'to'], joined_curve: ['cf', 'depth'] };
+export const CF_ANGLE_MAX_DEG = 75;          // a V steeper than this is not a neckline
+export const FULLNESS_RANGE = [0.05, 1.5];   // from nearly the straight join to a deep scoop
+const CF_SNAP_DEG = 3;                       // a dragged V this close to level is a U
+const CF_HANDLE_MM = 20;                     // how long the centre-front tangent is drawn
+
+/** Whether `h` is a sound value for handle `key` of a curve of `kind` (a stored
+ *  one that is not falls back to the contract's). */
+export function validHandle(kind, key, h) {
+  if (kind === 'tangent_curve') return Number.isFinite(h?.angle_deg) && Math.abs(h.angle_deg) <= 180 && Number.isFinite(h?.length_mm) && h.length_mm > 0;
+  if (kind === 'joined_curve' && key === 'cf') return Number.isFinite(h?.angle_deg) && h.angle_deg >= 0 && h.angle_deg <= CF_ANGLE_MAX_DEG;
+  if (kind === 'joined_curve' && key === 'depth') return Number.isFinite(h?.fullness) && h.fullness >= FULLNESS_RANGE[0] && h.fullness <= FULLNESS_RANGE[1];
+  return false;
+}
 
 /** Validate the contract's `curves` against the valid straps, lines and points.
  *  Returns the valid curves. */
@@ -61,10 +80,15 @@ export function validateCurves(contract, { errors, heightIds, shapeIds, lines, t
     const problems = [];
     if (!curve.id || heightIds.has(curve.id) || shapeIds.has(curve.id) || lines.some((l) => l.id === curve.id) || ticks.some((t) => t.id === curve.id) || straps.some((t) => t.id === curve.id) || points.some((t) => t.id === curve.id) || curves.some((c) => c.id === curve.id)) problems.push('missing or duplicate id');
     if (!['shortest_surface_path', ...Object.keys(HANDLE_KEYS)].includes(curve.kind)) problems.push(`unknown kind ${curve.kind}`);
-    for (const key of HANDLE_KEYS[curve.kind] || []) {
+    if (curve.kind === 'tangent_curve') for (const key of HANDLE_KEYS[curve.kind]) {
       const h = curve.handles?.[key];
       if (!(Number.isFinite(h?.angle_deg) && Math.abs(h.angle_deg) <= 180)) problems.push(`handles.${key}.angle_deg must be a number of degrees`);
       if (!(Number.isFinite(h?.length_mm) && h.length_mm > 0)) problems.push(`handles.${key}.length_mm must be a positive number`);
+    }
+    if (curve.kind === 'joined_curve') {
+      if (!validHandle(curve.kind, 'cf', curve.handles?.cf)) problems.push(`handles.cf.angle_deg must be 0 (a U) to ${CF_ANGLE_MAX_DEG} degrees (a V)`);
+      if (!validHandle(curve.kind, 'depth', curve.handles?.depth)) problems.push(`handles.depth.fullness must be ${FULLNESS_RANGE[0]} to ${FULLNESS_RANGE[1]}`);
+      if (curve.from?.line === undefined || curve.to?.strap === undefined) problems.push('a joined curve runs from a line\'s end on the centre plane to a strap corner');
     }
     problems.push(...endProblems(curve.from, 'from'), ...endProblems(curve.to, 'to'));
     if (curve.through !== undefined && (curve.kind !== 'tangent_curve' || !points.some((p) => p.id === curve.through?.point))) problems.push(`through ${curve.through?.point} is not a valid point (and only a tangent curve passes through one)`);
@@ -144,14 +168,56 @@ function onSkin(grid, a, b, samples) {
   return out;
 }
 
-// A cubic Bezier's samples, t in (0, 1], carried onto the skin; null if one misses.
-function bezierOnSkin(grid, P0, P1, P2, P3, samples) {
+/* The point of the skin at p's own height nearest p across the body (in x and
+   z): where the level section through p passes closest to it. It looks only at
+   the triangles near p, ring by ring, as closestOnMesh does. A curve carried
+   this way keeps the heights it was drawn with, so seen from the front it is
+   the curve drafted -- level where it was drawn level. */
+function levelOnMesh(grid, p) {
+  const { cells, cell, tri } = grid;
+  const y = p[1];
+  const ci = Math.floor(p[0] / cell), cj = Math.floor(y / cell), ck = Math.floor(p[2] / cell);
+  const seen = new Set();
+  let best = null, bestSq = Infinity;
+  for (let r = 0; r <= 12; r++) {
+    for (let i = ci - r; i <= ci + r; i++) for (let k = ck - r; k <= ck + r; k++) {
+      if (Math.max(Math.abs(i - ci), Math.abs(k - ck)) !== r) continue;
+      const bucket = cells.get(`${i},${cj},${k}`);
+      if (!bucket) continue;
+      for (const t of bucket) {
+        if (seen.has(t)) continue;
+        seen.add(t);
+        const hits = [];
+        for (let e = 0; e < 3; e++) {
+          const a = t + e * 3, b = t + ((e + 1) % 3) * 3;
+          const d0 = tri[a + 1] - y, d1 = tri[b + 1] - y;
+          if ((d0 > 0) !== (d1 > 0)) {
+            const f = d0 / (d0 - d1);
+            hits.push([tri[a] + (tri[b] - tri[a]) * f, tri[a + 2] + (tri[b + 2] - tri[a + 2]) * f]);
+          }
+        }
+        if (hits.length !== 2) continue;
+        const [h0, h1] = hits, dx = h1[0] - h0[0], dz = h1[1] - h0[1], l2 = dx * dx + dz * dz;
+        const f = l2 > 0 ? Math.max(0, Math.min(1, ((p[0] - h0[0]) * dx + (p[2] - h0[1]) * dz) / l2)) : 0;
+        const q = [h0[0] + dx * f, h0[1] + dz * f];
+        const sq = (q[0] - p[0]) ** 2 + (q[1] - p[2]) ** 2;
+        if (sq < bestSq) { bestSq = sq; best = q; }
+      }
+    }
+    if (best && Math.sqrt(bestSq) <= r * cell) break;
+  }
+  return best ? { point: [best[0], y, best[1]] } : null;
+}
+
+// A cubic Bezier's samples, t in (0, 1], carried onto the skin (by `carry`, the
+// closest point unless said otherwise); null if one misses.
+function bezierOnSkin(grid, P0, P1, P2, P3, samples, carry = closestOnMesh) {
   const out = [];
   for (let s = 1; s <= samples; s++) {
     if (s === samples) { out.push(P3.slice()); break; }
     const t = s / samples, u = 1 - t;
     const b = [0, 1, 2].map((i) => u * u * u * P0[i] + 3 * u * u * t * P1[i] + 3 * u * t * t * P2[i] + t * t * t * P3[i]);
-    const hit = closestOnMesh(grid, b);
+    const hit = carry(grid, b);
     if (!hit) return null;
     out.push(hit.point);
   }
@@ -207,38 +273,124 @@ function jumpAcross(points, side) {
   return jump > Math.max(0.012, (6 * length) / CURVE_SAMPLES) ? `the curve jumps ${(jump * 1000).toFixed(0)}mm across the skin on the ${side} side` : null;
 }
 
-/** One side's control curve from its frame at the `from` end, the control handle
- *  and the other end: the quadratic Bezier bent toward the control point. Its
- *  two dashed guides run from each end to the control point. */
-function controlRun(grid, side, frames, handles, guideLength, P3) {
-  const P0 = frames.control.origin;
-  const C = handleTip(grid, frames.control, handles.control);
-  // the quadratic as a cubic: each inner point two thirds of the way to C
-  const P1 = P0.map((v, i) => v + (2 / 3) * (C[i] - v));
-  const P2 = P3.map((v, i) => v + (2 / 3) * (C[i] - v));
-  const b = bezierOnSkin(grid, P0, P1, P2, P3, CURVE_SAMPLES);
+/** The frame the centre-front tangent is read in, on one side: the skin's
+ *  normal there (square to the centre plane, so both sides read one frame,
+ *  mirrored), the level direction toward that side laid in the skin, and the
+ *  in-skin direction square to it that points up. */
+function centreFrame(grid, origin, side) {
+  let normal = closestOnMesh(grid, origin)?.normal || [0, 0, 1];
+  if (Math.abs(origin[0]) < 1e-9) normal = unit([0, normal[1], normal[2]]);
+  const out = [side === 'R' ? 1 : -1, 0, 0];
+  const along = unit(sub(out, normal.map((v) => v * dot(out, normal))));
+  let up = unit(cross(normal, along));
+  if (up[1] < 0) up = up.map((v) => -v);
+  return { origin, normal, along, up };
+}
+
+/* How far along each end tangent the two come closest: `s` forward from P0
+   along t0, `u` back from P3 along t3. Tangents that are parallel, or meet
+   behind an end, fall back to a third of the chord, so a steep V still curves. */
+function tangentReach(P0, t0, P3, t3) {
+  const chord = Math.hypot(...sub(P3, P0));
+  const d = sub(P0, P3), c = dot(t0, t3), det = 1 - c * c;
+  let s = chord / 3, u = chord / 3;
+  if (det > 1e-6) {
+    s = (-dot(t0, d) + c * dot(t3, d)) / det;
+    u = (-dot(t3, d) + c * dot(t0, d)) / det;
+  }
+  const clamp = (v) => (v > 0 ? Math.min(Math.max(v, 0.1 * chord), 1.5 * chord) : chord / 3);
+  return { s: clamp(s), u: clamp(u) };
+}
+
+/* How far a curve bows from a path on the skin: the largest distance from a
+   point of the curve to the path, positive where the curve runs below it. */
+function bowFrom(points, path) {
+  let bow = 0;
+  for (const p of points) {
+    let gap = Infinity, below = false;
+    for (let i = 1; i < path.length; i++) {
+      const a = path[i - 1], d = sub(path[i], a), l2 = dot(d, d);
+      const t = l2 > 0 ? Math.max(0, Math.min(1, dot(sub(p, a), d) / l2)) : 0;
+      const q = a.map((v, k) => v + d[k] * t);
+      const g = Math.hypot(...sub(p, q));
+      if (g < gap) { gap = g; below = p[1] < q[1]; }
+    }
+    if (gap > Math.abs(bow)) bow = below ? gap : -gap;
+  }
+  return bow;
+}
+
+/** One side's joined curve: level (or at the V's angle) out of the centre
+ *  front, along the strap's edge into the strap, as full as `depth` says. Its
+ *  two dots are the centre-front tangent's tip and the curve's middle. */
+function joinedRun(grid, side, frames, handles, guideLength) {
+  const P0 = frames.cf.origin, P3 = frames.strap.origin, t3 = frames.strap.direction;
+  const a = (handles.cf.angle_deg * Math.PI) / 180;
+  const t0 = unit(frames.cf.along.map((v, i) => Math.cos(a) * v + Math.sin(a) * frames.cf.up[i]));
+  const { s, u } = tangentReach(P0, t0, P3, t3);
+  const k = handles.depth.fullness;
+  const P1 = P0.map((v, i) => v + k * s * t0[i]);
+  const P2 = P3.map((v, i) => v - k * u * t3[i]);
+  // carried at its own heights, so level out of the centre front stays level
+  const b = bezierOnSkin(grid, P0, P1, P2, P3, CURVE_SAMPLES, levelOnMesh);
   if (!b) return { side, blocked: `the curve leaves the skin on the ${side} side` };
   const points = [P0.slice(), ...b];
   const jumped = jumpAcross(points, side);
   if (jumped) return { side, blocked: jumped };
+  // the middle, t = 1/2, and how it moves as the fullness changes (it is linear in it)
+  const middle = points[CURVE_SAMPLES / 2];
+  const chordMiddle = P0.map((v, i) => (v + P3[i]) / 2);
+  const pull = t0.map((v, i) => (3 / 8) * (s * v - u * t3[i]));
+  const cfTip = handleTip(grid, frames.cf, { angle_deg: handles.cf.angle_deg, length_mm: CF_HANDLE_MM });
   return {
     side, from: P0, to: P3, through: null, length_m: polyLength(points), points, guide_length_m: guideLength,
-    frames, control: C,
+    depth_m: bowFrom(points, frames.guide), cf_direction: t0, strap_direction: t3,
+    frames, pull, chord_middle: chordMiddle,
     tangents: [
-      { end: 'control', tip: C, points: onSkin(grid, P0, C, TANGENT_SAMPLES) },
-      { end: 'control', tip: C, points: onSkin(grid, P3, C, TANGENT_SAMPLES) },
+      { end: 'cf', tip: cfTip, points: onSkin(grid, P0, cfTip, TANGENT_SAMPLES) },
+      { end: 'depth', tip: middle, points: [middle] },
     ],
   };
 }
 
+/** The handle a dragged dot asks for: handle `key` of `curve`, its dot dragged
+ *  to `point` on the skin on `run`'s side. Null when the drag gives no sound one
+ *  (the curve then keeps the shape it had). */
+export function dragHandle(curve, run, key, point, grid) {
+  if (curve.kind === 'tangent_curve') {
+    const h = handleFromPoint(run.frames[key], point);
+    return h.length_mm >= 3 ? h : null;
+  }
+  if (curve.kind !== 'joined_curve') return null;
+  if (key === 'cf') {
+    let a = handleFromPoint(run.frames.cf, point).angle_deg;
+    if (a < -90 || a > 150) return null;                 // across the centre, or back on itself
+    a = Math.max(0, Math.min(CF_ANGLE_MAX_DEG, a));
+    return { angle_deg: a < CF_SNAP_DEG ? 0 : a };
+  }
+  // the middle moves along `pull` as the fullness changes: follow the pointer along it
+  const p2 = dot(run.pull, run.pull);
+  if (!(p2 > 0)) return null;
+  let k = curve.handles.depth.fullness;
+  for (let pass = 0; pass < 6; pass++) {
+    const at = run.chord_middle.map((v, i) => v + k * run.pull[i]);
+    const middle = levelOnMesh(grid, at)?.point || at;
+    const step = dot(sub(point, middle), run.pull) / p2;
+    k = Math.max(FULLNESS_RANGE[0], Math.min(FULLNESS_RANGE[1], k + step));
+    if (Math.abs(step) < 1e-5) break;
+  }
+  return { fullness: k };
+}
+
 // One side of a shaped curve, from the frames kept on its run.
 function shapeRun(kind, grid, side, frames, handles, guideLength, to, through) {
-  return kind === 'control_curve'
-    ? controlRun(grid, side, frames, handles, guideLength, to)
+  return kind === 'joined_curve'
+    ? joinedRun(grid, side, frames, handles, guideLength)
     : tangentRun(grid, side, frames, handles, guideLength, through);
 }
 
-/** Re-shape a measured curve with new handles (a tangent pair, or the control),
+/** Re-shape a measured curve with new handles (a tangent pair, or a joined
+ *  curve's centre-front angle and fullness),
  *  both sides, without finding the shortest paths again (its frames are kept
  *  on each run). */
 export function bendCurve(measured, handles, grid) {
@@ -256,7 +408,9 @@ export function bendCurve(measured, handles, grid) {
 function curveEnd(end, side, straps, landmarks, lines) {
   if (end.strap !== undefined) {
     const strap = straps.find((s) => s.id === end.strap);
-    return strap && !strap.blocked ? { at: strap.bands.find((b) => b.side === side).corners[end.corner] } : { needs: end.strap };
+    if (!strap || strap.blocked) return { needs: end.strap };
+    const band = strap.bands.find((b) => b.side === side);
+    return { at: band.corners[end.corner], edge: band.edges[end.corner] };
   }
   if (end.line !== undefined) {
     const line = lines.find((l) => l.id === end.line);
@@ -268,8 +422,8 @@ function curveEnd(end, side, straps, landmarks, lines) {
 
 /** `landmarks` maps a registry id to [x, y, z]; `grid` is surface_path's buildGrid.
  *  `handles` overrides a shaped curve's contract handles ({ from, to } for a
- *  tangent curve, { control } for a control curve; one missing keeps the
- *  contract's); `points` are the measured points (measurePoints), for a curve
+ *  tangent curve, { cf, depth } for a joined curve; one missing or unsound
+ *  keeps the contract's); `points` are the measured points (measurePoints), for a curve
  *  with `through`; `lines` the measured lines, for a curve ending on one.
  *  Each handle is read against the shortest path over the skin from its end to
  *  the next point the curve must meet (the through point, or the other end). */
@@ -280,17 +434,19 @@ export function measureCurve(curve, straps, landmarks, grid, handles = null, poi
   const via = curve.through ? points.find((p) => p.id === curve.through.point) : null;
   if (curve.through && (!via || via.blocked)) return { ...curve, blocked: `needs ${curve.through.point}`, runs: [] };
   const keys = HANDLE_KEYS[curve.kind];
-  const use = keys ? Object.fromEntries(keys.map((k) => [k, handles?.[k] || curve.handles[k]])) : null;
+  const use = keys ? Object.fromEntries(keys.map((k) => [k, handles?.[k] && validHandle(curve.kind, k, handles[k]) ? handles[k] : curve.handles[k]])) : null;
   const runs = [];
   for (const [s, side] of ['L', 'R'].entries()) {
     const [from, to] = ends[s].map((e) => e.at);
+    const edge = ends[s][1].edge;
     const M = via ? via.marks.find((m) => m.side === side).point : null;
     const legs = M ? [surfaceRun(grid, from, M), surfaceRun(grid, M, to)] : [surfaceRun(grid, from, to)];
     if (!legs.every((l) => l.onSurface)) return { ...curve, blocked: `no path over the skin on the ${side} side`, runs: [] };
     const guide = legs.reduce((sum, l) => sum + l.length, 0);
     if (!use) { runs.push({ side, from, to, length_m: guide, points: legs[0].points }); continue; }
-    const frames = curve.kind === 'control_curve'
-      ? { control: handleFrame(grid, legs[0].points, false) }
+    const frames = curve.kind === 'joined_curve'
+      // level out of the centre front; into the strap along its edge (the direction it leaves the corner)
+      ? { cf: centreFrame(grid, from, side), strap: { origin: to, direction: handleFrame(grid, edge, false).along }, guide: legs[0].points }
       : { from: handleFrame(grid, legs[0].points, false), to: handleFrame(grid, legs[legs.length - 1].points, true) };
     const bent = shapeRun(curve.kind, grid, side, frames, use, guide, to, M);
     if (bent.blocked) return { ...curve, handles: use, blocked: bent.blocked, runs: [] };

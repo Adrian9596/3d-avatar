@@ -123,6 +123,8 @@ export function measureStrap(strap, ticks, heights, tri) {
       top_width_m: Math.hypot(ti[0] - to_[0], ti[1] - to_[1], ti[2] - to_[2]),
       top_y_m: Math.max(ti[1], to_[1]),
       outline,
+      // each long edge as it leaves each corner, for a curve that runs into it
+      edges: { front_inner: inner.points, front_outer: outer.points, back_inner: inner.points.slice().reverse(), back_outer: outer.points.slice().reverse() },
     });
   }
   return { ...strap, blocked: null, y_m: y, front_y_m: yFront, bands };

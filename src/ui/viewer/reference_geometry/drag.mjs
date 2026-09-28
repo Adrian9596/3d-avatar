@@ -6,7 +6,7 @@
    (pointOffsets), measured again on both sides. */
 
 import * as THREE from 'three';
-import { pointOffsets, measurePoint, handleFromPoint, bendCurve } from '../../../features/reference_geometry/index.mjs';
+import { pointOffsets, measurePoint, dragHandle, bendCurve } from '../../../features/reference_geometry/index.mjs';
 import { placingLandmark } from '../landmarks.mjs';
 import { levelContract, torsoTris, measureGrid } from '../measurement.mjs';
 import { surfaceHit } from '../picking.mjs';
@@ -45,8 +45,8 @@ function applyCurveDrag(){
   const i=measuredCurves.findIndex(c=>c.id===drag.curve);
   const curve=measuredCurves[i],run=curve?.runs.find(r=>r.side===drag.side);
   if(!run)return;
-  const handle=handleFromPoint(run.frames[drag.end],drag.point);
-  if(!(handle.length_mm>=3))return;
+  const handle=dragHandle(curve,run,drag.end,drag.point,measureGrid);
+  if(!handle)return;
   const next=bendCurve(curve,{...curve.handles,[drag.end]:handle},measureGrid);
   if(next.blocked)return;                          // keep the last shape that lay on the skin
   measuredCurves[i]=next;curveHandles[curve.id]=next.handles;
