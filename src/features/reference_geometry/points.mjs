@@ -1,25 +1,36 @@
-/* --- points offset from a landmark -------------------------------------------------
-   A point found the way a tape finds it on a form: from a registry landmark on
-   each side (the wing top, say), `up_in` straight up the skin -- the upright
-   cut through the landmark square to the body's side, x along the side and y
-   up -- and then `forward_in` toward the front along the level section at the
-   height reached. Both distances are on the skin. -------------------------------- */
+/* --- points on the skin ----------------------------------------------------------
+   Two kinds. An "offset_on_skin" point is found the way a tape finds it on a
+   form: from a registry landmark on each side (the wing top, say), `up_in`
+   straight up the skin -- the upright cut through the landmark square to the
+   body's side, x along the side and y up -- and then `forward_in` toward the
+   front along the level section at the height reached. Both distances are on
+   the skin, and there is one point per side.
+   An "on_line" point is a dot on one of the lines (the CF line, say), `up_in`
+   up it from its lower end, along the skin: what a tape laid up the line from
+   that end reads. It stays on the line, and a line runs on the centre plane,
+   so there is one dot, not a pair. ------------------------------------------------ */
 
 import { sectionSegments } from '../../core/measure_core.mjs';
+import { nearestOnPolyline } from '../../core/pen_snap.mjs';
 import { uprightSegments, walkContour, byLength, byCoordinate, polylineLength } from './contour.mjs';
 import { METRES_PER_INCH } from './units.mjs';
 
 /** Validate the contract's `points`. Returns the valid points. */
 export function validatePoints(contract, { errors, heightIds, shapeIds, lines, ticks, straps, known }) {
-  // Points on the skin, an offset up and then forward from a registry landmark, one per side.
+  // Points on the skin: an offset up and then forward from a registry landmark,
+  // one per side, or a dot some way up a line.
   const points = [];
   const taken = (id) => heightIds.has(id) || shapeIds.has(id) || [lines, ticks, straps, points].some((list) => list.some((x) => x.id === id));
   for (const point of contract?.points || []) {
     const problems = [];
     if (!point.id || taken(point.id)) problems.push('missing or duplicate id');
-    if (point.kind !== 'offset_on_skin') problems.push(`unknown kind ${point.kind}`);
-    for (const side of ['L', 'R']) if (!known.has(`${point.from?.landmark}_${side}`)) problems.push(`from ${point.from?.landmark}_${side} is not a registry landmark`);
-    for (const key of ['up_in', 'forward_in']) if (!Number.isFinite(point[key])) problems.push(`${key} must be a number of inches`);
+    if (point.kind === 'offset_on_skin') {
+      for (const side of ['L', 'R']) if (!known.has(`${point.from?.landmark}_${side}`)) problems.push(`from ${point.from?.landmark}_${side} is not a registry landmark`);
+      for (const key of ['up_in', 'forward_in']) if (!Number.isFinite(point[key])) problems.push(`${key} must be a number of inches`);
+    } else if (point.kind === 'on_line') {
+      if (!lines.some((l) => l.id === point.line)) problems.push(`line ${point.line} is not a valid line`);
+      if (!Number.isFinite(point.up_in) || point.up_in < 0) problems.push('up_in must be a number of inches, 0 or more, up the line from its lower end');
+    } else problems.push(`unknown kind ${point.kind}`);
     if (!/^#[0-9a-f]{6}$/i.test(point.colour || '')) problems.push('colour must be #rrggbb');
     if (typeof point.label !== 'string' || !point.label) problems.push('label must be a string');
     if (problems.length) errors.push(`${point.id || '?'}: ${problems.join('; ')}`);
@@ -112,7 +123,56 @@ export function pointOffsets(point, side, q, landmarks, tri) {
   return { up_in: up / METRES_PER_INCH, forward_in: forward / METRES_PER_INCH };
 }
 
-/** Every declared point. */
-export function measurePoints(loaded, landmarks, tri, offsets = {}) {
-  return (loaded.points || []).map((point) => measurePoint(point, landmarks, tri, offsets[point.id] || null));
+// A line's points run top first; a dot on it is measured up from the lower end.
+const upward = (line) => line.points.slice().reverse();
+const gap = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+/** An "on_line" point on its measured `line`. `offsets` ({ up_in }) overrides
+ *  the contract's (a dot dragged in the viewer). The dot is where a tape laid
+ *  up the line from its lower end reads `up_in`; past either end it is blocked,
+ *  not moved to the end. */
+export function measureLinePoint(point, line, offsets = null) {
+  if (!line || line.blocked) return { ...point, blocked: `needs ${point.line}`, at: null };
+  const upIn = offsets?.up_in ?? point.up_in;
+  const up = upIn * METRES_PER_INCH;
+  const path = upward(line);
+  if (!(up >= 0) || up > line.length_m + 1e-9) {
+    return { ...point, blocked: `${+Number(upIn).toFixed(3)}in up is past the ends of ${line.id} (${(line.length_m / METRES_PER_INCH).toFixed(2)}in long)`, at: null };
+  }
+  let at = path[path.length - 1].slice(), walked = 0;
+  for (let i = 1; i < path.length; i++) {
+    const step = gap(path[i], path[i - 1]);
+    if (walked + step >= up) {
+      const t = step > 0 ? (up - walked) / step : 0;
+      at = path[i - 1].map((v, k) => v + (path[i][k] - v) * t);
+      break;
+    }
+    walked += step;
+  }
+  return {
+    ...point, up_in: upIn, moved: Boolean(offsets), blocked: null,
+    at, up_m: up, down_m: Math.max(0, line.length_m - up), line_length_m: line.length_m,
+  };
+}
+
+/** The inverse, for a dot dragged to `q`: the { up_in } of the point of the
+ *  line nearest q, so a place beside the line (or past an end) slides to the
+ *  line (or stops at that end). */
+export function linePointOffsets(line, q) {
+  if (!line || line.blocked || !Array.isArray(q)) return null;
+  const path = upward(line);
+  const near = nearestOnPolyline(path, q);
+  if (!near) return null;
+  let up = 0;
+  for (let i = 1; i <= near.index; i++) up += gap(path[i], path[i - 1]);
+  if (near.index + 1 < path.length) up += near.t * gap(path[near.index + 1], path[near.index]);
+  return { up_in: Math.min(up, line.length_m) / METRES_PER_INCH };
+}
+
+/** Every declared point; `lines` are the measured lines (measureLines), for a
+ *  dot on one. */
+export function measurePoints(loaded, landmarks, tri, offsets = {}, lines = []) {
+  return (loaded.points || []).map((point) => (point.kind === 'on_line'
+    ? measureLinePoint(point, lines.find((l) => l.id === point.line), offsets[point.id] || null)
+    : measurePoint(point, landmarks, tri, offsets[point.id] || null)));
 }

@@ -1,17 +1,20 @@
-/* Dragging a curve's handle, or the point it passes through. The dot is picked
-   in screen space, like the pen's control points; the press is claimed before
-   the pen and the camera see it (a capture listener), and everywhere else the
-   pointer is theirs. A handle is read in the dragged side's frame and bendCurve
-   shapes both sides; a point becomes the offsets that reach the dragged place
-   (pointOffsets), measured again on both sides. */
+/* Dragging a curve's handle, the point it passes through, or a dot on a line.
+   The dot is picked in screen space, like the pen's control points; the press
+   is claimed before the pen and the camera see it (a capture listener), and
+   everywhere else the pointer is theirs. A handle is read in the dragged side's
+   frame and bendCurve shapes both sides; a point becomes the offsets that reach
+   the dragged place (pointOffsets), measured again on both sides. A dot on a
+   line goes to the place on the line nearest the pointer on screen, not to the
+   skin under the pointer: the CF line runs down the cleavage, where the skin
+   under the pointer is as often a breast as the line. */
 
 import * as THREE from 'three';
-import { pointOffsets, measurePoint, dragHandle, bendCurve } from '../../../features/reference_geometry/index.mjs';
+import { pointOffsets, measurePoint, linePointOffsets, measureLinePoint, dragHandle, bendCurve } from '../../../features/reference_geometry/index.mjs';
 import { placingLandmark } from '../landmarks.mjs';
 import { levelContract, torsoTris, measureGrid } from '../measurement.mjs';
 import { surfaceHit } from '../picking.mjs';
 import { showMovedPoint, updateCurveRows } from './rows.mjs';
-import { levelMarks, movePoint, pointMoves, measuredCurves, curveHandles, saveCurveHandles, syncCurveState } from './state.mjs';
+import { levelMarks, movePoint, pointMoves, measuredCurves, measuredLines, curveHandles, saveCurveHandles, syncCurveState } from './state.mjs';
 import { camera, canvas, controls, setCameraGoal } from '../stage.mjs';
 import { measureRowData, selectedTapeIndex, redrawTapes } from '../table.mjs';
 
@@ -29,10 +32,48 @@ function curveHandleAt(clientX,clientY){
   }
   return best;
 }
+// The place on a polyline nearest the pointer on screen, back on the polyline
+// in 3D: each segment is projected, the nearest place on it found in pixels,
+// and taken back to the segment with the perspective divide undone.
+function nearestOnScreen(points,clientX,clientY){
+  const rect=canvas.getBoundingClientRect(),v=new THREE.Vector3();
+  camera.updateMatrixWorld();
+  const P=camera.projectionMatrix.elements;
+  const screen=points.map(p=>{
+    v.set(p[0],p[1],p[2]).applyMatrix4(camera.matrixWorldInverse);
+    const w=P[3]*v.x+P[7]*v.y+P[11]*v.z+P[15];   // the clip w: depth for a perspective camera
+    v.applyMatrix4(camera.projectionMatrix);
+    return {x:rect.left+(v.x*.5+.5)*rect.width,y:rect.top+(-v.y*.5+.5)*rect.height,w};
+  });
+  let best=null;
+  for(let i=1;i<points.length;i++){
+    const a=screen[i-1],b=screen[i];
+    if(a.w<=0||b.w<=0)continue;                    // behind the camera
+    const dx=b.x-a.x,dy=b.y-a.y,ll=dx*dx+dy*dy;
+    const s=ll>0?Math.max(0,Math.min(1,((clientX-a.x)*dx+(clientY-a.y)*dy)/ll)):0;
+    const d=Math.hypot(a.x+dx*s-clientX,a.y+dy*s-clientY);
+    if(!best||d<best.d){
+      const t=s*a.w/(s*a.w+(1-s)*b.w);
+      best={d,point:points[i-1].map((c,k)=>c+(points[i][k]-c)*t)};
+    }
+  }
+  return best?.point||null;
+}
+
 function applyCurveDrag(){
   const drag=curveDrag;
   if(!drag)return;
   drag.frame=null;
+  if(drag.kind==='line_point'){
+    if(!drag.client)return;
+    const def=(levelContract?.points||[]).find(p=>p.id===drag.id);
+    const line=measuredLines.find(l=>l.id===def?.line);
+    const off=line&&!line.blocked&&linePointOffsets(line,nearestOnScreen(line.points,...drag.client));
+    if(!off)return;
+    const next=measureLinePoint(def,line,off);
+    if(movePoint(next)){showMovedPoint(next);pointMoves[drag.id]=off}
+    return;
+  }
   if(!drag.point)return;
   if(drag.kind==='point'){
     const def=(levelContract?.points||[]).find(p=>p.id===drag.id);
@@ -57,7 +98,7 @@ canvas.addEventListener('pointerdown',event=>{
   const grab=curveHandleAt(event.clientX,event.clientY);
   if(!grab)return;
   event.stopImmediatePropagation();event.preventDefault();
-  curveDrag={...grab,point:null,frame:null};
+  curveDrag={...grab,point:null,client:null,frame:null};
   controls.enabled=false;setCameraGoal(null);
   canvas.setPointerCapture(event.pointerId);
   canvas.style.cursor='grabbing';
@@ -70,9 +111,13 @@ canvas.addEventListener('pointermove',event=>{
     return;
   }
   event.stopImmediatePropagation();
-  const hit=surfaceHit(event.clientX,event.clientY);
-  if(!hit)return;
-  curveDrag.point=[hit.point.x,hit.point.y,hit.point.z];
+  // a dot on a line follows the pointer along the line, over the body or not
+  if(curveDrag.kind==='line_point')curveDrag.client=[event.clientX,event.clientY];
+  else{
+    const hit=surfaceHit(event.clientX,event.clientY);
+    if(!hit)return;
+    curveDrag.point=[hit.point.x,hit.point.y,hit.point.z];
+  }
   if(!curveDrag.frame)curveDrag.frame=requestAnimationFrame(applyCurveDrag);
 },{capture:true});
 for(const type of ['pointerup','pointercancel'])canvas.addEventListener(type,event=>{
