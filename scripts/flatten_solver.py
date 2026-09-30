@@ -11,12 +11,14 @@ from __future__ import annotations
 import math
 
 from flatten_mesh import edge_list, edge_lengths, edge_face_map
+from flatten_stall import StallWatch
 
 
 
 DEFAULT_SOLVER = {"interior_weight": 0.25, "seam_weight": 1.0, "couple_weight": 4.0, "max_iterations": 10000,
                   "convergence_m": 5e-9, "chebyshev_rho": 0.999, "chebyshev_gamma": 0.75, "chebyshev_delay": 10,
-                  "rho_fallback": [0.99, 0.9, 0], "fold_min_area_fraction": 0.25}
+                  "rho_fallback": [0.99, 0.9, 0], "fold_min_area_fraction": 0.25,
+                  "stall_window": 1000, "stall_min_gain": 0.02, "stall_windows": 2}
 
 
 def hinge_unfold(sub) -> list[float]:
@@ -127,7 +129,8 @@ def relax_pieces(pieces, solver: dict = DEFAULT_SOLVER) -> dict:
     ladder = [r for r in solver.get("rho_fallback", []) if r < rho]
     restarts, sweep_base = 0, 0
     max_iterations, tol = solver["max_iterations"], solver["convergence_m"]
-    iterations, converged = 0, False
+    watch = StallWatch(solver)
+    iterations, converged, stalled = 0, False, False
     while iterations < max_iterations:
         _couple_shared_chords(states, shared, targets, solver)
         max_move = 0.0
@@ -153,10 +156,13 @@ def relax_pieces(pieces, solver: dict = DEFAULT_SOLVER) -> dict:
         if max_move < tol:
             converged = True
             break
+        if watch.step(max_move, iterations - sweep_base, max_iterations - iterations, tol):
+            stalled = True
+            break
     return {"diverged": any(st["diverged"] for st in states), "restarts": restarts, "rho_used": rho,
             "pieces": [{"uv": st["U"]} for st in states],
             "shared": [{"pair": pair, "members": members} for pair, members in shared],
-            "iterations": iterations, "converged": converged}
+            "iterations": iterations, "converged": converged, "stalled": stalled}
 
 
 def _piece_state(piece, solver):
@@ -359,7 +365,7 @@ def _chebyshev_step(st, move, rho, gamma, delay, sweep):
 def flatten_patch(sub, solver: dict = DEFAULT_SOLVER, chords=None) -> dict:
     out = relax_pieces([{"sub": sub, "uv": hinge_unfold(sub), "chords": chords}], solver)
     return {"uv": out["pieces"][0]["uv"], "iterations": out["iterations"], "converged": out["converged"],
-            "diverged": out["diverged"], "restarts": out["restarts"]}
+            "stalled": out["stalled"], "diverged": out["diverged"], "restarts": out["restarts"]}
 
 
 def flatten_pieces(pieces, solver: dict = DEFAULT_SOLVER) -> dict:

@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-30T09:01:47Z",
+  "purpose": "The flatten runs in a Web Worker and returns exactly what it returns on the page's thread; one job at a time, the newest wins, and a worker that cannot start is not an outage.",
+  "entry": "src/features/pattern/flatten_worker.mjs",
+  "worker_modules": [
+    "src/core/flatten/flatten_core.mjs",
+    "src/core/flatten/flatten_mesh.mjs",
+    "src/core/flatten/flatten_patch.mjs",
+    "src/core/flatten/flatten_report.mjs",
+    "src/core/flatten/flatten_solver.mjs",
+    "src/core/flatten/flatten_stall.mjs",
+    "src/core/surface_path.mjs",
+    "src/features/pattern/dxf_pieces.mjs",
+    "src/features/pattern/dxf_writer.mjs",
+    "src/features/pattern/flatten_job.mjs",
+    "src/features/pattern/flatten_worker.mjs",
+    "src/features/pattern/pattern_draft.mjs",
+    "src/features/pattern/pattern_templates.mjs"
+  ],
+  "case": {
+    "id": "apex_panels_75mm",
+    "pieces": [
+      "panel_a",
+      "panel_b"
+    ],
+    "sweeps": 985
+  },
+  "checks": [
+    {
+      "name": "answerFlatten returns exactly what flattenDraft returns",
+      "status": "PASS",
+      "detail": "2 pieces, 985 sweeps, sound true"
+    },
+    {
+      "name": "the solver settings in the request are the ones used",
+      "status": "PASS",
+      "detail": "a request naming max_iterations 5 stops at sweep 5"
+    },
+    {
+      "name": "a bad request is answered with an error, not thrown",
+      "status": "PASS",
+      "detail": "error: Cannot read properties of null (reading 'map')"
+    },
+    {
+      "name": "the shipped worker file, on a real thread, returns exactly what the main thread computes",
+      "status": "PASS",
+      "detail": "985 sweeps, 2 reports, deep-equal"
+    },
+    {
+      "name": "the same worker serves the next job",
+      "status": "PASS",
+      "detail": "one worker spawned for two jobs, mode worker"
+    },
+    {
+      "name": "the same heavy job on the worker and on the main thread agree",
+      "status": "PASS",
+      "detail": "60000 sweeps"
+    },
+    {
+      "name": "while the worker runs a long job the main thread keeps running",
+      "status": "PASS",
+      "detail": "ticks kept coming during the job; the same job inline held every timer until it was over"
+    },
+    {
+      "name": "a newer job drops the long one running on a real thread and is answered",
+      "status": "PASS",
+      "detail": "the first job rejected as superseded, the second answered, two workers spawned (the busy one ended)"
+    },
+    {
+      "name": "a job is posted once, stays pending until the worker answers, then resolves",
+      "status": "PASS",
+      "detail": "request {id, pieces, solver} posted; nothing resolved before the reply"
+    },
+    {
+      "name": "newest wins: the old job is dropped and its worker ended, a late reply to it is ignored",
+      "status": "PASS",
+      "detail": "first rejected as superseded, first worker terminated, second worker answered"
+    },
+    {
+      "name": "cancel drops the job and ends the worker",
+      "status": "PASS",
+      "detail": "rejected as superseded, worker terminated"
+    },
+    {
+      "name": "an error reply rejects that job only; the worker is kept and serves the next",
+      "status": "PASS",
+      "detail": "rejected with the worker's message, one worker for both jobs"
+    },
+    {
+      "name": "a reply that carries another job's id is ignored",
+      "status": "PASS",
+      "detail": "the ghost of job 1 left job 2 pending; job 2 resolved with its own answer"
+    },
+    {
+      "name": "a worker that fails to start: the job finishes inline, and so do all later ones",
+      "status": "PASS",
+      "detail": "resolved by the inline flatten, worker ended, no second worker, reason recorded"
+    },
+    {
+      "name": "no Worker in this environment: every job runs inline",
+      "status": "PASS",
+      "detail": "the spawn was tried once, then never again"
+    },
+    {
+      "name": "a request that cannot be posted (not cloneable) finishes inline",
+      "status": "PASS",
+      "detail": "postMessage threw DataCloneError, the job ran inline"
+    },
+    {
+      "name": "a worker that never answers: after the deadline the job finishes inline, and the runner stays inline",
+      "status": "PASS",
+      "detail": "resolved by the inline flatten, worker ended, reason recorded, the next job never went to a worker"
+    },
+    {
+      "name": "an answer in time cancels the deadline",
+      "status": "PASS",
+      "detail": "still a worker after the deadline would have passed"
+    },
+    {
+      "name": "a dropped job's deadline does not fire on the job that replaced it",
+      "status": "PASS",
+      "detail": "the second job resolved by its worker, no fall back to inline"
+    },
+    {
+      "name": "inline: it yields first, and a job dropped before its turn never runs",
+      "status": "PASS",
+      "detail": "A superseded before it started, only B ran"
+    },
+    {
+      "name": "inline: a failure of the flatten itself rejects the job with that error",
+      "status": "PASS",
+      "detail": "rejected, not superseded"
+    },
+    {
+      "name": "the worker's import graph is relative modules only, and none touches the DOM",
+      "status": "PASS",
+      "detail": "13 modules: core/flatten/flatten_core.mjs, core/flatten/flatten_mesh.mjs, core/flatten/flatten_patch.mjs, core/flatten/flatten_report.mjs, core/flatten/flatten_solver.mjs, core/flatten/flatten_stall.mjs, core/surface_path.mjs, features/pattern/dxf_pieces.mjs, features/pattern/dxf_writer.mjs, features/pattern/flatten_job.mjs, features/pattern/flatten_worker.mjs, features/pattern/pattern_draft.mjs, features/pattern/pattern_templates.mjs"
+    },
+    {
+      "name": "the page creates the worker in the one form the bundler recognises, and it points at the entry",
+      "status": "PASS",
+      "detail": "new Worker(new URL('../../features/pattern/flatten_worker.mjs', import.meta.url), { type: 'module' }) → src/features/pattern/flatten_worker.mjs"
+    },
+    {
+      "name": "the entry answers every message through answerFlatten",
+      "status": "PASS",
+      "detail": "self.onmessage → self.postMessage(answerFlatten(event.data))"
+    }
+  ],
+  "decision": "FLATTEN_OFF_THREAD"
+}

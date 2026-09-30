@@ -7,6 +7,7 @@
  */
 
 import { edgeList, edgeLengths, edgeFaceMap } from './flatten_mesh.mjs';
+import { createStallWatch } from './flatten_stall.mjs';
 
 export const DEFAULT_SOLVER = Object.freeze({
   interior_weight: 0.25,   // interior edges, and the scaffold boundary of a loop-cut patch
@@ -25,6 +26,13 @@ export const DEFAULT_SOLVER = Object.freeze({
   // about to fold over and is pushed back; sound faces sit far above it, so the
   // constraint is inactive on them and does not move the fixed point
   fold_min_area_fraction: 0.25,
+  // Stop a run that is STUCK (its sweep move has stopped falling), never one that
+  // is merely slow: see flatten_stall.mjs. The smallest sweep move of each window of
+  // `stall_window` sweeps must beat the last window's by `stall_min_gain`; that many
+  // windows in a row that do not is a stall. A `stall_window` of 0 switches the guard off.
+  stall_window: 1000,
+  stall_min_gain: 0.02,
+  stall_windows: 2,
 });
 
 /**
@@ -160,7 +168,8 @@ export function relaxPieces(pieces, solver = DEFAULT_SOLVER) {
   const gamma = solver.chebyshev_gamma ?? 1, delay = solver.chebyshev_delay ?? 0;
   const ladder = (solver.rho_fallback ?? []).filter((r) => r < rho);
   let restarts = 0, sweepBase = 0;
-  let iterations = 0, converged = false;
+  const watch = createStallWatch(solver);
+  let iterations = 0, converged = false, stalled = false;
   while (iterations < solver.max_iterations) {
     coupleSharedChords(states, shared, targets, solver);
     let maxMove = 0;
@@ -181,12 +190,13 @@ export function relaxPieces(pieces, solver = DEFAULT_SOLVER) {
       continue;
     }
     if (maxMove < solver.convergence_m) { converged = true; break; }
+    if (watch.step(maxMove, iterations - sweepBase, solver.max_iterations - iterations, solver.convergence_m)) { stalled = true; break; }
   }
   return {
     diverged: states.some((st) => st.diverged), restarts, rho_used: rho,
     pieces: states.map((st) => ({ uv: st.U })),
     shared: shared.map(({ pair, members }) => ({ pair, members })),
-    iterations, converged,
+    iterations, converged, stalled,
   };
 }
 
@@ -372,7 +382,7 @@ function chebyshevStep(st, move, { rho, gamma, delay, sweep }) {
  *  single piece. `chords` (from `loopChords`) makes a drawn loop the seam. */
 export function flattenPatch(sub, solver = DEFAULT_SOLVER, chords = null) {
   const out = relaxPieces([{ sub, uv: hingeUnfold(sub), chords }], solver);
-  return { uv: out.pieces[0].uv, iterations: out.iterations, converged: out.converged, diverged: out.diverged, restarts: out.restarts };
+  return { uv: out.pieces[0].uv, iterations: out.iterations, converged: out.converged, stalled: out.stalled, diverged: out.diverged, restarts: out.restarts };
 }
 
 /** Several pieces solved together so the chords they share agree in length. */

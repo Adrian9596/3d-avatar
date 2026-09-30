@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "purpose": "Patches for validate:flatten-stall. Every case here is one where the guard has something to decide, and each says what it expects. 'stalls' -- the run cannot converge (given four times the budget and no guard it still does not) and both engines must stop it at the same sweep instead of spending the whole budget. 'spared' -- the run is slow and steady, has windows that made no progress by the bar it is given, and still converges: the guard must see that the pace it has would get it there and leave it alone. 'ends_short' -- the same steady run with a budget too small to finish: the bar makes its windows idle and the pace cannot reach the floor in what is left, so it is stopped ahead of the limit (given more budget it would converge, which is why this is a projection and not a true stall). The cylinder and cone are developable, so the hinge unfolding is already exact; with a convergence threshold of 0 (below the arithmetic noise, which a real threshold never is) they can never converge. The avatar panels are the same two-panel cut as apex_panels_75mm in flatten_cases.json with the acceleration driven too hard (rho 0.999999: a plateau that no budget cures). The disc is apex_disc_80mm relaxed by plain Jacobi (no acceleration): its sweep move falls about 35 % a window and it converges at sweep 6327; the bar of 0.9 is what makes that fall count as no progress.",
+  "solver": {
+    "interior_weight": 0.25,
+    "seam_weight": 1.0,
+    "couple_weight": 4.0,
+    "max_iterations": 10000,
+    "convergence_m": 0,
+    "chebyshev_rho": 0.999,
+    "chebyshev_gamma": 0.75,
+    "chebyshev_delay": 10,
+    "rho_fallback": [
+      0.99,
+      0.9,
+      0
+    ],
+    "fold_min_area_fraction": 0.25,
+    "stall_window": 1000,
+    "stall_min_gain": 0.02,
+    "stall_windows": 2
+  },
+  "cases": [
+    {
+      "id": "cylinder_120deg",
+      "type": "cylinder",
+      "radius_m": 0.1,
+      "arc_deg": 120,
+      "height_m": 0.2,
+      "angular_segments": 24,
+      "vertical_segments": 8,
+      "note": "Same cylinder as flatten_cases.json; threshold 0, below the noise.",
+      "expect": "stalls"
+    },
+    {
+      "id": "cone_frustum_150deg",
+      "type": "cone",
+      "radius_bottom_m": 0.12,
+      "radius_top_m": 0.06,
+      "height_m": 0.15,
+      "arc_deg": 150,
+      "angular_segments": 30,
+      "vertical_segments": 6,
+      "note": "Same cone as flatten_cases.json; threshold 0, below the noise.",
+      "expect": "stalls"
+    },
+    {
+      "id": "apex_panels_75mm_overdriven",
+      "type": "avatar_panels",
+      "seed_landmark": "BUST_APEX_L",
+      "radius_m": 0.075,
+      "loop_points": 48,
+      "note": "Acceleration driven past what the patch tolerates: the sweep move settles on a plateau and stays there.",
+      "solver": {
+        "convergence_m": 5e-09,
+        "chebyshev_rho": 0.999999
+      },
+      "expect": "stalls"
+    },
+    {
+      "id": "apex_disc_80mm_jacobi_spared",
+      "type": "avatar_disc",
+      "seed_landmark": "BUST_APEX_L",
+      "radius_m": 0.08,
+      "note": "Every window falls about 35 %, which the bar of 0.9 calls no progress; at each close the pace still gets the move under the floor within the budget left.",
+      "solver": {
+        "convergence_m": 5e-09,
+        "chebyshev_rho": 0,
+        "stall_min_gain": 0.9
+      },
+      "expect": "spared"
+    },
+    {
+      "id": "apex_disc_80mm_jacobi_short_budget",
+      "type": "avatar_disc",
+      "seed_landmark": "BUST_APEX_L",
+      "radius_m": 0.08,
+      "note": "The same run with a 4000-sweep budget: at sweep 3000 one window is left and one window of that pace does not reach the floor.",
+      "solver": {
+        "convergence_m": 5e-09,
+        "chebyshev_rho": 0,
+        "stall_min_gain": 0.9,
+        "max_iterations": 4000
+      },
+      "expect": "ends_short"
+    }
+  ]
+}
