@@ -70,6 +70,16 @@ for (const [path, why] of required) {
   if (!existsSync(join(DIST, path))) problems.push(`missing ${path} — ${why}`);
 }
 
+// The flatten runs in a Web Worker (src/features/pattern/flatten_worker.mjs), which the
+// bundler emits as a chunk of its own. Were it not there, the page would ask for a file
+// that does not exist and quietly fall back to flattening on its own thread: a frozen
+// page, not an error -- so the chunk is a required part of the site.
+const workerChunks = files.map((f) => relative(DIST, f).split('\\').join('/')).filter((f) => /^assets\/flatten_worker-[\w-]+\.js$/.test(f));
+if (workerChunks.length !== 1) {
+  problems.push(`expected exactly one assets/flatten_worker-<hash>.js (the flatten's Web Worker), found ${workerChunks.length}\n` +
+    '       Without it the Flatten button freezes the page. Check the `new Worker(new URL(...))` in src/ui/viewer/pattern_panel.mjs.');
+}
+
 // A leftover /viewer/ would be a second, stale copy of the app on the live
 // site -- exactly the split the merge removed.
 if (existsSync(join(DIST, 'viewer'))) {

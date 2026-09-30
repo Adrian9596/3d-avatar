@@ -29,7 +29,7 @@ def main() -> int:
     parser.add_argument("--only", help="comma-separated case ids")
     args = parser.parse_args()
     cases = json.loads(Path(args.cases).read_text())
-    solver = {**DEFAULT_SOLVER, **cases.get("solver", {})}
+    file_solver = {**DEFAULT_SOLVER, **cases.get("solver", {})}
     wanted = set(args.only.split(",")) if args.only else None
     ctx = None
     results = []
@@ -42,11 +42,12 @@ def main() -> int:
         if "error" in built:
             results.append({"id": spec["id"], "error": built["error"]})
             continue
+        solver = {**file_solver, **spec.get("solver", {})}   # a case may override the file's settings
         if "pieces" in built:
             run = flatten_pieces(built["pieces"], solver)
             pairs = {g["pair"] for g in run["shared"]}
             row = {"id": spec["id"], "iterations": run["iterations"], "converged": run["converged"],
-                   "diverged": run["diverged"], "restarts": run["restarts"],
+                   "stalled": run["stalled"], "diverged": run["diverged"], "restarts": run["restarts"],
                    "shared_chord_groups": len(run["shared"]), "pieces": []}
             for piece, flat in zip(built["pieces"], run["pieces"]):
                 row["pieces"].append({"name": piece["name"], "stats": patch_stats(piece["sub"], flat["uv"]),
@@ -57,7 +58,7 @@ def main() -> int:
         sub = built["sub"]
         run = flatten_patch(sub, solver, built.get("chords"))
         row = {"id": spec["id"], "iterations": run["iterations"], "converged": run["converged"],
-               "diverged": run["diverged"], "restarts": run["restarts"],
+               "stalled": run["stalled"], "diverged": run["diverged"], "restarts": run["restarts"],
                "stats": patch_stats(sub, run["uv"]), "uv": run["uv"]}
         if "chords" in built:
             row["chords"] = chord_report(built["chords"], sub, run["uv"])
@@ -67,7 +68,7 @@ def main() -> int:
                            "flood_reach_m": built["patch"]["flood_reach_m"],
                            **{k: v for k, v in mapped.items() if k != "points"}}
         results.append(row)
-    out = {"schema_version": 1, "engine": "scripts/flatten.py", "solver": solver,
+    out = {"schema_version": 1, "engine": "scripts/flatten.py", "solver": file_solver,
            "asset_sha256": ctx["asset_sha"] if ctx and "asset_sha" in ctx else None, "results": results}
     json.dump(out, sys.stdout)
     sys.stdout.write("\n")

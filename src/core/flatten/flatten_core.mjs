@@ -37,4 +37,5 @@
 export * from './flatten_mesh.mjs';
 export * from './flatten_patch.mjs';
 export * from './flatten_solver.mjs';
+export * from './flatten_stall.mjs';
 export * from './flatten_report.mjs';

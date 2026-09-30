@@ -1,0 +1,351 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-30T09:00:24Z",
+  "purpose": "The solver stops a run that is stuck, and only that: a run that would converge, or that is slow and still improving, is untouched — same sweeps, same layout to the last bit — in both engines.",
+  "rule": {
+    "stall_window": 1000,
+    "stall_min_gain": 0.02,
+    "stall_windows": 2
+  },
+  "engines": {
+    "javascript": "src/core/flatten/flatten_stall.mjs",
+    "python": "scripts/flatten_stall.py"
+  },
+  "sequences": [
+    {
+      "id": "off_absent",
+      "stops_at": null
+    },
+    {
+      "id": "off_zero",
+      "stops_at": null
+    },
+    {
+      "id": "steady_9pct",
+      "stops_at": null
+    },
+    {
+      "id": "slow_3pct",
+      "stops_at": null
+    },
+    {
+      "id": "slow_1pct",
+      "stops_at": 300
+    },
+    {
+      "id": "plateau",
+      "stops_at": 500
+    },
+    {
+      "id": "creep",
+      "stops_at": 300
+    },
+    {
+      "id": "spiky",
+      "stops_at": null
+    },
+    {
+      "id": "zero",
+      "stops_at": 300
+    },
+    {
+      "id": "near_floor",
+      "stops_at": null
+    },
+    {
+      "id": "near_floor_short",
+      "stops_at": 300
+    },
+    {
+      "id": "near_floor_partial",
+      "stops_at": null
+    },
+    {
+      "id": "restart",
+      "stops_at": 550
+    }
+  ],
+  "cases": {
+    "unchanged": {
+      "file": "scripts/flatten_cases.json",
+      "sha256": "76e5aaa509e7890a3bc90f662ac375530802fe22cbb2fa3e49d30d640701c2db",
+      "results": [
+        {
+          "id": "cylinder_120deg",
+          "sweeps": 1,
+          "converged": true
+        },
+        {
+          "id": "cone_frustum_150deg",
+          "sweeps": 1,
+          "converged": true
+        },
+        {
+          "id": "apex_disc_40mm",
+          "sweeps": 247,
+          "converged": true
+        },
+        {
+          "id": "apex_disc_60mm",
+          "sweeps": 267,
+          "converged": true
+        },
+        {
+          "id": "apex_disc_80mm",
+          "sweeps": 288,
+          "converged": true
+        },
+        {
+          "id": "apex_disc_80mm_upper",
+          "sweeps": 265,
+          "converged": true
+        },
+        {
+          "id": "apex_disc_80mm_lower",
+          "sweeps": 265,
+          "converged": true
+        },
+        {
+          "id": "apex_loop_60mm",
+          "sweeps": 420,
+          "converged": true
+        },
+        {
+          "id": "apex_panels_75mm",
+          "sweeps": 985,
+          "converged": true
+        }
+      ]
+    },
+    "stall": {
+      "file": "scripts/flatten_stall_cases.json",
+      "sha256": "cfe48d05493bfc1ccc7d31cbe057fb5843759cfce9613d54e42cad9d416b700a",
+      "results": [
+        {
+          "id": "cylinder_120deg",
+          "expect": "stalls",
+          "sweeps": {
+            "js": 3000,
+            "python": 3000
+          },
+          "max_vertex_delta_mm": 0
+        },
+        {
+          "id": "cone_frustum_150deg",
+          "expect": "stalls",
+          "sweeps": {
+            "js": 3000,
+            "python": 3000
+          },
+          "max_vertex_delta_mm": 0
+        },
+        {
+          "id": "apex_panels_75mm_overdriven",
+          "expect": "stalls",
+          "sweeps": {
+            "js": 6000,
+            "python": 6000
+          },
+          "max_vertex_delta_mm": 0
+        },
+        {
+          "id": "apex_disc_80mm_jacobi_spared",
+          "expect": "spared",
+          "sweeps": {
+            "js": 6327,
+            "python": 6327
+          },
+          "max_vertex_delta_mm": 0
+        },
+        {
+          "id": "apex_disc_80mm_jacobi_short_budget",
+          "expect": "ends_short",
+          "sweeps": {
+            "js": 3000,
+            "python": 3000
+          },
+          "max_vertex_delta_mm": 0
+        }
+      ]
+    }
+  },
+  "tolerance_mm": 0.001,
+  "checks": [
+    {
+      "name": "rule: rule off when stall_window is absent (an explicit solver without the keys behaves exactly as before)",
+      "status": "PASS",
+      "detail": "stops at sweep never (expected never) · python never"
+    },
+    {
+      "name": "rule: rule off when stall_window is 0",
+      "status": "PASS",
+      "detail": "stops at sweep never (expected never) · python never"
+    },
+    {
+      "name": "rule: a steady 9.5 % fall per window is never a stall",
+      "status": "PASS",
+      "detail": "stops at sweep never (expected never) · python never"
+    },
+    {
+      "name": "rule: a slow 3 % fall per window (above the 2 % bar) is never a stall",
+      "status": "PASS",
+      "detail": "stops at sweep never (expected never) · python never"
+    },
+    {
+      "name": "rule: a 1 % fall per window is a stall after two idle windows",
+      "status": "PASS",
+      "detail": "stops at sweep 300 (expected 300) · python 300"
+    },
+    {
+      "name": "rule: a plateau after a fall stalls two windows after it flattens",
+      "status": "PASS",
+      "detail": "stops at sweep 500 (expected 500) · python 500"
+    },
+    {
+      "name": "rule: a creeping (slowly rising) move stalls",
+      "status": "PASS",
+      "detail": "stops at sweep 300 (expected 300) · python 300"
+    },
+    {
+      "name": "rule: spikes do not matter: the window minimum is what falls",
+      "status": "PASS",
+      "detail": "stops at sweep never (expected never) · python never"
+    },
+    {
+      "name": "rule: a move of exactly 0 against a floor of 0 stalls (no 0/0)",
+      "status": "PASS",
+      "detail": "stops at sweep 300 (expected 300) · python 300"
+    },
+    {
+      "name": "rule: a run that will still reach the floor within the budget is left alone",
+      "status": "PASS",
+      "detail": "stops at sweep never (expected never) · python never"
+    },
+    {
+      "name": "rule: the same run with no budget left is stopped",
+      "status": "PASS",
+      "detail": "stops at sweep 300 (expected 300) · python 300"
+    },
+    {
+      "name": "rule: a budget that ends part-way through a window still counts that window",
+      "status": "PASS",
+      "detail": "stops at sweep never (expected never) · python never"
+    },
+    {
+      "name": "rule: a restart (the sweep count starts over) is a new run: its windows are counted from the restart",
+      "status": "PASS",
+      "detail": "stops at sweep 550 (expected 550) · python 550 · stops at 250 + 300, not at 350"
+    },
+    {
+      "name": "rule: the reach test is what spares the near-floor run",
+      "status": "PASS",
+      "detail": "without it: stops at sweep 300"
+    },
+    {
+      "name": "the accuracy and parity cases run with the guard ON",
+      "status": "PASS",
+      "detail": "window 1000 · gain 0.02 · windows 2, the same as DEFAULT_SOLVER"
+    },
+    {
+      "name": "engine: cylinder_120deg is unchanged by the guard",
+      "status": "PASS",
+      "detail": "1 sweeps either way · converged true · stalled false"
+    },
+    {
+      "name": "engine: cone_frustum_150deg is unchanged by the guard",
+      "status": "PASS",
+      "detail": "1 sweeps either way · converged true · stalled false"
+    },
+    {
+      "name": "engine: apex_disc_40mm is unchanged by the guard",
+      "status": "PASS",
+      "detail": "247 sweeps either way · converged true · stalled false"
+    },
+    {
+      "name": "engine: apex_disc_60mm is unchanged by the guard",
+      "status": "PASS",
+      "detail": "267 sweeps either way · converged true · stalled false"
+    },
+    {
+      "name": "engine: apex_disc_80mm is unchanged by the guard",
+      "status": "PASS",
+      "detail": "288 sweeps either way · converged true · stalled false"
+    },
+    {
+      "name": "engine: apex_disc_80mm_upper is unchanged by the guard",
+      "status": "PASS",
+      "detail": "265 sweeps either way · converged true · stalled false"
+    },
+    {
+      "name": "engine: apex_disc_80mm_lower is unchanged by the guard",
+      "status": "PASS",
+      "detail": "265 sweeps either way · converged true · stalled false"
+    },
+    {
+      "name": "engine: apex_loop_60mm is unchanged by the guard",
+      "status": "PASS",
+      "detail": "420 sweeps either way · converged true · stalled false"
+    },
+    {
+      "name": "engine: apex_panels_75mm is unchanged by the guard",
+      "status": "PASS",
+      "detail": "985 sweeps either way · converged true · stalled false"
+    },
+    {
+      "name": "engine: a slow, steady run (no acceleration, several windows long) is not stopped",
+      "status": "PASS",
+      "detail": "6327 sweeps = 6.3 windows, converged, same layout to the last bit"
+    },
+    {
+      "name": "stall: cylinder_120deg cannot converge, and the guard stops it early, flagged",
+      "status": "PASS",
+      "detail": "stopped at sweep 3000 of 10000; without the guard 10000, and 40000 with four times the budget it still has not converged"
+    },
+    {
+      "name": "stall: cone_frustum_150deg cannot converge, and the guard stops it early, flagged",
+      "status": "PASS",
+      "detail": "stopped at sweep 3000 of 10000; without the guard 10000, and 40000 with four times the budget it still has not converged"
+    },
+    {
+      "name": "stall: apex_panels_75mm_overdriven cannot converge, and the guard stops it early, flagged",
+      "status": "PASS",
+      "detail": "stopped at sweep 6000 of 10000; without the guard 10000, and 40000 with four times the budget it still has not converged"
+    },
+    {
+      "name": "stall: apex_disc_80mm_jacobi_spared has windows that made no progress by its bar, and is spared because it will get there",
+      "status": "PASS",
+      "detail": "converged at sweep 6327, the same as with no guard, same layout to the last bit"
+    },
+    {
+      "name": "stall: apex_disc_80mm_jacobi_short_budget cannot finish in its budget at its pace, and is stopped ahead of the limit",
+      "status": "PASS",
+      "detail": "stopped at sweep 3000 of 4000; without the guard 4000 and unfinished; given four times the budget it converges at 6327"
+    },
+    {
+      "name": "port: cylinder_120deg ends the same way, at the same sweep, with the same layout",
+      "status": "PASS",
+      "detail": "sweeps js 3000 / python 3000 · stalled js true / python true · converged js false / python false · max vertex Δ 0mm"
+    },
+    {
+      "name": "port: cone_frustum_150deg ends the same way, at the same sweep, with the same layout",
+      "status": "PASS",
+      "detail": "sweeps js 3000 / python 3000 · stalled js true / python true · converged js false / python false · max vertex Δ 0mm"
+    },
+    {
+      "name": "port: apex_panels_75mm_overdriven ends the same way, at the same sweep, with the same layout",
+      "status": "PASS",
+      "detail": "sweeps js 6000 / python 6000 · stalled js true / python true · converged js false / python false · max vertex Δ 0mm"
+    },
+    {
+      "name": "port: apex_disc_80mm_jacobi_spared ends the same way, at the same sweep, with the same layout",
+      "status": "PASS",
+      "detail": "sweeps js 6327 / python 6327 · stalled js false / python false · converged js true / python true · max vertex Δ 0mm"
+    },
+    {
+      "name": "port: apex_disc_80mm_jacobi_short_budget ends the same way, at the same sweep, with the same layout",
+      "status": "PASS",
+      "detail": "sweeps js 3000 / python 3000 · stalled js true / python true · converged js false / python false · max vertex Δ 0mm"
+    }
+  ],
+  "decision": "STALL_GUARD_HOLDS"
+}

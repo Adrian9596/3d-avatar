@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "purpose": "The one list of patches both flattening engines are tested on. scripts/test_flatten_accuracy.mjs and scripts/test_flatten_parity.mjs (which runs scripts/flatten.py) read this file, so the two sides cannot drift on which patch they measured.",
-  "solver": { "interior_weight": 0.25, "seam_weight": 1.0, "couple_weight": 4.0, "max_iterations": 10000, "convergence_m": 5e-9, "chebyshev_rho": 0.999, "chebyshev_gamma": 0.75, "chebyshev_delay": 10, "rho_fallback": [0.99, 0.9, 0], "fold_min_area_fraction": 0.25 },
+  "solver": { "interior_weight": 0.25, "seam_weight": 1.0, "couple_weight": 4.0, "max_iterations": 10000, "convergence_m": 5e-9, "chebyshev_rho": 0.999, "chebyshev_gamma": 0.75, "chebyshev_delay": 10, "rho_fallback": [0.99, 0.9, 0], "fold_min_area_fraction": 0.25, "stall_window": 1000, "stall_min_gain": 0.02, "stall_windows": 2 },
   "cases": [
     {
       "id": "cylinder_120deg",
