@@ -85,22 +85,22 @@ function startLine(ctx, zone){
 
 /* ── finishing (B3 · B4) ───────────────────────────────────────────────────────────── */
 const where = () => ({pc: line.pc, pid: line.pid, layer: line.layer});
+/* the line and its set square go BEFORE the shape is placed — placing draws the frame, and the panel must not still show
+   them; a placing refused (a piece with no inside, M16) gives both back */
 function finish(ctx){
   if(!line || line.pts.length < 2) return say(ctx, "đường cần ít nhất 2 điểm — bấm thêm, hay Esc");
-  const kept = line;
-  line = null; preview = null;
+  const kept = line, sq = square;
+  line = null; square = null; preview = null;
   const r = E.place(ctx, penShape(kept.pts, kept.kinds), {pc: kept.pc, pid: kept.pid, layer: kept.layer});
-  if(r && r.ok === false){ line = kept; ctx.draw(); return; }
-  square = null;
+  if(r && r.ok === false){ line = kept; square = sq; ctx.draw(); }
 }
 function close(ctx){
-  const kept = line;
-  line = null; preview = null;
+  const kept = line, sq = square;
   let shape;
-  try{ shape = createPath(kept.pts, kept.kinds); }catch(e){ line = kept; return say(ctx, e.message); }
+  try{ shape = createPath(kept.pts, kept.kinds); }catch(e){ return say(ctx, e.message); }
+  line = null; square = null; preview = null;
   const r = E.place(ctx, shape, {pc: kept.pc, pid: kept.pid, layer: kept.layer});
-  if(r && r.ok === false){ line = kept; ctx.draw(); return; }
-  square = null;
+  if(r && r.ok === false){ line = kept; square = sq; ctx.draw(); }
 }
 
 /* ── a drag (B6 · B8 · B9) — the preview and the release ask the same question ─────── */

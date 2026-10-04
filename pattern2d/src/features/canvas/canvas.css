@@ -1,5 +1,6 @@
 .stage{position:relative; min-width:0; overflow:hidden}
-#svg{display:block; width:100%; height:100%; touch-action:none; cursor:grab}
+#svg{display:block; width:100%; height:100%; touch-action:none; cursor:grab;
+     user-select:none; -webkit-user-select:none}   /* a ⇧ press is a curve point or one more pick, never a text selection run over the pieces' words */
 #svg.grabbing{cursor:grabbing}
 #svg.measuring{cursor:crosshair}
 #svg.moving{cursor:move}
