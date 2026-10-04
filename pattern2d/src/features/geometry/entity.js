@@ -11,11 +11,13 @@
 import {point, line, arc, curve, length, tangentAt} from "./model.js";
 import {bezier} from "./spline.js";
 import {OUTLINE_KINDS, checkOutline, outlineSegments, outlineShape, outlineLength, outlineArea, outlineEdges,
-        dragOutline, moveOutline} from "./outline.js";
+        dragOutline, moveOutline, checkOpenLine, openSegments, openShape, openLength, dragOpenLine, moveOpenLine} from "./outline.js";
 
 export const ENTITY_TYPES = ["line", "curve", "rect", "circle", "polygon"];
 /* what a new piece adds to the table (sketch.md §7): its outline and its notches */
 export const PIECE_ENTITY_TYPES = ["path", "point"];
+/* the smart pen's open line through its points (sketch.md §8) — Đường */
+export const PEN_ENTITY_TYPES = ["polyline"];
 
 const EPS = 1e-9;                   // mm — shorter than this is "the same point"
 const RAD = Math.PI/180;
@@ -92,11 +94,21 @@ export function createPath(pts, kinds){
 }
 /* a notch, or any mark: a position and nothing else */
 export function createPoint(p){ return {type: "point", p: pt(p, "điểm")}; }
-/* point k of an outline becomes a corner ("turn") or a point the curve passes through ("curve") */
+/* the smart pen's open line: the points placed and which are corners — its two ends always are (sketch.md §8, L1) */
+export function createPolyline(pts, kinds){
+  const o = checkOpenLine(pts, kinds);
+  return {type: "polyline", pts: o.pts, kinds: o.kinds};
+}
+/* point k of an outline or of an open line becomes a corner ("turn") or a point the curve passes through ("curve");
+   an open line's ends stay corners (L8) */
 export function setPathKind(e, k, kind){
-  if(!e || e.type !== "path") throw new Error(`chỉ đường viền mới có loại điểm — không phải ${e && e.type}`);
-  if(!Number.isInteger(k) || k < 0 || k >= e.pts.length) throw new Error(`không có điểm ${k} — đường viền có ${e.pts.length} điểm`);
+  if(!e || (e.type !== "path" && e.type !== "polyline")) throw new Error(`chỉ đường viền và Đường mới có loại điểm — không phải ${e && e.type}`);
+  if(!Number.isInteger(k) || k < 0 || k >= e.pts.length) throw new Error(`không có điểm ${k} — ${e.type === "path" ? "đường viền" : "đường"} có ${e.pts.length} điểm`);
   if(!OUTLINE_KINDS.includes(kind)) throw new Error(`loại điểm không hợp lệ: "${kind}" — chỉ có turn · curve`);
+  if(e.type === "polyline"){
+    if((k === 0 || k === e.pts.length - 1) && kind !== "turn") throw new Error("đầu của một đường luôn là góc — chỉ điểm giữa đổi được thành điểm cong");
+    return createPolyline(e.pts, e.kinds.map((x, i) => i === k ? kind : x));
+  }
   return createPath(e.pts, e.kinds.map((x, i) => i === k ? kind : x));
 }
 
@@ -126,7 +138,7 @@ export function entityHandles(e){
     case "rect": return [...rectVerts(e).map((v, k) => ({name: `v${k}`, at: v, role: "position"})), {name: "body", at: null, role: "position"}];
     case "polygon": return [{name: "c", at: c(e.c), role: "position"},
                             ...polyVerts(e).map((v, k) => ({name: `v${k}`, at: v, role: "position"})), {name: "body", at: null, role: "position"}];
-    case "path": return [...e.pts.map((v, k) => ({name: `v${k}`, at: c(v), role: "shape"})), {name: "body", at: null, role: "position"}];
+    case "path": case "polyline": return [...e.pts.map((v, k) => ({name: `v${k}`, at: c(v), role: "shape"})), {name: "body", at: null, role: "position"}];
     case "point": return [{name: "p", at: c(e.p), role: "position"}, {name: "body", at: null, role: "position"}];
   }
   throw new Error(`hình không hợp lệ: ${e && e.type}`);
@@ -145,6 +157,7 @@ export function entityShape(e){
     case "circle": return arc(point(e.c[0], e.c[1]), e.d/2, 0, 2*Math.PI, true);
     case "rect": case "polygon": return curve(verticesOf(e), true);
     case "path": return outlineShape(e.pts, e.kinds);
+    case "polyline": return openShape(e.pts, e.kinds);
     case "point": return point(e.p[0], e.p[1]);
   }
   throw new Error(`hình không hợp lệ: ${e && e.type}`);
@@ -164,8 +177,8 @@ export function entitySnap(e){
       return {points: pts, handles: names, shapes: edges};
     }
     /* an outline's straight edges as lines, its curved spans as curves — so a snap says which */
-    case "path": return {points: e.pts.map(p => p.slice()), handles: e.pts.map((_, k) => `v${k}`),
-                         shapes: outlineSegments(e.pts, e.kinds).map(s => s.kind === "line"
+    case "path": case "polyline": return {points: e.pts.map(p => p.slice()), handles: e.pts.map((_, k) => `v${k}`),
+                         shapes: (e.type === "path" ? outlineSegments : openSegments)(e.pts, e.kinds).map(s => s.kind === "line"
                            ? line(point(s.ctrl[0][0], s.ctrl[0][1]), point(s.ctrl[1][0], s.ctrl[1][1])) : bezier(s.ctrl))};
     case "point": return {points: [e.p.slice()], handles: ["p"], shapes: []};
   }
@@ -193,6 +206,10 @@ export function entityDims(e){
       return {perimeter: outlineLength(e.pts, e.kinds), area: Math.abs(outlineArea(e.pts, e.kinds)), points: e.pts.length,
               turns, curves: e.pts.length - turns, edges: outlineEdges(e.pts, e.kinds).map(x => x.length)};
     }
+    case "polyline": {
+      const turns = e.kinds.filter(k => k === "turn").length;
+      return {length: openLength(e.pts, e.kinds), points: e.pts.length, turns, curves: e.pts.length - turns};
+    }
     case "point": return {x: e.p[0], y: e.p[1]};
   }
   throw new Error(`hình không hợp lệ: ${e && e.type}`);
@@ -209,6 +226,7 @@ export function moveEntity(e, dx, dy){
     case "circle": return {type: "circle", c: plus(e.c, d), d: e.d};
     case "polygon": return {type: "polygon", c: plus(e.c, d), size: e.size, sides: e.sides, angle: e.angle};
     case "path": { const o = moveOutline(e, dx, dy); return {type: "path", pts: o.pts, kinds: o.kinds}; }
+    case "polyline": { const o = moveOpenLine(e, dx, dy); return {type: "polyline", pts: o.pts, kinds: o.kinds}; }
     case "point": return {type: "point", p: plus(e.p, d)};
   }
   throw new Error(`hình không hợp lệ: ${e && e.type}`);
@@ -243,11 +261,11 @@ export function dragEntity(e, handle, target, from){
   }
   /* "v7" → 7, by comparing strings: a regex ending in "$" reads as a name to the build (CLAUDE.md §7) */
   const vk = typeof handle === "string" && handle[0] === "v" ? Number(handle.slice(1)) : NaN;
-  if(e.type === "path" && Number.isInteger(vk) && String(vk) === handle.slice(1)){
+  if((e.type === "path" || e.type === "polyline") && Number.isInteger(vk) && String(vk) === handle.slice(1)){
     const k = vk;
-    if(k >= e.pts.length) throw new Error(`tay nắm không có: path không có "${handle}"`);
-    const o = dragOutline(e, k, T);
-    return {type: "path", pts: o.pts, kinds: o.kinds};
+    if(k >= e.pts.length) throw new Error(`tay nắm không có: ${e.type} không có "${handle}"`);
+    const o = e.type === "path" ? dragOutline(e, k, T) : dragOpenLine(e, k, T);
+    return {type: e.type, pts: o.pts, kinds: o.kinds};
   }
   if(e.type === "point" && handle === "p") return {type: "point", p: T};
   if(e.type === "circle" && handle === "c") return {type: "circle", c: T, d: e.d};
@@ -265,7 +283,7 @@ export function dragEntity(e, handle, target, from){
      Rect    w · h — the anchor corner stays
      Circle  d — the centre stays
      Polygon size · angle — the centre stays; the number of sides is fixed once made (G4) */
-const DIMS = {line: ["length", "angle"], rect: ["w", "h"], circle: ["d"], polygon: ["size", "angle"], curve: [], path: [], point: []};
+const DIMS = {line: ["length", "angle"], rect: ["w", "h"], circle: ["d"], polygon: ["size", "angle"], curve: [], path: [], point: [], polyline: []};
 export function setEntityDim(e, dim, value, {keep = "a"} = {}){
   if(!DIMS[e.type]) throw new Error(`hình không hợp lệ: ${e && e.type}`);
   if(e.type === "polygon" && dim === "sides") throw new Error("số cạnh không sửa sau khi tạo (sketch.md G4)");

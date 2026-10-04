@@ -166,7 +166,7 @@ test("D11 no viewer shortcut is taken twice: T · X · K · J are Edit's alone",
   const root = fileURLToPath(new URL("../../", import.meta.url));
   const walk = d => readdirSync(d, {withFileTypes: true}).flatMap(f => f.isDirectory() ? walk(join(d, f.name)) : f.name.endsWith(".js") && !f.name.endsWith(".test.js") ? [join(d, f.name)] : []);
   const global = walk(root).flatMap(f => [...readFileSync(f, "utf8").matchAll(/ctx\.key\("([^"]+)"/g)].map(m => m[1]));
-  deepEq([...global].sort(), ["6", "7", "a", "d", "e", "f", "g", "l", "m", "p", "s", "u", "v"], "the viewer's keys (D · M · L · S · G · E · A · F · P · U · V — Vẽ, draw.md W1 · 6 · 7 — Vẽ straight in Mảnh / Notch, piece.md M13)");
+  deepEq([...global].sort(), ["6", "7", "8", "a", "d", "e", "f", "g", "l", "m", "p", "s", "u", "v"], "the viewer's keys (D · M · L · S · G · E · A · F · P · U · V — Vẽ, draw.md W1 · 6 · 7 · 8 — Vẽ straight in Mảnh / Notch / Bút, piece.md M13, smartpen.md B1)");
   deepEq(Object.keys(EDIT_KEYS).sort(), ["j", "k", "t", "x"]);
   for(const k of Object.keys(EDIT_KEYS)) ok(!global.includes(k), `${k} is not taken`);
 });

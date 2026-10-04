@@ -213,3 +213,32 @@ trong file AAMA: điểm **nằm trên** đường cong.
 | **O15** | Hình bắt vào đỉnh / cạnh Path như vào hình khác (B1–B6); kéo đỉnh Path có snap như kéo đầu Line | `sketch.test.js` |
 | **O16** | Một điểm trên đường viền ↔ **(cạnh from → to, tỉ lệ trên chiều dài cạnh)**: `outlineLocate` ra chân vuông góc, cạnh và tỉ lệ; `outlineAt` ra lại đúng điểm đó (≤ 1e-9 mm; cạnh thẳng một khúc: đúng từng bit); cạnh không còn → từ chối | `outline.test.js` |
 | **O17** | **Điểm cách góc** (notch đúng khoảng cách, piece.md M15): trên một path (`path.js` `chain`) có các góc cho trước, `fromCorner(ch, góc, p, d)` ra điểm nằm trên **cạnh chứa chân vuông góc của p** — khúc giữa hai góc liền nhau; path kín thì khúc vắt qua đầu path cũng là một cạnh, một góc duy nhất thì cả vòng là cạnh; path hở thì hai đầu luôn là góc — cách **góc gần hơn** (đo dọc cạnh; bằng nhau thì góc đầu cạnh) đúng **d đo dọc path**. Không góc, d âm hay không phải số, d dài hơn cạnh → từ chối, câu báo có chiều dài cạnh. `outlineChain(pts, kinds)` là đường viền Path dưới dạng path (mỗi khúc một Line / Bezier, như `outlineSegments`) — góc của nó là các turn point | `corners.test.js` · `outline.test.js` |
+
+## 8. Hình của Bút — Đường (đường hở qua các điểm)
+
+> **Requirement:** `features/draw/smartpen.md` (TD 2026-10-04) — Bút vẽ đường **liên tục** bằng từng cú bấm (góc, ⇧ điểm cong)
+> và ra **đường song song** của cạnh cong; bảng năm hình chỉ có Line (2 điểm) và Curve (Bezier kéo tay nắm), Path thì **kín**.
+> Cần một hình nữa: đường **hở** qua các điểm, cùng luật đường cong của Path (P1). Kernel trước, theo §5.13.
+
+`ENTITY_TYPES` (năm hình của bảng) và `PIECE_ENTITY_TYPES` giữ nguyên; hình này là `PEN_ENTITY_TYPES = ["polyline"]`, sketch
+nhận cả tám.
+
+| Loại | Lưu (mm) | Tay nắm — kéo thì | Hình kernel | Điểm bắt |
+|---|---|---|---|---|
+| **Đường** (`polyline`) — đường hở của Bút | `pts` (n ≥ 2) + `kinds` (`turn` / `curve` mỗi điểm; **hai đầu luôn là `turn`**) | `v0…v(n−1)`: **dáng** — đúng điểm đó tới đích · `body`: **vị trí** | toàn `turn` → polyline hở; có `curve` → một NURBS bậc 3 ghép từ các đoạn Bezier | n điểm; đoạn thẳng là **line**, đoạn cong là **curve** |
+
+Luật đường cong **đúng như Path** (O2–O6): giữa hai turn liền nhau là đoạn thẳng tuyệt đối; dãy curve point giữa hai turn là
+spline Catmull–Rom centripetal qua từng điểm; ở turn (kể cả **hai đầu** của đường) điểm thiếu là ảnh phản chiếu. Khác Path
+đúng một chỗ: **không có đoạn khép** cuối → đầu.
+
+| # | Khẳng định | Ca |
+|---|---|---|
+| **L1** | `createPolyline(pts, kinds)`: ≥ 2 điểm hữu hạn, hai điểm liền nhau cách nhau > 1e-9 mm (không xét cuối → đầu), mỗi `kind` là `turn` / `curve` — sai thì **từ chối**. **Hai đầu là góc**: lưu `turn` dù được đặt là gì (đầu một đường hở không có hai phía để trơn). Không ghi đè mảng của người gọi | `openline.test.js` · `entity.test.js` |
+| **L2** | Đoạn giữa hai turn liền nhau **thẳng tuyệt đối** (mẫu nằm trên dây ≤ 1e-9 mm); n − 1 đoạn, không đoạn khép | `openline.test.js` |
+| **L3** | Đi **qua đúng** mọi điểm đã đặt (≤ 1e-9 mm) · trơn (G1) tại mỗi curve point · mỗi đoạn cong **trùng** Catmull–Rom centripetal của tháp Barry–Goldman riêng của test (≤ 1e-9 mm), ở đầu / turn lấy điểm phản chiếu | `openline.test.js` |
+| **L4** | Chiều dài = tổng các đoạn (thẳng: khoảng cách; cong: đi dọc tháp Barry–Goldman riêng của test bằng 20 000 dây cung, ±1e-6 mm) | `openline.test.js` |
+| **L5** | Lấy mẫu để **xuất** (`openSample`): mọi điểm đã đặt là một đỉnh, **từng bit**; đoạn thẳng chỉ ra hai đầu; đỉnh lấy mẫu lệch đường thật ≤ 0.01 mm (thước dày riêng của test) | `openline.test.js` |
+| **L6** | Kéo `v_k`: chỉ điểm k đổi; đoạn không dựa vào k **không đổi một bit**. Dời cả đường: mọi điểm dời đúng dx, dy, chiều dài không đổi (±1e-9) | `openline.test.js` · `entity.test.js` |
+| **L7** | `entityHandles` · `entityShape` · `entitySnap` · `entityDims` (chiều dài, số điểm, số góc / điểm cong) · `moveEntity` · `dragEntity` như bảng trên; không có kích thước để đặt (Length / W … → từ chối) | `entity.test.js` |
+| **L8** | **Góc ⇄ Cong** (`setPathKind`) đổi loại một điểm giữa; **đầu** → từ chối (đầu luôn là góc) | `entity.test.js` |
+| **L9** | Trong sketch: Đường là **chủ** — đầu Line, notch bám **lên** nó được (Coincident điểm–đường, giữ tỉ lệ t như G14), kéo nó thì thứ bám đi theo; **không bao giờ là bên bám** (như Path); Equal · Tangent · Ngang · Dọc lên nó → từ chối, nói lý do; mỗi thao tác vẫn là một giao dịch (R9) | `sketch.test.js` |

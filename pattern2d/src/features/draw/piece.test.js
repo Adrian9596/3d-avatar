@@ -278,7 +278,8 @@ test("M14 every other box of the dock as before (M11): only what the moment need
 test("M13 6 / 7 open Vẽ straight in Mảnh / Notch from any other tool — the modes they pick inside it; 1–5 and 0 stay inside", () => {
   eq(openKey({key: "6", target: null}), "piece"); eq(openKey({key: "7", target: null}), "notch");
   for(const k of ["6", "7"]) eq(openKey({key: k, target: null}), drawKey({key: k, target: null}), `${k}: cùng chế độ trong và ngoài Vẽ`);
-  for(const k of ["1", "2", "3", "4", "5", "0", "Escape", "8", "9", "v", "d", ""]) eq(openKey({key: k, target: null}), null, `"${k}" vẫn chỉ trong Vẽ`);
+  /* 8 joined 6 / 7 on 2026-10-04 (smartpen.md B1: Bút opens straight from anywhere) — the rest still stay inside Vẽ */
+  for(const k of ["1", "2", "3", "4", "5", "0", "Escape", "9", "v", "d", ""]) eq(openKey({key: k, target: null}), null, `"${k}" vẫn chỉ trong Vẽ`);
   const box = {matches: sel => /input/.test(sel)};
   for(const extra of [{metaKey: true}, {ctrlKey: true}, {altKey: true}, {target: box}])
     for(const k of ["6", "7"]) eq(openKey({key: k, target: null, ...extra}), null, `${k} với ${Object.keys(extra)[0]}: không phải của Vẽ`);

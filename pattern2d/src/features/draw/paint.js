@@ -9,10 +9,13 @@ import {entityShape} from "../geometry/entity.js";
 import {sample} from "../geometry/model.js";
 
 export const closedOf = e => e.type === "rect" || e.type === "polygon" || e.type === "circle" || e.type === "path";
+/* how far past A and B the set square's guide is drawn, in px — a ruler, not a segment */
+const GUIDE_PX = 2000;
 
 /* scene: {shapes: [{shown, tok, layer}], labels: [{at, text}], on, selected: [{shown, handles, active}], hover,
-           ghost, dots: [[x, y]], pen: {pts, kinds, closing} | null, snap: {kind, at} | null} — `shown` is an
-           entity as it is shown */
+           ghost, dots: [[x, y]], pen: {pts, kinds, closing} | null, snap: {kind, at} | null,
+           smart: {label: {at, text}, guide: [a, b], link: [a, b], circle: {c, r}} | null — the Bút's (smartpen.md B12)}
+           — `shown` is an entity as it is shown */
 export function paintDrawing(root, ppm, scene){
   const g = el("g", {}), tol = Math.max(0.001, Math.min(1, 0.4/ppm));
   const trace = (s, closed) => { const pts = sample(s, tol); return "M" + pts.map(q => `${q[0]},${-q[1]}`).join("L") + (closed ? "Z" : ""); };
@@ -56,6 +59,20 @@ export function paintDrawing(root, ppm, scene){
     if(scene.pen){                                                                    // the piece being drawn: corners square, curve points round
       scene.pen.pts.forEach((p, i) => dot(p, i === 0 && scene.pen.closing ? 5 : 3.2, "var(--accent)", i === 0 && scene.pen.closing ? "var(--accent)" : null,
                                           scene.pen.kinds[i] === "turn"));
+    }
+    const sm = scene.smart;
+    if(sm){
+      if(sm.guide){                                                                   // the set square: a ruler through A and B
+        const [a, b] = sm.guide, L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, k = GUIDE_PX/ppm, u = [(b[0] - a[0])/L, (b[1] - a[1])/L];
+        stroke(`M${a[0] - u[0]*k},${-(a[1] - u[1]*k)}L${b[0] + u[0]*k},${-(b[1] + u[1]*k)}`, "var(--accent)", 1, "2 4", 0.6);
+        dot(a, 2.6, "var(--accent)", "var(--accent)"); dot(b, 2.6, "var(--accent)", "var(--accent)");
+      }
+      if(sm.link) stroke(`M${sm.link[0][0]},${-sm.link[0][1]}L${sm.link[1][0]},${-sm.link[1][1]}`, "var(--accent)", 1, "1 3", 0.9);   // the offset point (B11)
+      if(sm.link) mark(sm.link[0], "var(--accent)", 3.6);
+      if(sm.circle) g.appendChild(el("circle", {cx: sm.circle.c[0], cy: -sm.circle.c[1], r: sm.circle.r, fill: "none", stroke: "var(--accent)",
+        "stroke-width": 1, "stroke-dasharray": "2 4", opacity: 0.6, "vector-effect": "non-scaling-stroke"}));                    // the compass (B8)
+      if(sm.label) g.appendChild(Object.assign(el("text", {x: sm.label.at[0] + 10/ppm, y: -sm.label.at[1] - 10/ppm, "font-size": 11/ppm,
+        fill: "var(--accent)", "font-family": "inherit", "pointer-events": "none"}), {textContent: sm.label.text}));   // what will happen (B12)
     }
     const sn = scene.snap;
     if(sn){

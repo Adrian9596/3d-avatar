@@ -17,6 +17,8 @@ import {pointInPoly} from "../../shared/geom.js";
 export const DRAW_MODES = ["select", "line", "curve", "rect", "circle", "polygon"];
 /* the two modes a new piece is made with (piece.md): the pen of its outline, and its notches */
 export const PIECE_MODES = ["piece", "notch"];
+/* the smart pen (smartpen.md): one pen, the place and the way of a press decide what it does */
+export const PEN_MODES = ["pen"];
 /* the layers a drawn shape may go on, the default first (W3) — layer 8 is the viewer's inner/sewing line */
 export const DRAW_LAYERS = ["8", "1", "7", "11"];
 /* what a new shape starts from until TD types something else (W5): 2 × 1 in, Ø 3/8 in, Size 1 in, 6 sides —
@@ -52,7 +54,7 @@ export function ghostOf(mode, clicks, at, nums){
 export function drawKey(ev){
   if(ev.metaKey || ev.ctrlKey || ev.altKey) return null;
   if(isTyping(ev)) return null;
-  return {"1": "line", "2": "curve", "3": "rect", "4": "circle", "5": "polygon", "6": "piece", "7": "notch",
+  return {"1": "line", "2": "curve", "3": "rect", "4": "circle", "5": "polygon", "6": "piece", "7": "notch", "8": "pen",
           "0": "select", "Escape": "select"}[ev.key] || null;
 }
 /* The groups of boxes the dock shows — only what the moment needs: the dock sits over the canvas, and every row
@@ -62,7 +64,8 @@ export function drawKey(ev){
    selected: a closed shape, part of a drawn piece, its role in it). */
 export function dockGroups({mode, kind, type, count = 0, closed = false, piece = false, role = null}){
   const one = count === 1, g = new Set();
-  if(mode === "line" || mode === "piece" || (kind === "edit" && type === "line")) g.add("line");
+  if(mode === "line" || mode === "piece" || mode === "pen" || (kind === "edit" && type === "line")) g.add("line");
+  if(mode === "pen") g.add("pen");                                        // Cách · Compa · dx · dy (smartpen.md)
   if(["rect", "circle", "polygon"].includes(type)) g.add(type);
   if(one && piece) g.add("piece");
   if(one && closed && role !== "outline") g.add("topiece");              // in every mode, right after drawing it too (M14) —
@@ -74,9 +77,9 @@ export function dockGroups({mode, kind, type, count = 0, closed = false, piece =
   if(mode === "notch") g.add("notch");                                    // Cách góc (piece.md M15)
   return g;
 }
-/* 6 / 7 while another tool is on, or none: Vẽ opens straight in Mảnh / Notch — one key instead of V then 6
-   (piece.md M13). They pick the same modes as inside Vẽ; 1–5 and 0 stay Vẽ's own. null: not such a key */
-const OPEN_KEYS = ["6", "7"];
+/* 6 / 7 / 8 while another tool is on, or none: Vẽ opens straight in Mảnh / Notch / Bút — one key instead of V then 6
+   (piece.md M13, smartpen.md B1). They pick the same modes as inside Vẽ; 1–5 and 0 stay Vẽ's own. null: not such a key */
+const OPEN_KEYS = ["6", "7", "8"];
 export const openKey = ev => OPEN_KEYS.includes(ev.key) ? drawKey(ev) : null;
 /* the piece of the file a new shape joins (V11), except that a shape on the cut layer never joins a piece: that
    piece has its cut line already, and a second one would make it two pieces (piece.md M6, F4) */
@@ -189,6 +192,15 @@ export const shownSel = (sel, meta, layersOn) => sel.filter(id => meta.has(id) &
    items: [{id, entity, off}], w in canvas coordinates, r the pick radius in mm. The handles of the
    shapes selected come first — control points too — then the points of every shape (ends, corners,
    vertices, centres), then the shapes themselves ("body"). null = nothing within r */
+/* The handles a dense Đường shows and gives (smartpen.md Q9): its ends always, the ones in between at least minDist from
+   the one kept before — a parallel of a curved edge has hundreds of vertices, and a hundred dots on top of one another can
+   be neither seen nor grabbed. "body" stays */
+export function thinHandles(handles, minDist){
+  const vs = handles.filter(h => h.at), out = [];
+  vs.forEach((h, i) => { if(i === 0 || i === vs.length - 1 || Math.hypot(h.at[0] - out[out.length - 1].at[0], h.at[1] - out[out.length - 1].at[1]) >= minDist) out.push(h); });
+  return out.concat(handles.filter(h => !h.at));
+}
+const shownHandles = (e, r) => e.type === "polyline" ? thinHandles(entityHandles(e), 2*r) : entityHandles(e);
 export function pickDrawn(items, w, r, selected = []){
   const near = (list) => {
     let best = null;
@@ -197,11 +209,12 @@ export function pickDrawn(items, w, r, selected = []){
   };
   const sel = new Set(selected);
   const mine = items.filter(it => sel.has(it.id)).flatMap(it =>
-    entityHandles(it.entity).filter(h => h.at).map(h => ({id: it.id, handle: h.name, at: [h.at[0] + it.off[0], h.at[1] + it.off[1]]})));
+    shownHandles(it.entity, r).filter(h => h.at).map(h => ({id: it.id, handle: h.name, at: [h.at[0] + it.off[0], h.at[1] + it.off[1]]})));
   const hit = near(mine);
   if(hit) return hit;
   const points = items.flatMap(it => { const s = entitySnap(it.entity);
-    return s.points.map((p, k) => ({id: it.id, handle: s.handles[k], at: [p[0] + it.off[0], p[1] + it.off[1]]})); });
+    const keep = it.entity.type === "polyline" ? new Set(shownHandles(it.entity, r).map(h => h.name)) : null;
+    return s.points.map((p, k) => ({id: it.id, handle: s.handles[k], at: [p[0] + it.off[0], p[1] + it.off[1]]})).filter(q => !keep || keep.has(q.handle)); });
   const pt = near(points);
   if(pt) return pt;
   let best = null;
@@ -282,7 +295,7 @@ export function frameClash(mDriven, mMaster, pieces){
 }
 
 /* ── words for the readout ─────────────────────────────────────────────────────── */
-const NAME = {line: "Line", curve: "Curve", rect: "Rectangle", circle: "Circle", polygon: "Polygon"};
+const NAME = {line: "Line", curve: "Curve", rect: "Rectangle", circle: "Circle", polygon: "Polygon", polyline: "Đường", path: "Đường kín"};
 /* L(mm, d, label) writes a length in the display unit (shared/units.js) */
 export function drawnRows(e, L){
   const d = entityDims(e), deg = v => v.toFixed(2) + "°";
@@ -291,6 +304,8 @@ export function drawnRows(e, L){
   if(e.type === "curve") return head.concat([["Dài", L(d.length), false], ["Dây cung", L(d.chord), false]]);
   if(e.type === "rect") return head.concat([["W", L(d.w), false], ["H", L(d.h), false]]);
   if(e.type === "circle") return head.concat([["D", L(d.d), false]]);
+  if(e.type === "polyline") return head.concat([["Dài", L(d.length), false], ["Điểm", `${d.points} · ${d.curves} cong`, false]]);
+  if(e.type === "path") return head.concat([["Chu vi", L(d.perimeter), false], ["Điểm", `${d.points} · ${d.curves} cong`, false]]);
   return head.concat([["Size", L(d.size), false], ["Cạnh", String(d.sides), false], ["Angle", deg(d.angle), false]]);
 }
 const who = r => !r ? "?" : r.point ? "điểm DXF" : r.shape ? "đường DXF" : r.handle !== undefined ? `${r.id}.${r.handle}` : String(r.id);

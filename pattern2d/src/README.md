@@ -27,9 +27,11 @@ src/
     ├── edit/       Edit in 4 layers: select · direct · precise · constraint — exports a new DXF (edit.md)
     ├── draw/       Vẽ: Line · Curve · Rect · Circle · Polygon at real size — snap, numbers, relations — and a NEW
     │               PIECE with the pen (turn / curve points, notches, name · qty); drives geometry/sketch.js;
-    │               shapes and pieces go out with Xuất DXF (draw.md · piece.md). flow.js · piece.js · out.js are
-    │               its pure rules, draw.js the controller of the drawing, pieces.js of the pieces drawn
-    │               (bound to draw.js's state), dock.js · paint.js what it shows
+    │               shapes and pieces go out with Xuất DXF (draw.md · piece.md) — and BÚT, the smart pen (smartpen.md):
+    │               one pen, the press decides (a point, a parallel, a compass, a set square, a T-square, an offset
+    │               start). flow.js · piece.js · smart.js · out.js are its pure rules, draw.js the controller of
+    │               the drawing, pieces.js of the pieces drawn and smartpen.js of the pen (both bound to draw.js's
+    │               state), dock.js · paint.js what it shows
     ├── geometry/   Point/Line/Arc/Curve · quan hệ phụ thuộc · solver · trim/extend/offset/measure
     └── export/     the piece table as TSV
 ```
@@ -92,7 +94,8 @@ Canvas is the only feature others build on:
 | `solver.js` | 3 · Geometry Solver | tính lại phần bẩn theo thứ tự tôpô, mỗi nút một lần, lỗi không lan ra cả đồ thị |
 | `doc.js` | API | ráp ba lớp: `add` · `derive` · `set` · `setParams` · `trim` · `extend` · `solve` · `snapshot`/`restore` |
 | `entity.js` | 1 · Năm loại hình + hai của mảnh | Line · Curve (Bezier bậc 3) · Rectangle · Circle · Polygon tạo từ kích thước thật; hình cứng lưu bằng chính W·H / D / Size·Angle; tay nắm "shape"/"position", kéo, sửa số — và **Path** (đường viền mảnh mới) · **Point** (notch) — spec: `sketch.md` §2, §7 |
-| `outline.js` | 1 · Đường viền mảnh | turn point + curve point → đoạn thẳng tuyệt đối giữa hai góc, spline Catmull–Rom centripetal qua các điểm cong (Bezier từng khúc); cạnh giữa hai góc, chu vi, diện tích, lấy mẫu để xuất, một điểm ↔ (cạnh, tỉ lệ trên cạnh) — spec: `sketch.md` §7 |
+| `outline.js` | 1 · Đường viền mảnh · Đường hở của Bút | turn point + curve point → đoạn thẳng tuyệt đối giữa hai góc, spline Catmull–Rom centripetal qua các điểm cong (Bezier từng khúc); cạnh giữa hai góc, chu vi, diện tích, lấy mẫu để xuất, một điểm ↔ (cạnh, tỉ lệ trên cạnh) — spec: `sketch.md` §7 |
+| `construct.js` | 1 · Phép dựng của Bút | cạnh theo góc của Edges · **song song** đúng d (cung ở chỗ gãy lồi, giao ở chỗ lõm, vòng thừa trong dải d bị cắt bỏ — không phải "miter" của `ops.js`) · **compa** · thước ngang / tam giác · điểm lệch — spec: `construct.md` |
 | `sketch.js` | 2–3 · Phác thảo | hình mới + Horizontal · Vertical · Coincident · Tangent · Equal, **một chiều**, giải theo điểm/kích thước, mỗi thao tác là giao dịch (đo lại mọi quan hệ, gãy thì từ chối cả thao tác); kéo có snap point · line · curve; điểm bám đường viền mảnh đi theo **cạnh** của nó. Tool **Vẽ** (`features/draw/`) gọi nó — spec: `sketch.md` |
 | `geometry.js` · `.css` | UI | tool "Geom": dựng quan hệ từ mảnh đang chọn, kéo đỉnh, xem solver chạy |
 

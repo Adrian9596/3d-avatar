@@ -5,6 +5,7 @@
    goes into one block, HINH_VE. A PIECE drawn in Vẽ is a block of its own, made the way BLOCK_36C's are:
    one closed cut line, its turn and curve points, notches, the grainline and the AAMA text block. */
 import {entityShape} from "../geometry/entity.js";
+import {openSample} from "../geometry/outline.js";
 import {transform, translation, curve} from "../geometry/model.js";
 import {bboxOf} from "../../shared/geom.js";
 import {pieceOffset} from "./flow.js";
@@ -20,6 +21,12 @@ const moved = (s, off) => off[0] || off[1] ? transform(s, translation(off[0], of
    Arrange offset back out, so what lands in the file is the file frame. A Line is written as a LINE, a
    Rectangle or Polygon as its vertices, a Curve or Circle as its exact shape — write.js samples it */
 export function drawnPath(entity, layer, off){
+  /* a Đường goes out with its placed points as vertices, bit for bit, and its curved spans sampled within 0.01 mm
+     (smartpen.md B14, sketch.md L5) — a POLYLINE written as it is */
+  if(entity.type === "polyline"){
+    const pts = openSample(entity.pts, entity.kinds, 0.01).pts.map(q => [q[0] + off[0], q[1] + off[1]]);
+    return {layer, closed: false, pts, shapes: [curve(pts, false)], snap: [], drawn: true};
+  }
   const s = moved(entityShape(entity), off);
   const pts = s.kind === "line" ? [[s.a.x, s.a.y], [s.b.x, s.b.y]] : s.kind === "curve" ? s.pts.map(q => q.slice()) : [];
   return {layer, closed: entity.type === "rect" || entity.type === "polygon" || entity.type === "circle" || entity.type === "path", pts, shapes: [s], snap: [], drawn: true};

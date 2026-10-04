@@ -6,11 +6,12 @@
 import {$, node, esc, bindLength, onEnter, inputError} from "../../shared/dom.js";
 import {lengthField, parseAngle, formatLength, UNIT_LABEL} from "../../shared/units.js";
 import {layerMeta} from "../dxf/aama.js";
-import {DRAW_MODES, PIECE_MODES, DRAW_LAYERS, readSides} from "./flow.js";
+import {DRAW_MODES, PIECE_MODES, PEN_MODES, DRAW_LAYERS, readSides} from "./flow.js";
 import {readNotchDistance} from "./piece.js";
+import {readOptLength} from "./smart.js";
 
 export const MODE_NAME = {select: "Chọn", line: "Line", curve: "Curve", rect: "Rect", circle: "Circle", polygon: "Polygon",
-                          piece: "Mảnh", notch: "Notch"};
+                          piece: "Mảnh", notch: "Notch", pen: "Bút"};
 export const RELS = {horizontal: "Ngang", vertical: "Dọc", coincident: "Trùng", tangent: "Tiếp tuyến", equal: "Bằng"};
 const TIPS = {
   select: "Chọn: bấm hình để chọn · kéo đầu mút / control point để sửa dáng · kéo thân để dời · ⇧ thêm · Delete xoá · 1–7 vẽ · ⌘Z",
@@ -20,8 +21,14 @@ const TIPS = {
   circle: "Circle: gõ D rồi bấm — tâm tại chỗ bấm · layer 1 = mảnh mới · Esc thôi",
   polygon: "Polygon: gõ Size + số cạnh (+ Angle) rồi bấm — tâm tại chỗ bấm · layer 1 = mảnh mới · Esc thôi",
   piece: "Mảnh: bấm từng góc · ⇧ bấm điểm trên đường cong · bấm lại điểm đầu, double-click hay Enter là xong mảnh · gõ Length + Angle, Enter = cạnh đúng số · Backspace bỏ điểm cuối · Esc thôi",
-  notch: "Notch: bấm lên đường cắt — của mảnh vẽ hay mảnh DXF — notch nằm đúng trên đường; gõ Cách góc thì notch cách góc gần chỗ bấm đúng khoảng đó, đo dọc đường · Esc thôi"
+  notch: "Notch: bấm lên đường cắt — của mảnh vẽ hay mảnh DXF — notch nằm đúng trên đường; gõ Cách góc thì notch cách góc gần chỗ bấm đúng khoảng đó, đo dọc đường · Esc thôi",
+  pen: "Bút: bấm = điểm · ⇧ bấm = điểm cong · Enter / double-click = xong · bấm điểm đầu = khép · kéo trên đường = song song · kéo từ điểm = compa · ⇧ kéo A→B = thước tam giác · H = thước ngang · Esc thôi"
 };
+/* the Bút's boxes (smartpen.md B6 · B8 · B11): [id, key, label, title, signed] — empty means "from the pointer" / no offset */
+const PEN_BOXES = [["pdist", "dist", "Cách", "Đường song song cách đúng khoảng này — trống: cách đúng chỗ thả chuột", false],
+                   ["prad", "radius", "Compa", "Bán kính compa / chiều dài đoạn kéo từ một điểm — trống: theo chỗ thả chuột", false],
+                   ["pdx", "dx", "dx", "Điểm đầu của đường lệch từ chỗ bấm theo x (số âm: sang trái) — trống: không lệch", true],
+                   ["pdy", "dy", "dy", "Điểm đầu của đường lệch từ chỗ bấm theo y (số âm: xuống) — trống: không lệch", true]];
 /* the length boxes: [id, key of the next shape's number] — "ddist" is the Dời distance, no shape's */
 const LENGTH_BOXES = [["dlen", "len"], ["dw", "w"], ["dh", "h"], ["dd", "d"], ["dsize", "size"], ["ddist", null]];
 const PIECE_FIELDS = [["pname", "name", "Tên", "Tên mảnh — ghi vào Piece Name khi xuất"],
@@ -36,13 +43,14 @@ export function buildDock(ctx, ui, nums, on){
   const box = (id, label, title, unit = true) =>
     `<span class="gapf"><label for="${id}">${label}</label><input id="${id}" type="text" inputmode="decimal" autocomplete="off" title="${title}">` +
     `<span class="utag"${unit ? ` id="${id}u"` : ""}>${unit ? "" : "°"}</span></span>`;
-  const modeButtons = ms => ms.map(m => { const k = m === "select" ? "Esc" : [...DRAW_MODES, ...PIECE_MODES].indexOf(m);
+  const modeButtons = ms => ms.map(m => { const k = m === "select" ? "Esc" : [...DRAW_MODES, ...PIECE_MODES, ...PEN_MODES].indexOf(m);
     return `<button class="btn" data-mode="${m}" title="${MODE_NAME[m]} (${k})">${MODE_NAME[m]}</button>`; }).join("");
   dock.innerHTML =
     `<div class="tip" id="drawtip"></div>` +
     `<div class="arrangebar">` +
       `<span class="grp">` + modeButtons(DRAW_MODES) + `</span>` +
       `<span class="grp">` + modeButtons(PIECE_MODES) + `</span>` +
+      `<span class="grp">` + modeButtons(PEN_MODES) + `</span>` +
       `<span class="grp" data-g="line">` + box("dlen", "Length", "Chiều dài — Enter: vẽ từ Start đã bấm (Mảnh: cạnh kế tiếp), hoặc đặt cho line đang chọn") +
         box("dang", "Angle", "Hướng, độ ngược chiều kim đồng hồ từ +X — Enter (Mảnh: ⇧ Enter = curve point)", false) + `</span>` +
       `<span class="grp" data-g="rect">` + box("dw", "W", "Rộng — Enter đặt cho rect đang chọn") + box("dh", "H", "Cao — Enter đặt cho rect đang chọn") + `</span>` +
@@ -54,6 +62,8 @@ export function buildDock(ctx, ui, nums, on){
         `<span class="gapf"><label for="${id}">${label}</label><input id="${id}" class="ptext" type="text" autocomplete="off" title="${esc(title)} — Enter hoặc rời ô"></span>`).join("") +
         `<button class="btn" data-act="kind" title="Đổi điểm đang nắm: góc ⇄ điểm trên đường cong">Góc ⇄ Cong</button></span>` +
       `<span class="grp" data-g="notch"><span class="gapf"><label for="dcorner">Cách góc</label><input id="dcorner" type="text" inputmode="decimal" autocomplete="off" placeholder="—" title="Notch cách góc gần chỗ bấm đúng khoảng này, đo dọc đường cắt — để trống: notch rơi đúng chỗ bấm"><span class="utag" id="dcorneru"></span></span></span>` +
+      `<span class="grp" data-g="pen">` + PEN_BOXES.map(([id, , label, title]) =>
+        `<span class="gapf"><label for="${id}">${label}</label><input id="${id}" type="text" inputmode="decimal" autocomplete="off" placeholder="—" title="${esc(title)}"><span class="utag" id="${id}u"></span></span>`).join("") + `</span>` +
       `<span class="grp" data-g="topiece"><button class="btn" data-act="piece" title="Hình kín đang chọn thành một mảnh: đường cắt, canh sợi, tên, SL">Thành mảnh</button></span>` +
       `<span class="grp" data-g="layer"><span class="gapf"><label for="dlayer">Layer</label><select id="dlayer" title="Layer — đang vẽ: của hình sau · đang Chọn: đổi layer hình đang chọn">` +
         DRAW_LAYERS.map(l => `<option value="${l}">${l} · ${layerMeta(l).short}</option>`).join("") + `</select></span></span>` +
@@ -94,7 +104,29 @@ export function buildDock(ctx, ui, nums, on){
   cbox.addEventListener("change", () => { if(!cbox.hasAttribute("aria-invalid")) showCorner(); });
   onEnter(cbox, () => { if(!cbox.hasAttribute("aria-invalid")){ showCorner(); cbox.blur(); } });   // done: 0–7 are shortcuts again (M11)
   showCorner();
-  ctx.onUnit(() => { for(const f of Object.values(F)) f.show(); showCorner(); });
+  /* the Bút's boxes: kept in mm, written in the display unit, read as every length box reads one — a bad one turns red and the
+     pen does nothing with it (smartpen.md B11) */
+  const penMM = {};
+  const showPen = (id, key) => {
+    const b = $(id), u = unit();
+    b.value = penMM[key] === undefined || penMM[key] === null ? "" : formatLength(penMM[key], u, {d: 2, label: false, plain: true});
+    b.removeAttribute("aria-invalid"); b.title = b.dataset.title;
+    $(id + "u").textContent = u === null ? "đv?" : UNIT_LABEL[u];
+  };
+  for(const [id, key, , , signed] of PEN_BOXES){
+    const b = $(id);
+    b.dataset.title = b.title;
+    b.addEventListener("input", () => {
+      const r = readOptLength(b.value, unit(), {signed});
+      if(!r.ok){ b.setAttribute("aria-invalid", "true"); b.title = r.error; ctx.draw(); return; }
+      penMM[key] = r.mm; b.removeAttribute("aria-invalid"); b.title = b.dataset.title; on.penBox(key, r.mm);
+    });
+    b.addEventListener("change", () => { if(!b.hasAttribute("aria-invalid")) showPen(id, key); });
+    onEnter(b, () => { if(!b.hasAttribute("aria-invalid")){ showPen(id, key); b.blur(); } });
+    showPen(id, key);
+    on.penBox(key, null);                                          // the boxes are what the pen uses: empty at the start
+  }
+  ctx.onUnit(() => { for(const f of Object.values(F)) f.show(); showCorner(); for(const [id, key] of PEN_BOXES) showPen(id, key); });
   /* the angle and side boxes: typed numbers for the next shape, checked as they are typed */
   const typedBox = (id, key, read) => $(id).addEventListener("input", ev => {
     try{ const v = read(ev.target.value); ev.target.removeAttribute("aria-invalid"); on.typed(key, v); }
