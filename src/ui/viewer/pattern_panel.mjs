@@ -22,8 +22,24 @@ import { LANDMARK_ROWS, landmarkValue } from './landmark_values.mjs';
 import { templates, torsoTris, measureGrid, closestOnSurface, registry, registrySha, marks } from './measurement.mjs';
 import { pen } from './pen_host.mjs';
 import { openIn2D } from '../tabs.mjs';
+import { createFlattenRunner, isSuperseded } from '../../features/pattern/flatten_job.mjs';
 
 let patternMesh=null,patternResult=null;
+// The flatten itself runs in a Web Worker (src/features/pattern/flatten_job.mjs): it is
+// a few thousand relaxation sweeps, seconds on a full pattern, and on this thread it
+// froze the whole viewer. `new Worker(new URL(...), {type:'module'})` has to stay in
+// exactly this literal form: it is what the bundler recognises and emits as a chunk
+// of its own. No worker (or one that fails to load) is not an outage -- the job then
+// runs here, as it always did.
+// Where a job does have to run on this thread, give the browser a frame to paint "Flattening…"
+// first -- but never wait on a frame in a hidden tab, which does not get any.
+const yieldToPaint=run=>{let done=false;const go=()=>{if(!done){done=true;run()}};requestAnimationFrame(()=>setTimeout(go,0));setTimeout(go,60)};
+const flattenRunner=createFlattenRunner({
+  spawn:()=>new Worker(new URL('../../features/pattern/flatten_worker.mjs',import.meta.url),{type:'module'}),
+  inline:flattenDraft,
+  defer:yieldToPaint,
+});
+let flattenEpoch=0,flattening=null,flattenTicker=null,lastRun=Promise.resolve(null);   // flattening: {signature} while a job is out
 export const patternPanel=document.getElementById('patternPanel');
 const patternOutline=document.getElementById('patternOutline');
 const patternSeam=document.getElementById('patternSeam');
@@ -38,6 +54,7 @@ function setPatternStatus(text,isError){patternStatus.textContent=text;patternSt
 const lineLabel=l=>`${l.name} · ${(l.length*100).toFixed(1)}cm`;
 
 export function renderPatternControls(summary){
+  dropStaleFlatten();
   const closed=summary.lines.filter(l=>l.closed&&l.segments>2);
   const open=summary.lines.filter(l=>!l.closed&&l.segments>0);
   patternPanel.hidden=closed.length===0&&templates.length===0;
@@ -54,21 +71,91 @@ export function renderPatternControls(summary){
     setPatternStatus('Lines changed — Flatten again.');}
 }
 
-function runPattern(){
-  if(!pen||!torsoTris||!measureGrid){setPatternStatus('The measurement surface is not loaded yet.',true);return}
+/** Read the two selects, ask the pen for the lines, cut the patches: cheap, and it stays on this thread. */
+function cutPattern(){
+  if(!pen||!torsoTris||!measureGrid){setPatternStatus('The measurement surface is not loaded yet.',true);return null}
   const outline=pen.lineGeometry(+patternOutline.value);
   const seam=patternSeam.value===''?null:pen.lineGeometry(+patternSeam.value);
-  if(!outline||!outline.closed){setPatternStatus('Pick a closed loop as the outline.',true);return}
+  if(!outline||!outline.closed){setPatternStatus('Pick a closed loop as the outline.',true);return null}
   if(!patternMesh)patternMesh=draftMesh(torsoTris);
   const started=performance.now();
   const cut=draftPieces({mesh:patternMesh,closest:closestOnSurface,outline,seam,measurementSurface:registry?.measurement_surface||null});
-  if(cut.error){setPatternStatus(cut.error,true);return}
-  const result=flattenDraft(cut.pieces);
+  if(cut.error){setPatternStatus(cut.error,true);return null}
+  return {outline,seam,cut,started};
+}
+/** A flatten came back: it is now the pattern result. */
+function finishPattern({outline,seam,cut,started},result){
   patternResult={outline,seam,pieces:cut.pieces,result,elapsed_ms:Math.round(performance.now()-started)};
   lastTemplateFlatten=outline.origin?.template||null;
   renderPatternResult();
   prototypeState.pattern={outline:outline.name,seam:seam?seam.name:null,...draftSummary(cut.pieces,result)};
   syncDiagnostics();
+}
+/** The same flatten on this thread, and the answer before it returns. Only the automated
+ *  checks use it (window.__patternDebug.run): they read the result on the next line. */
+function runPattern(){
+  const job=cutPattern();if(!job)return;
+  finishPattern(job,flattenDraft(job.cut.pieces));
+}
+
+/* ---- the flatten in the worker: one at a time, the newest wins, edits drop it ---- */
+// what a flatten was cut from, small enough to compare: a job that comes back for lines
+// that have since moved is thrown away, whatever the pen redrew in between
+function pointsKey(g){
+  if(!g)return'-';
+  let h=2166136261;
+  for(const p of g.points)for(let k=0;k<3;k++){h^=Math.round(p[k]*1e7)|0;h=Math.imul(h,16777619)}
+  return`${g.points.length}:${g.closed?1:0}:${h>>>0}`;
+}
+function draftSignature(){
+  if(!pen)return'';
+  return`${pointsKey(pen.lineGeometry(+patternOutline.value))}|${patternSeam.value===''?'-':pointsKey(pen.lineGeometry(+patternSeam.value))}`;
+}
+function showFlattening(started){
+  clearInterval(flattenTicker);
+  const say=()=>setPatternStatus(`Flattening… ${((performance.now()-started)/1000).toFixed(1)}s${flattenRunner.info().mode==='worker'?'':' (no worker here: this page waits)'}`);
+  say();flattenTicker=setInterval(say,200);
+  patternPanel.setAttribute('aria-busy','true');
+  document.documentElement.dataset.patternBusy='true';
+}
+function doneFlattening(){
+  clearInterval(flattenTicker);flattenTicker=null;flattening=null;
+  patternPanel.removeAttribute('aria-busy');
+  delete document.documentElement.dataset.patternBusy;
+}
+/** A flatten still out was cut from lines that have since changed: drop it. */
+function dropStaleFlatten(){
+  if(!flattening||draftSignature()===flattening.signature)return;   // same lines: the pen only redrew its list
+  flattenEpoch++;flattenRunner.cancel();doneFlattening();
+  setPatternStatus('Lines changed — Flatten again.');
+}
+/** Flatten in the worker. Resolves when the result is on screen, or with null if
+ *  the run was dropped (a newer one, an edit) or could not start. */
+async function runPatternAsync(){
+  const job=cutPattern();if(!job)return null;
+  const epoch=++flattenEpoch;
+  flattening={signature:draftSignature()};
+  setExportable(false);          // the old result belongs to the old run
+  showFlattening(job.started);
+  let result;
+  try{result=await flattenRunner.run(job.cut.pieces)}
+  catch(error){
+    if(epoch===flattenEpoch)doneFlattening();
+    if(isSuperseded(error)||epoch!==flattenEpoch)return null;
+    throw error;
+  }
+  if(epoch!==flattenEpoch)return null;   // a newer run took over while this one was out
+  const unchanged=draftSignature()===flattening.signature;
+  doneFlattening();
+  if(!unchanged){setPatternStatus('Lines changed — Flatten again.');return null}
+  finishPattern(job,result);
+  return prototypeState.pattern;
+}
+/** Every button, template and landmark drag starts a flatten here. */
+function startPattern(){
+  const run=runPatternAsync().catch(error=>{setPatternStatus(`Flatten failed: ${error.message}`,true);console.error(error);return null});
+  lastRun=run;
+  return run;
 }
 
 function renderPatternResult(){
@@ -77,7 +164,7 @@ function renderPatternResult(){
   const tpl=patternResult.outline?.origin?.template;
   setPatternStatus(sound
     ?`${tpl?`Template ${tpl}${patternResult.outline.origin.edited?' (edited)':''} — a conventional cut, not a recommendation. `:''}Shell 1:1 of the skin — not a pattern (no ease, no seam allowance, no grading). ${run.iterations} sweeps, ${elapsed_ms}ms.`
-    :`Flattened, but unsound: ${run.converged?'':'did not converge; '}${reports.some(x=>x.stats.triangle_flips)?'a face folded over; ':''}check the loop.`,!sound);
+    :`Flattened, but unsound: ${run.converged?'':run.diverged?'did not converge (the relaxation diverged); ':run.stalled?`did not converge (it stopped making progress after ${run.iterations} sweeps); `:`did not converge (still improving when it hit the ${run.iterations}-sweep limit); `}${reports.some(x=>x.stats.triangle_flips)?'a face folded over; ':''}check the loop.`,!sound);
   const rows=pieces.map((p,i)=>{
     const c=reports[i].chords,s=reports[i].stats,err=c.seam_error_m*1000;
     return `<tr><td>${p.name}</td><td class="n">${(c.seam_length_3d_m*1000).toFixed(1)}</td><td class="n">${(c.seam_length_flat_m*1000).toFixed(1)}</td>`
@@ -162,25 +249,38 @@ function draftTemplate(id){
   const seamIndex=r.seam?pen.addLine(r.seam.anchors,false,r.seam.name,origin('seam',r.seam.landmark_ids)):null;
   patternOutline.value=String(outlineIndex);patternSeam.value=seamIndex===null?'':String(seamIndex);
   patternCompareTable.hidden=true;
-  try{runPattern()}catch(error){setPatternStatus(`Flatten failed: ${error.message}`,true)}
+  startPattern();
   return true;
 }
 /** Compare: every available template flattened in memory (no pen lines), listed
- *  with what each cut costs; a row drafts that template. */
-function compareTemplates(){
+ *  with what each cut costs; a row drafts that template. Each flatten goes to the
+ *  worker in turn; a newer flatten, or a compare started again, ends this one. */
+async function compareTemplates(){
   if(!measureGrid||!torsoTris)return false;
   const map=templateLandmarks();
   const {available,blocked}=templatesFor(null,map,templates);
   if(!patternMesh)patternMesh=draftMesh(torsoTris);
   const started=performance.now();
-  const rows=available.map(({template:t,resolved:r})=>{
-    const outline=templatePolyline(r.outline.anchors,true,measureGrid);
-    const seam=r.seam?templatePolyline(r.seam.anchors,false,measureGrid):null;
-    const cut=draftPieces({mesh:patternMesh,closest:closestOnSurface,outline:{name:t.id,points:outline.points},seam:seam?{name:r.seam.name,points:seam.points}:null,measurementSurface:registry.measurement_surface});
-    if(cut.error)return {id:t.id,label:t.label_en,error:cut.error};
-    const flat=flattenDraft(cut.pieces),summary=draftSummary(cut.pieces,flat);
-    return {id:t.id,label:t.label_en,sound:flat.sound,pieces:summary.pieces.map(p=>p.seam_error_mm),mismatch:summary.shared_seam?.mismatch_mm??null};
-  });
+  const epoch=++flattenEpoch;
+  patternPanel.setAttribute('aria-busy','true');
+  document.documentElement.dataset.patternBusy='true';
+  const rows=[];
+  try{
+    for(const [i,{template:t,resolved:r}] of available.entries()){
+      const outline=templatePolyline(r.outline.anchors,true,measureGrid);
+      const seam=r.seam?templatePolyline(r.seam.anchors,false,measureGrid):null;
+      const cut=draftPieces({mesh:patternMesh,closest:closestOnSurface,outline:{name:t.id,points:outline.points},seam:seam?{name:r.seam.name,points:seam.points}:null,measurementSurface:registry.measurement_surface});
+      if(cut.error){rows.push({id:t.id,label:t.label_en,error:cut.error});continue}
+      setPatternStatus(`Comparing templates… ${i+1}/${available.length}`);
+      let flat;
+      try{flat=await flattenRunner.run(cut.pieces)}
+      catch(error){if(isSuperseded(error)||epoch!==flattenEpoch)return false;throw error}
+      if(epoch!==flattenEpoch)return false;
+      const summary=draftSummary(cut.pieces,flat);
+      rows.push({id:t.id,label:t.label_en,sound:flat.sound,pieces:summary.pieces.map(p=>p.seam_error_mm),mismatch:summary.shared_seam?.mismatch_mm??null});
+    }
+  }finally{if(epoch===flattenEpoch)doneFlattening()}
+  if(available.length)setPatternStatus(`Compared ${available.length} template${available.length===1?'':'s'}.`);
   patternCompareTable.innerHTML=`<thead><tr><th style="width:52%">Template</th><th class="n">Seam Δ mm</th><th class="n">Shared</th></tr></thead><tbody>`
     +rows.map(r=>`<tr data-template="${r.id}" title="Draft this template">`+(r.error
       ?`<td>${r.label}</td><td colspan="2" class="pshared">${r.error}</td>`
@@ -217,7 +317,7 @@ export function refreshTemplateLines(){
   if(touched&&flattened){
     const outlineIndex=templateLinesOf(flattened).find(l=>l.geo.origin.role==='outline')?.index;
     const seamIndex=templateLinesOf(flattened).find(l=>l.geo.origin.role==='seam')?.index;
-    if(outlineIndex!==undefined){patternOutline.value=String(outlineIndex);patternSeam.value=seamIndex===undefined?'':String(seamIndex);try{runPattern()}catch(error){setPatternStatus(`Flatten failed: ${error.message}`,true)}}
+    if(outlineIndex!==undefined){patternOutline.value=String(outlineIndex);patternSeam.value=seamIndex===undefined?'':String(seamIndex);startPattern()}
   }
 }
 function templateRecordFor(outline,seam){
@@ -227,15 +327,13 @@ function templateRecordFor(outline,seam){
   return templateRecord(t,templateLandmarks(),landmarkProvenance(),Boolean(outline?.origin?.edited||seam?.origin?.edited));
 }
 document.getElementById('patternDraft').addEventListener('click',()=>draftTemplate(patternTemplate.value));
-document.getElementById('patternCompare').addEventListener('click',()=>compareTemplates());
+document.getElementById('patternCompare').addEventListener('click',()=>{compareTemplates().catch(error=>{setPatternStatus(`Compare failed: ${error.message}`,true);console.error(error)})});
 window.__templates={draft:draftTemplate,compare:compareTemplates,landmarks:templateLandmarks,lines:()=>templateLinesOf(null)};
 function downloadText(name,text,type){
   const blob=new Blob([text],{type});const link=document.createElement('a');
   link.href=URL.createObjectURL(blob);link.download=name;document.body.appendChild(link);link.click();link.remove();
 }
-document.getElementById('patternFlatten').addEventListener('click',()=>{
-  try{runPattern()}catch(error){setPatternStatus(`Flatten failed: ${error.message}`,true);console.error(error)}
-});
+document.getElementById('patternFlatten').addEventListener('click',()=>{startPattern()});
 patternExportBtn.addEventListener('click',()=>{
   if(!patternResult)return;
   try{
@@ -255,5 +353,8 @@ patternOpen2dBtn.addEventListener('click',()=>{
   }catch(error){setPatternStatus(`Open in 2D refused: ${error.message}`,true)}
 });
 // automated checks read the same objects the buttons use
+// `run` is the synchronous flatten (on this thread, answer before it returns) and stays that way; the
+// buttons use the worker, and `runAsync` / `idle` are how a check waits for it.
 window.__patternDebug={run:()=>{runPattern();return prototypeState.pattern},dxf:()=>buildPatternDxf(),result:()=>patternResult,
+  runAsync:()=>startPattern(),idle:()=>lastRun,flattener:()=>flattenRunner.info(),   // runAsync resolves with the pattern summary, or null if that run was dropped
   closest:p=>closestOnSurface(p)};   // closest point on the MEASUREMENT surface (arms excluded), for building test loops

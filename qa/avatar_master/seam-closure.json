@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-28T00:59:18Z",
+  "generated_at": "2026-09-30T09:01:24Z",
   "purpose": "Two pattern pieces flattened together must agree on the length of the seam they share.",
   "asset": {
     "file": "assets/export/avatar_master.glb",
@@ -8,7 +8,7 @@
   },
   "cases": {
     "file": "scripts/flatten_cases.json",
-    "sha256": "a1a8e4e76738637ed5bc5f53e0fb167387f394816cc17a5ecac43a8451b312a1"
+    "sha256": "76e5aaa509e7890a3bc90f662ac375530802fe22cbb2fa3e49d30d640701c2db"
   },
   "engine": "src/core/flatten/flatten_core.mjs",
   "solver": {
@@ -25,7 +25,10 @@
       0.9,
       0
     ],
-    "fold_min_area_fraction": 0.25
+    "fold_min_area_fraction": 0.25,
+    "stall_window": 1000,
+    "stall_min_gain": 0.02,
+    "stall_windows": 2
   },
   "tolerance_mm": 3.175,
   "tolerance_basis": "1/8 in, the conventional bra-seam tolerance; a factory reference pending TD confirmation",

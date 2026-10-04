@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-28T06:58:30Z",
+  "generated_at": "2026-09-30T09:01:28Z",
   "purpose": "Static guard that the app's modules stay in their layers (ui -> features -> core) with no cycle.",
   "layers": {
     "core": [
@@ -9,6 +9,7 @@
       "src/core/flatten/flatten_patch.mjs",
       "src/core/flatten/flatten_report.mjs",
       "src/core/flatten/flatten_solver.mjs",
+      "src/core/flatten/flatten_stall.mjs",
       "src/core/measure_core.mjs",
       "src/core/pen_snap.mjs",
       "src/core/surface_path.mjs",
@@ -28,6 +29,8 @@
       "pattern": [
         "src/features/pattern/dxf_pieces.mjs",
         "src/features/pattern/dxf_writer.mjs",
+        "src/features/pattern/flatten_job.mjs",
+        "src/features/pattern/flatten_worker.mjs",
         "src/features/pattern/pattern_draft.mjs",
         "src/features/pattern/pattern_templates.mjs"
       ],
@@ -81,17 +84,17 @@
       "src/ui/viewer/tip.mjs"
     ]
   },
-  "imports": 192,
+  "imports": 197,
   "checks": [
     {
       "name": "every module under src/ is in a layer: core, a feature, or the ui",
       "status": "PASS",
-      "detail": "9 core, 21 in 6 features (avatar, body_grid, landmarks, pattern, pen, reference_geometry), 29 ui"
+      "detail": "10 core, 23 in 6 features (avatar, body_grid, landmarks, pattern, pen, reference_geometry), 29 ui"
     },
     {
       "name": "every relative import resolves",
       "status": "PASS",
-      "detail": "192 imports between modules"
+      "detail": "197 imports between modules"
     },
     {
       "name": "nothing under src/ imports the gates or tools in scripts/",
