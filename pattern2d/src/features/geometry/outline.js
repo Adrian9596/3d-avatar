@@ -201,3 +201,82 @@ export function outlineAt(pts, kinds, from, to, share){
     want -= L;
   }
 }
+
+/* ── the smart pen's open line (sketch.md §8, L1–L6) ─────────────────────────────────
+   The outline's rule exactly — straight between two turn points, a centripetal Catmull–Rom curve through curve points, the
+   missing neighbour at a turn point its mirror image — with no closing span, and its two ends always corners: the end of an
+   open line has no second side to be smooth with. Nothing above is changed by these: they only reuse span() and mirror(). */
+
+/* ≥ 2 finite points, consecutive ones apart (last → first is not a span), one kind each; the two ends become turn points
+   whatever they were placed as — copied, never shared (L1) */
+export function checkOpenLine(pts, kinds){
+  if(!Array.isArray(pts) || pts.length < 2) throw new Error(`đường cần ít nhất 2 điểm, nhận ${Array.isArray(pts) ? pts.length : pts}`);
+  if(!Array.isArray(kinds) || kinds.length !== pts.length)
+    throw new Error(`loại điểm: cần ${pts.length} (một mỗi điểm), nhận ${Array.isArray(kinds) ? kinds.length : kinds}`);
+  const P = pts.map((p, i) => {
+    if(!Array.isArray(p) || p.length < 2 || !finite(p[0]) || !finite(p[1])) throw new Error(`điểm ${i} không hợp lệ: ${JSON.stringify(p)} — cần [x, y] là số hữu hạn (mm)`);
+    return [p[0], p[1]];
+  });
+  kinds.forEach((k, i) => { if(!OUTLINE_KINDS.includes(k)) throw new Error(`loại điểm ${i} không hợp lệ: "${k}" — chỉ có turn · curve`); });
+  for(let i = 0; i + 1 < P.length; i++)
+    if(dist(P[i], P[i + 1]) <= EPS) throw new Error(`điểm ${i} trùng điểm ${i + 1} — hai điểm liền nhau phải khác nhau`);
+  const K = kinds.slice();
+  K[0] = "turn"; K[K.length - 1] = "turn";
+  return {pts: P, kinds: K};
+}
+/* one segment per pair of neighbours, n − 1 of them: a line between two turn points, else the Catmull–Rom span as a cubic
+   Bezier; the end points are the placed points themselves, bit for bit (L2, L3) */
+export function openSegments(pts, kinds){
+  const o = checkOpenLine(pts, kinds), P = o.pts, K = o.kinds, segs = [];
+  for(let i = 0; i + 1 < P.length; i++){
+    const P1 = P[i], P2 = P[i + 1];
+    if(K[i] === "turn" && K[i + 1] === "turn"){ segs.push({kind: "line", from: i, to: i + 1, ctrl: [P1, P2]}); continue; }
+    /* the ends are turn points, so a curve point always has both neighbours */
+    const P0 = K[i] === "curve" ? P[i - 1] : mirror(P1, P2);
+    const P3 = K[i + 1] === "curve" ? P[i + 2] : mirror(P2, P1);
+    segs.push({kind: "bezier", from: i, to: i + 1, ctrl: span(P0, P1, P2, P3)});
+  }
+  return segs;
+}
+/* the exact kernel shape: turn points only → an open polyline; otherwise one cubic NURBS of the segments */
+export function openShape(pts, kinds){
+  const segs = openSegments(pts, kinds);
+  if(segs.every(s => s.kind === "line")) return curve([...segs.map(s => s.ctrl[0]), segs[segs.length - 1].ctrl[1]], false);
+  const ctrl = [segs[0].ctrl[0]];
+  for(const s of segs){
+    if(s.kind === "bezier") ctrl.push(s.ctrl[1], s.ctrl[2], s.ctrl[3]);
+    else { const [a, b] = s.ctrl; ctrl.push([a[0] + (b[0] - a[0])/3, a[1] + (b[1] - a[1])/3], [a[0] + 2*(b[0] - a[0])/3, a[1] + 2*(b[1] - a[1])/3], b); }
+  }
+  const n = segs.length, knots = [0, 0, 0, 0];
+  for(let k = 1; k < n; k++) knots.push(k, k, k);
+  knots.push(n, n, n, n);
+  return spline({degree: 3, knots, ctrl});
+}
+/* the length: straight segments by distance, curved ones by the kernel's converged integral (L4) */
+export function openLength(pts, kinds){ return openSegments(pts, kinds).reduce((s, x) => s + segLength(x), 0); }
+/* The polyline Xuất DXF writes (L5): every placed point a vertex, bit for bit; a straight segment adds nothing between its
+   ends; a curved one the samples that keep it within `tol` (sampled against midpoints: twice as fine, as dxf/write.js does).
+   `turn[k]`: vertex k is a turn point — the two ends always are */
+export function openSample(pts, kinds, tol = 0.01){
+  const o = checkOpenLine(pts, kinds), segs = openSegments(o.pts, o.kinds), out = [o.pts[0]], turn = [true];
+  for(const s of segs){
+    const b = s.ctrl[s.ctrl.length - 1];
+    if(s.kind === "bezier"){
+      for(const q of sample(bezier(s.ctrl), tol/2).slice(1, -1)){
+        const last = out[out.length - 1];
+        if(dist(q, last) > EPS && dist(q, b) > EPS){ out.push([q[0], q[1]]); turn.push(false); }
+      }
+    }
+    out.push(b); turn.push(o.kinds[s.to] === "turn");
+  }
+  return {pts: out, turn};
+}
+/* point k to target: only point k moves; refused when it would sit on a neighbour (L6) */
+export function dragOpenLine(o, k, target){
+  if(!Number.isInteger(k) || k < 0 || k >= o.pts.length) throw new Error(`không có điểm ${k} — đường có ${o.pts.length} điểm`);
+  return checkOpenLine(o.pts.map((p, i) => i === k ? target : p), o.kinds);
+}
+export function moveOpenLine(o, dx, dy){
+  if(!finite(dx) || !finite(dy)) throw new Error(`độ dời không hợp lệ: ${dx}, ${dy}`);
+  return checkOpenLine(o.pts.map(p => [p[0] + dx, p[1] + dy]), o.kinds);
+}

@@ -79,7 +79,7 @@ test("K2 a straight edge: the parallel is the chord moved d along its normal, on
 });
 
 /* the parallel's own properties, by this file's rulers (construct.md K2): every vertex exactly d from the source, every point of
-   it within [d − 0.005, d] (dense samples along each of its segments), no vertex of the source nearer to it than d */
+   it within [d − 0.005, d] (dense samples along each of its segments), no vertex of the source nearer to it than d − 0.005 */
 function isParallel(res, src, closed, d, msg){
   res.forEach((p, i) => near(distPoly(p, src, closed), d, 1e-9, `${msg}: đỉnh ${i} cách gốc`));
   const n = res.length;
@@ -90,7 +90,8 @@ function isParallel(res, src, closed, d, msg){
       ok(e >= d - 0.005 - 1e-9 && e <= d + 1e-9, `${msg}: điểm giữa đoạn ${i} cách gốc ${e}, ngoài [d − 0.005, d]`);
     }
   }
-  src.forEach((p, i) => ok(distPoly(p, res, closed) >= d - 1e-9, `${msg}: đỉnh gốc ${i} gần đường mới hơn d (${distPoly(p, res, closed)})`));
+  /* a chord of a round join falls inside its arc by ≤ 0.005 mm, so a convex vertex of the source may be that much nearer */
+  src.forEach((p, i) => ok(distPoly(p, res, closed) >= d - 0.005 - 1e-9, `${msg}: đỉnh gốc ${i} gần đường mới hơn d − 0.005 (${distPoly(p, res, closed)})`));
 }
 
 test("K2 a bent edge: a concave elbow is where the two parallels meet, a convex one an arc of radius d about the vertex", () => {
@@ -114,10 +115,12 @@ test("K2 a bent edge: a concave elbow is where the two parallels meet, a convex 
 
 test("K2 a curved edge (a 100 mm arc sampled every degree): outside and inside, every vertex exactly d, the ends moved d along the end normals", () => {
   const A = arcPts([0, 0], 100, 0, 90, 90);
-  for(const [w, name, first] of [[[120, 20], "ngoài", [106, 0]], [[60, 20], "trong", [94, 0]]]){
+  /* the end moves d along the normal of the FIRST SEGMENT (not of the circle it was sampled from): this file's own unit normal */
+  const u0 = [A[1][0] - A[0][0], A[1][1] - A[0][1]], L0 = Math.hypot(u0[0], u0[1]), n0 = [u0[1]/L0, -u0[0]/L0];   // right of the walk
+  for(const [w, name, k] of [[[120, 20], "ngoài", 6], [[60, 20], "trong", -6]]){
     const r = parallelOf({pts: A, closed: false}, w, 6);
     ok(r.ok, r.reason); eq(r.kind, "polyline", name);
-    nearPt(r.pts[0], first, 1e-9, `${name}: đầu`);
+    nearPt(r.pts[0], [A[0][0] + k*n0[0], A[0][1] + k*n0[1]], 1e-9, `${name}: đầu`);
     isParallel(r.pts, A, false, 6, name);
   }
 });
@@ -126,7 +129,7 @@ test("K2 a closed ring: the parallel ring, inside or outside by where the pointe
   const C = arcPts([0, 0], 50, 0, 360, 180).slice(0, -1);
   const out = parallelOf({pts: C, closed: true}, [70, 0], null);
   ok(out.ok, out.reason); eq(out.kind, "ring"); eq(out.side, "out");
-  near(out.d, 20 - 50*(1 - Math.cos(Math.PI/180)), 1e-9, "d = khoảng từ con trỏ tới vòng (dây cung ở (50, 0)… lùi vào một chút)");
+  near(out.d, 20, 1e-9, "d = 20: con trỏ (70, 0) gần nhất đỉnh (50, 0) của vòng — hai dây cung kề đều quay đi");
   isParallel(out.pts, C, true, out.d, "ngoài");
   const inn = parallelOf({pts: C, closed: true}, [10, 0], 8);
   ok(inn.ok); eq(inn.side, "in");
@@ -216,7 +219,7 @@ test("K5 lockTo: the direction nearest the pointer, at the pointer's projection 
   const d = lockTo([10, 10], [6, 13], q);
   eq(d.index, 2, "vuông góc"); nearPt(d.point, [6, 13], 1e-12, "đúng (6, 13)");
   const e = lockTo([10, 10], [16, 18.1], q);
-  eq(e.index, 0, "song song"); nearPt(e.point, [10 + 0.6*10.06, 10 + 0.8*10.06], 1e-12, "hình chiếu 10.06");
+  eq(e.index, 0, "song song"); nearPt(e.point, [10 + 0.6*10.08, 10 + 0.8*10.08], 1e-12, "hình chiếu 0.6·6 + 0.8·8.1 = 10.08");
 });
 
 /* ── K6 ────────────────────────────────────────────────────────────────────────────── */

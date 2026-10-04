@@ -16,8 +16,8 @@ import {snapTo} from "./snap.js";
 import {point, pointAt, tangentAt, closestPoint, length} from "./model.js";
 import {cornerIndices} from "./corners.js";
 import {isStraight, edgeRange} from "./deform.js";
-import {createLine, createCurve, createRect, createCircle, createPolygon, createPath, createPoint, entityHandles, entityShape,
-        entitySnap, setEntityDim, dragEntity, moveEntity, ENTITY_TYPES, PIECE_ENTITY_TYPES} from "./entity.js";
+import {createLine, createCurve, createRect, createCircle, createPolygon, createPath, createPoint, createPolyline, entityHandles, entityShape,
+        entitySnap, setEntityDim, dragEntity, moveEntity, ENTITY_TYPES, PIECE_ENTITY_TYPES, PEN_ENTITY_TYPES} from "./entity.js";
 import {outlineLocate, outlineAt} from "./outline.js";
 
 export const CONSTRAINT_TYPES = ["horizontal", "vertical", "coincident", "tangent", "equal"];
@@ -91,7 +91,9 @@ function shapeKind(s, p){
    only the hand changes: it is a master to what rides on it, never a follower (O14). */
 const RIGID = new Set(["rect", "circle", "polygon", "point"]);
 const isRigid = e => RIGID.has(e.type);
-const slotsOf = e => e.type === "line" ? ["a", "b"] : e.type === "curve" ? ["p0", "c1", "c2", "p3"] : e.type === "path" ? ["geom"] : ["pos", "dims"];
+/* a Path and the smart pen's Đường (sketch.md §8, L9) are each one slot — points and kinds — that only the hand changes */
+const isWhole = e => e.type === "path" || e.type === "polyline";
+const slotsOf = e => e.type === "line" ? ["a", "b"] : e.type === "curve" ? ["p0", "c1", "c2", "p3"] : isWhole(e) ? ["geom"] : ["pos", "dims"];
 const key = (id, s) => `${id}\u0001${s}`;
 const unkey = k => { const i = k.lastIndexOf("\u0001"); return [k.slice(0, i), k.slice(i + 1)]; };
 function slotValue(e, s){
@@ -99,7 +101,7 @@ function slotValue(e, s){
   if(e.type === "rect") return s === "pos" ? [e.x, e.y] : {w: e.w, h: e.h};
   if(e.type === "circle") return s === "pos" ? e.c : {d: e.d};
   if(e.type === "point") return s === "pos" ? e.p : {};
-  if(e.type === "path") return e;
+  if(isWhole(e)) return e;
   return s === "pos" ? e.c : {size: e.size, angle: e.angle};
 }
 const sameVal = (a, b) => Array.isArray(a) ? samePt(a, b) : Object.keys(a).every(k => Object.is(a[k], b[k]));
@@ -111,7 +113,7 @@ function assemble(e0, get){
     case "circle": return {type: "circle", c: get("pos"), d: get("dims").d};
     case "polygon": { const d = get("dims"); return {type: "polygon", c: get("pos"), size: d.size, sides: e0.sides, angle: d.angle}; }
     case "point": return {type: "point", p: get("pos")};
-    case "path": return get("geom");
+    case "path": case "polyline": return get("geom");
   }
 }
 /* the constructors check what came out: a line of length 0, a curve whose ends met — refused */
@@ -124,6 +126,7 @@ function rebuild(e){
     case "polygon": return createPolygon(e.c, e.size, e.sides, e.angle);
     case "point": return createPoint(e.p);
     case "path": return createPath(e.pts, e.kinds);
+    case "polyline": return createPolyline(e.pts, e.kinds);
   }
 }
 const handlePos = (e, h) => (entityHandles(e).find(x => x.name === h) || {}).at || null;
@@ -132,7 +135,7 @@ const isEnd = (e, h) => (ENDS[e.type] || []).includes(h);
 /* a point another shape may follow: never a control point, never "body" */
 const isMasterHandle = (e, h) => h !== "body" && h !== "c1" && h !== "c2" && !!handlePos(e, h);
 /* a point that may follow: an end, a corner, a vertex, a centre — never a point of an outline (O14) */
-const isDrivenHandle = (e, h) => (e.type === "line" || e.type === "curve") ? isEnd(e, h) : e.type === "path" ? false : (h !== "body" && !!handlePos(e, h));
+const isDrivenHandle = (e, h) => (e.type === "line" || e.type === "curve") ? isEnd(e, h) : isWhole(e) ? false : (h !== "body" && !!handlePos(e, h));
 const isCopy = c => c.master.point !== undefined || c.master.handle !== undefined;
 
 export function createSketch(){
@@ -177,7 +180,7 @@ export function createSketch(){
     for(const [id, e] of E) for(const s of slotsOf(e)){ nodes.push(key(id, s)); deps.set(key(id, s), new Set()); }
     const add = (n, d) => { if(n !== d) deps.get(n).add(d); };
     const all = id => slotsOf(E.get(id)).map(s => key(id, s));
-    const handleSlots = (id, h) => { const e = E.get(id); return isRigid(e) ? (h === "c" ? [key(id, "pos")] : [key(id, "pos"), key(id, "dims")]) : e.type === "path" ? [key(id, "geom")] : [key(id, h)]; };
+    const handleSlots = (id, h) => { const e = E.get(id); return isRigid(e) ? (h === "c" ? [key(id, "pos")] : [key(id, "pos"), key(id, "dims")]) : isWhole(e) ? [key(id, "geom")] : [key(id, h)]; };
     const fromRef = (n, r) => { if(r.id !== undefined) (r.handle !== undefined ? handleSlots(r.id, r.handle) : all(r.id)).forEach(s => add(n, s)); };
     for(const c of C.values()){
       if(c.type !== "coincident") continue;
@@ -234,7 +237,7 @@ export function createSketch(){
     const newPoint = r => {
       if(r.point) return r.point;
       const e0 = E0.get(r.id);
-      if(e0.type === "path") return handlePos(S.get(key(r.id, "geom")), r.handle);
+      if(isWhole(e0)) return handlePos(S.get(key(r.id, "geom")), r.handle);
       if(!isRigid(e0)) return S.get(key(r.id, r.handle));
       return handlePos(assemble(e0, s => S.get(key(r.id, s))), r.handle);
     };
@@ -356,7 +359,7 @@ export function createSketch(){
     }
     function slot(id, s){
       const e0 = E0.get(id), d = D.get(id) || NONE;
-      if(e0.type === "path") return pathSlot(id, e0);
+      if(isWhole(e0)) return pathSlot(id, e0);
       if(isRigid(e0)) return rigidSlot(id, e0, d, s);
       const dd = shiftOf(id);
       if(d.pin[s]){
@@ -452,6 +455,7 @@ export function createSketch(){
     if(m.point) checkPt(m.point, "điểm DXF");
     if(type === "coincident"){
       if(D.type === "path") throw new Error("đường viền không làm bên bám — nó là chủ của notch và của hình bám vào nó; kéo đỉnh của nó (sketch.md O14)");
+      if(D.type === "polyline") throw new Error("Đường của Bút không làm bên bám — nó là chủ của hình bám vào nó; kéo điểm của nó (sketch.md L9)");
       if(f.handle === undefined) throw new Error("Coincident: bên bám phải là một điểm (đầu mút, góc, đỉnh, tâm)");
       handleOf(f, D);
       if(!isDrivenHandle(D, f.handle)) throw new Error(`${D.type}.${f.handle} không phải điểm để bám (control point không nằm trên hình)`);
@@ -475,8 +479,8 @@ export function createSketch(){
       const M = m.id !== undefined ? need(m.id) : null;
       if(m.point) throw new Error("Equal cần một hình chủ, không phải một điểm");
       if(D.type === "curve") throw new Error("Curve không co giãn theo Equal — chỉ làm hình chủ (sketch.md G12)");
-      if(D.type === "point" || D.type === "path")
-        throw new Error(`Equal không áp cho ${D.type === "point" ? "notch / điểm (không có kích thước)" : "đường viền"} (sketch.md O14)`);
+      if(D.type === "point" || isWhole(D))
+        throw new Error(`Equal không áp cho ${D.type === "point" ? "notch / điểm (không có kích thước)" : D.type === "path" ? "đường viền" : "Đường của Bút"} (sketch.md O14, L9)`);
       if(D.type === "line"){
         if(M && !["line", "curve"].includes(M.type)) throw new Error(`Equal không ghép được ${M.type} với line — line bằng chiều dài line/curve/đường DXF`);
         return {cid, type, master: M ? {id: m.id} : {shape: m.shape}, driven: {id: f.id}};
@@ -541,7 +545,7 @@ export function createSketch(){
 
   const sk = {
     add(entity, meta = {}){
-      if(!entity || !(ENTITY_TYPES.includes(entity.type) || PIECE_ENTITY_TYPES.includes(entity.type))) throw new Error(`hình không hợp lệ: ${entity && entity.type}`);
+      if(!entity || !(ENTITY_TYPES.includes(entity.type) || PIECE_ENTITY_TYPES.includes(entity.type) || PEN_ENTITY_TYPES.includes(entity.type))) throw new Error(`hình không hợp lệ: ${entity && entity.type}`);
       const id = meta.id !== undefined ? String(meta.id) : `e${++seq}`;
       if(ents.has(id)) throw new Error(`đã có hình ${id}`);
       ents = new Map(ents).set(id, freeze(rebuild(entity)));
@@ -645,8 +649,8 @@ export function createSketch(){
     reshape(id, entity){
       try{
         const e = need(id);
-        if(e.type !== "path") throw new Error(`chỉ đường viền mới đổi dáng kiểu này — ${id} là ${e.type}`);
-        if(!entity || entity.type !== "path") throw new Error(`đường viền chỉ thay được bằng một đường viền — không phải ${entity && entity.type}`);
+        if(!isWhole(e)) throw new Error(`chỉ đường viền và Đường mới đổi dáng kiểu này — ${id} là ${e.type}`);
+        if(!entity || entity.type !== e.type) throw new Error(`${e.type === "path" ? "đường viền" : "Đường"} chỉ thay được bằng một ${e.type === "path" ? "đường viền" : "Đường"} — không phải ${entity && entity.type}`);
         return {ok: true, snap: null, changed: run({kind: "reshape", id, entity: freeze(rebuild(entity))}).changed};
       }catch(err){ return refuse(err); }
     },
