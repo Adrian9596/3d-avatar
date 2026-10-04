@@ -128,7 +128,7 @@ export const PieceTool = {
   /* Góc ⇄ Cong: the point of an outline being held turns from corner to curve point, or back (M9) */
   toggleKind(ctx){
     const a = E.active, id = a && a.id, e = id && E.sk.get(id), k = a && a.handle && a.handle[0] === "v" ? Number(a.handle.slice(1)) : NaN;
-    if(!e || e.type !== "path" || !Number.isInteger(k)) return say(ctx, "Góc ⇄ Cong: nắm một điểm của đường cắt mảnh trước");
+    if(!e || (e.type !== "path" && e.type !== "polyline") || !Number.isInteger(k)) return say(ctx, "Góc ⇄ Cong: nắm một điểm của đường cắt mảnh hay của một Đường trước");
     E.act(ctx, () => { const r = E.sk.reshape(id, setPathKind(e, k, e.kinds[k] === "turn" ? "curve" : "turn"));
                        return r.ok ? {ok: true, message: `điểm ${k}: ${e.kinds[k] === "turn" ? "điểm cong" : "góc"}`} : r; });
   },

@@ -89,6 +89,11 @@ export function controllerFixture(which = "draw", opts = {}){
     /* the tool's draw layers into a group of the fake elements: its children are what a frame would paint */
     paint(){ const root = new Element('g'); layers.forEach(fn => fn(root, 8, ctx)); return root; },
     key(key, extra={}){ for(const fn of keys.get('keydown') || []) fn({key,target:doc.body,preventDefault(){},stopImmediatePropagation(){},...extra}); },
+    /* the Bút needs a press, the pointer moved and a release apart — each with the keys held, the press with its time
+       (a double-click, a ⇧ drag); clientX/Y are the mm themselves, as everywhere in this fixture */
+    press(w, extra={}){ tick += 1000; tools.get(which).onDown({button:0,timeStamp:tick,clientX:w[0],clientY:w[1],shiftKey:false,...extra},w,ctx); },
+    move(w, extra={}){ tools.get(which).onMove({shiftKey:false,...extra},w,ctx); },
+    release(extra={}){ tools.get(which).onUp?.({...extra},ctx); },
     field:id => ids.get(id),
     rows:() => providers.flatMap(fn => fn(ctx)?.rows || []),
     state:() => JSON.stringify(which === 'draw' ? {shapes:Draw.shapes(ctx),undo:Draw.undoCount()} : ctx.model),

@@ -14,7 +14,7 @@
    until Xuất DXF writes it (V13, M10). */
 import {isTyping, arrowStep, downloadText} from "../../shared/dom.js";
 import {parseAngle} from "../../shared/units.js";
-import {Canvas} from "../canvas/canvas.js";
+import {Canvas, PICK_PX} from "../canvas/canvas.js";
 import {Readout, noteRow, headed} from "../readout/readout.js";
 import {createSketch, snapHit} from "../geometry/sketch.js";
 import {entityHandles, entityDims} from "../geometry/entity.js";
@@ -23,14 +23,15 @@ import {layerMeta} from "../dxf/aama.js";
 import {writeDXF, exportName} from "../dxf/write.js";
 import {DRAW_LAYERS, DRAW_NUMS, clicksNeeded, shapeFrom, ghostOf, pieceOffset, toFile, toShown, joinTarget, layerApplies,
         shownEntity, pickDrawn, pieceTargets, drawnRows, relationText, junctionOf, shownSel, drawKey, dockGroups, openKey,
-        layerRefusal, deletedText, framedTargets, framedRef, frameClash, madeLayer, zoneTargets, placedShapes} from "./flow.js";
+        layerRefusal, deletedText, framedTargets, framedRef, frameClash, madeLayer, zoneTargets, placedShapes, thinHandles} from "./flow.js";
 import {penCloses, penPress, penNext, penGhost, isClosedShape} from "./piece.js";
 import {PieceTool} from "./pieces.js";
+import {SmartPen} from "./smartpen.js";
 import {withDrawings} from "./out.js";
 import {buildDock, MODE_NAME, RELS} from "./dock.js";
 import {paintDrawing} from "./paint.js";
 
-const ID_NAME = {line: "Line", curve: "Curve", rect: "Rect", circle: "Circle", polygon: "Poly", path: "Vien", point: "Notch", grain: "Grain"};
+const ID_NAME = {line: "Line", curve: "Curve", rect: "Rect", circle: "Circle", polygon: "Poly", path: "Vien", point: "Notch", grain: "Grain", polyline: "Duong"};
 const UNDO_MAX = 80;                                              // steps kept — as Edit and Arrange keep
 
 let button = null, dock = null;
@@ -57,6 +58,16 @@ PieceTool.bind({
   set note(v){ note = v; }, set filled(v){ filled = v; }, set lastAt(v){ lastAt = v; }, get notchDist(){ return notchDist; },
   act: (ctx, fn) => act(ctx, fn), nextId: type => `${ID_NAME[type]}${++seq}`, visible: (ctx, l) => visible(ctx, l)
 });
+/* the window smartpen.js has on this file's state — the Bút keeps only what is half done (smartpen.md) */
+SmartPen.bind({
+  get layer(){ return layer; }, set note(v){ note = v; },
+  place: (ctx, shape, at) => place(ctx, shape, at),
+  target: (ctx, w) => target(ctx, w),
+  snapTargets: (ctx, zone) => snapTargets(ctx, zone),
+  drawnShown: ctx => placed(ctx.pieces()).filter(d => visible(ctx, d.layer))
+                      .map(d => ({id: d.id, shown: shownEntity(sk.get(d.id), pieceOffset(d.m.pc)), pi: d.pi, pid: d.pid})),
+  boxError: (...ids) => dock.error(...ids)
+});
 
 export const Draw = {
   mount(ctx, ui){
@@ -73,15 +84,16 @@ export const Draw = {
       moveBy: input => moveBy(ctx, input),
       typed: (key, v) => { if(mode !== "select") nums[key] = v; },
       pieceField: (key, value, outline) => PieceTool.setField(ctx, key, value, outline),
-      notchDist: v => { notchDist = v; ctx.draw(); }
+      notchDist: v => { notchDist = v; ctx.draw(); },
+      penBox: (key, v) => { SmartPen.setBox(key, v); ctx.draw(); }
     });
 
     Canvas.tool("draw", {cursor: "drawing", onDown, onMove, onUp,
-                         onExit(){ clicks = []; PieceTool.clearPen(); pending = null; gesture = null; hover = null; lastAt = null; lastSnap = null; lastPress = null; }});
+                         onExit(){ clicks = []; PieceTool.clearPen(); SmartPen.clear(); pending = null; gesture = null; hover = null; lastAt = null; lastSnap = null; lastPress = null; }});
     Canvas.layer((root, ppm, c) => paint(root, ppm, c));          // drawn shapes show with the tool off too (W11)
     Canvas.afterDraw(c => sync(c));
     Readout.section(readout);
-    ctx.onLoad(() => { sk = createSketch(); meta = new Map(); PieceTool.reset(); seq = 0; sel = []; active = null; clicks = [];
+    ctx.onLoad(() => { sk = createSketch(); meta = new Map(); PieceTool.reset(); SmartPen.reset(); seq = 0; sel = []; active = null; clicks = [];
                        pending = null; gesture = null; undo = []; note = ""; filled = ""; });
     /* one Xuất DXF, whichever button: the file carries the drawing and the pieces drawn (V13, M10) */
     ctx.onExport(model => withDrawings(model, drawnList(model.pieces).filter(d => !d.piece), PieceTool.out()));
@@ -93,12 +105,14 @@ export const Draw = {
       if(active && !here.has(active.id)) active = null;
       if(pending && !here.has(pending.driven.id)) pending = null;
       if(clickPc && !c.pieces().includes(clickPc)){ clicks = []; clickPc = null; }
+      SmartPen.piecesChanged(c);
       hover = null; gesture = null; filled = "";
     });
     ctx.key("v", () => Canvas.setTool(on() ? null : "draw", ctx));
     /* from any other tool, or none: Vẽ straight in Mảnh / Notch (piece.md M13); while Vẽ is on, the capture below has them */
     ctx.key("6", ev => openIn(ctx, ev));
     ctx.key("7", ev => openIn(ctx, ev));
+    ctx.key("8", ev => openIn(ctx, ev));                          // Bút (smartpen.md B1)
 
     /* capture: while Vẽ is on these keys are Vẽ's — ⌘Z undoes a Vẽ step, not an Edit or Arrange one (V8) */
     addEventListener("keydown", ev => {
@@ -111,6 +125,13 @@ export const Draw = {
       if(mode === "piece" && PieceTool.pen().pts.length){       // the pen's own keys (M2)
         if(ev.key === "Enter"){ ev.preventDefault(); ev.stopImmediatePropagation(); PieceTool.close(ctx); return; }
         if(ev.key === "Backspace" || ev.key === "Delete"){ ev.preventDefault(); ev.stopImmediatePropagation(); PieceTool.pop(ctx); return; }
+      }
+      if(mode === "pen"){                                         // the Bút's own keys (smartpen.md B2 · B3 · B10)
+        if((ev.key === "h" || ev.key === "H") && !cmd && !ev.altKey){ ev.preventDefault(); ev.stopImmediatePropagation(); SmartPen.toggleTSquare(ctx); return; }
+        if(SmartPen.drawing()){
+          if(ev.key === "Enter"){ ev.preventDefault(); ev.stopImmediatePropagation(); SmartPen.finish(ctx); return; }
+          if(ev.key === "Backspace" || ev.key === "Delete"){ ev.preventDefault(); ev.stopImmediatePropagation(); SmartPen.pop(ctx); return; }
+        }
       }
       /* Delete is Vẽ's while it is on — a drawn shape, never a piece of the file (V9, pieces/remove.md R1) */
       if((ev.key === "Delete" || ev.key === "Backspace") && !cmd){
@@ -184,7 +205,7 @@ function act(ctx, fn){
 function doUndo(ctx){
   const s = undo.pop();
   if(!s){ note = "không còn gì để hoàn tác"; ctx.draw(); return; }
-  restoreState(s); active = null; pending = null; clicks = []; PieceTool.clearPen(); note = "đã hoàn tác"; filled = "";
+  restoreState(s); active = null; pending = null; clicks = []; PieceTool.clearPen(); SmartPen.clear(); note = "đã hoàn tác"; filled = "";
   ctx.draw();
 }
 const kernel = r => r.ok ? {ok: true} : {ok: false, reason: r.reason};
@@ -197,7 +218,7 @@ function openIn(ctx, ev){
   setMode(ctx, m);
 }
 function setMode(ctx, m){
-  mode = m; clicks = []; PieceTool.clearPen(); pending = null; note = ""; filled = ""; lastAt = null;
+  mode = m; clicks = []; PieceTool.clearPen(); SmartPen.clear(); pending = null; note = ""; filled = ""; lastAt = null;
   if(m !== "select") active = null;
   ctx.draw();
 }
@@ -235,12 +256,12 @@ function fillBoxes(ctx){
    the piece pen: the next point along it (M3) — focus stays for the next side */
 function typedLine(ctx, input, ev){
   const c = context();
-  const error = mode === "piece" || (c.kind === "create" && mode === "line")
+  const error = mode === "piece" || mode === "pen" || (c.kind === "create" && mode === "line")
     ? dock.error("dlen", "dang") : dock.error(input.id);
   if(error){ note = error; ctx.draw(); return; }
   let angle = null;
   const readAngle = () => { angle = parseAngle(document.getElementById("dang").value); return angle; };
-  if(mode === "piece" || (c.kind === "create" && mode === "line") || (c.kind === "edit" && c.type === "line" && input.id !== "dlen")){
+  if(mode === "piece" || mode === "pen" || (c.kind === "create" && mode === "line") || (c.kind === "edit" && c.type === "line" && input.id !== "dlen")){
     try{ readAngle(); }catch(e){ note = e.message; ctx.draw(); return; }
   }
   if(mode === "piece"){
@@ -250,6 +271,11 @@ function typedLine(ctx, input, ev){
     try{ p = penNext(pts[pts.length - 1], dock.F.dlen.field.mm, angle); }catch(e){ note = e.message; ctx.draw(); return; }
     PieceTool.addPoint(ctx, p, ev && ev.shiftKey);
     input.select();                                               // the next side types over it (M3)
+    return;
+  }
+  if(mode === "pen"){                                             // the Bút: the next point of its line (smartpen.md B5)
+    SmartPen.typedNext(ctx, dock.F.dlen.field.mm, angle, ev && ev.shiftKey);
+    input.select();
     return;
   }
   if(c.kind === "create" && mode === "line"){
@@ -392,19 +418,26 @@ function freeShape(ctx){
 }
 
 /* ── the pointer ───────────────────────────────────────────────────────────────── */
-function make(ctx, shape){
-  /* a closed shape on the cut layer is a new piece (M5); the rest is a shape of its piece — of the file, or drawn
-     here (M17) — or of its own. Its layer is the one it was started on (madeLayer): it chose the piece */
-  const lay = madeLayer({clicks: clicks.length, first: clickLayer, now: layer});
-  if(lay === "1" && isClosedShape(shape)){ act(ctx, () => PieceTool.make(ctx, shape)); clicks = []; lastAt = null; return; }
-  act(ctx, () => {
+/* A shape into the drawing, one undo step: a closed shape on the cut layer is a new piece (M5); the rest is a shape of its
+   piece — of the file (pc, the piece itself), drawn here (pid, M17) — or of its own. `done` runs inside the step, after it
+   is added. The shape makers of Vẽ and the Bút (smartpen.md) both come through here */
+function place(ctx, shape, {pc = null, pid = null, layer: lay}, done = () => {}){
+  if(lay === "1" && isClosedShape(shape)) return act(ctx, () => PieceTool.make(ctx, shape));
+  const r = act(ctx, () => {
     const id = `${ID_NAME[shape.type]}${++seq}`;
-    sk.add(shape, {id}); meta.set(id, clickPid ? {pc: null, layer: lay, piece: clickPid} : {pc: clickPc, layer: lay});
-    sel = [id]; active = null; clicks = []; lastAt = null;
-    return {ok: true, message: `đã vẽ ${id}` + (clickPid ? ` — vào ${PieceTool.name(clickPid)}` : clickPc ? ""
+    sk.add(shape, {id}); meta.set(id, pid ? {pc: null, layer: lay, piece: pid} : {pc, layer: lay});
+    sel = [id]; active = null; done();
+    return {ok: true, message: `đã vẽ ${id}` + (pid ? ` — vào ${PieceTool.name(pid)}` : pc ? ""
                                                 : lay === "1" ? " — đường cắt hở: chưa là mảnh (M6)" : " — hình vẽ riêng (không thuộc mảnh nào)")};
   });
   filled = "";
+  return r;
+}
+function make(ctx, shape){
+  /* its layer is the one it was started on (madeLayer): it chose the piece */
+  const lay = madeLayer({clicks: clicks.length, first: clickLayer, now: layer});
+  if(lay === "1" && isClosedShape(shape)){ act(ctx, () => PieceTool.make(ctx, shape)); clicks = []; lastAt = null; return; }
+  place(ctx, shape, {pc: clickPc, pid: clickPid, layer: lay}, () => { clicks = []; lastAt = null; });
 }
 /* Pointer-defined lines/curves do not consume the numerical length/angle boxes. */
 function creationError(){
@@ -414,6 +447,7 @@ function creationError(){
 function onDown(ev, w, ctx){
   if(ev.button === 1 || ev.altKey || !ctx.model) return false;
   if(pending) return pickMaster(ctx, w);
+  if(mode === "pen") return SmartPen.onDown(ev, w, ctx);         // the Bút decides what a press is (smartpen.md)
   if(mode === "notch"){
     const error = dock.error("dcorner");
     if(error){ note = error; lastAt = null; lastSnap = null; ctx.draw(); }
@@ -488,6 +522,7 @@ function onMove(ev, w, ctx){
     ctx.draw();
     return;
   }
+  if(mode === "pen"){ SmartPen.onMove(ev, w, ctx); return; }
   if(mode === "piece"){
     const r = snapHit(w, snapTargets(ctx, null), ctx.snapTol());
     lastAt = {file: r.point, shown: r.point, kind: r.kind, off: [0, 0], closing: penCloses(PieceTool.pen().pts, w, Canvas.pickMM()), curve: ev.shiftKey};
@@ -515,7 +550,8 @@ function onMove(ev, w, ctx){
   if(k !== (hover ? hover.id + ":" + hover.handle : "")){ hover = h; ctx.draw(); }
 }
 function onUp(ev, ctx){
-  if(gesture){ const moved = gesture.started; gesture = null; if(moved){ filled = ""; ctx.draw(); } }
+  if(gesture){ const moved = gesture.started; gesture = null; if(moved){ filled = ""; ctx.draw(); } return; }
+  if(mode === "pen") SmartPen.onUp(ev, ctx);
 }
 
 /* ── the frame: what is on screen, handed to paint.js ─────────────────────────── */
@@ -540,7 +576,9 @@ function paint(root, ppm, ctx){
     for(const id of sel){
       const e = sk.get(id); if(!e) continue;
       const shown = shownEntity(e, offOf(ctx, id));
-      scene.selected.push({shown, handles: entityHandles(shown), active: active && active.id === id ? active.handle : null});
+      /* a dense Đường shows its handles thinned, as pickDrawn takes them (smartpen.md Q9) */
+      const hs = shown.type === "polyline" ? thinHandles(entityHandles(shown), 2*PICK_PX/ppm) : entityHandles(shown);
+      scene.selected.push({shown, handles: hs, active: active && active.id === id ? active.handle : null});
     }
     if(hover && !gesture && !sel.includes(hover.id) && sk.get(hover.id)) scene.hover = shownEntity(sk.get(hover.id), offOf(ctx, hover.id));
     const pen = PieceTool.pen();
@@ -549,6 +587,10 @@ function paint(root, ppm, ctx){
       if(lastAt) scene.ghost = lastAt.closing ? PieceTool.closed() : penGhost(pen.pts, pen.kinds, lastAt.file, lastAt.curve || shiftHeld);
     } else if(mode === "notch" && !dock.error("dcorner") && lastAt && lastAt.notch){
       scene.dots = [lastAt.notch];
+    } else if(mode === "pen"){
+      const s = SmartPen.scene(ctx);
+      if(s.pen) scene.pen = {pts: s.pen.pts, kinds: s.pen.kinds, closing: false};
+      scene.ghost = s.ghost; scene.dots = s.dots; scene.smart = s;
     } else if(mode !== "select" && mode !== "piece" && mode !== "notch" && lastAt && !pending){
       const gh = ghostOf(mode, clicks, lastAt.file, nums);
       if(gh) scene.ghost = shownEntity(gh, lastAt.off);
@@ -566,7 +608,8 @@ function sync(ctx){
   const c = context(), one = sel.length === 1, one1 = one && meta.get(sel[0]);
   const groups = dockGroups({mode, kind: c.kind, type: c.type, count: sel.length, closed: one && isClosedShape(sk.get(sel[0])),
                              piece: !!(one && pieceOfShape(sel[0])), role: one1 ? one1.role || null : null});
-  const canKind = !!(active && sk.get(active.id) && sk.get(active.id).type === "path" && active.handle && active.handle[0] === "v");
+  const kindOf = active && sk.get(active.id) && sk.get(active.id).type;
+  const canKind = !!((kindOf === "path" || kindOf === "polyline") && active.handle && active.handle[0] === "v");
   dock.sync({on: true, mode, pending, groups, one, selCount: sel.length, undoCount: undo.length, layer: one1 && mode === "select" ? one1.layer : layer, canKind});
   fillBoxes(ctx);
   Canvas.status("draw", `Vẽ · ${MODE_NAME[mode]} · ${np ? np + " mảnh · " : ""}${ns} hình · ${sel.length} chọn` + (undo.length ? ` · ${undo.length} bước` : ""));
@@ -580,6 +623,7 @@ function readout(ctx){
     rows.push(["Cách góc", dock.error("dcorner") || (notchDist === null ? "— (notch rơi đúng chỗ bấm)" : `${ctx.len(notchDist)} dọc đường cắt, từ góc gần chỗ bấm`), false]);
     if(lastAt && lastAt.notchErr) rows.push(["Không đặt được", lastAt.notchErr.replace(/^Notch: /, ""), false]);
   }
+  if(mode === "pen") rows.push(...SmartPen.rows(ctx));
   if(mode === "piece"){
     const pen = PieceTool.pen(), turns = pen.kinds.filter(k => k === "turn").length;
     rows.push(["Đang vẽ", pen.pts.length ? `${pen.pts.length} điểm · ${turns} góc · ${pen.pts.length - turns} cong` : "bấm điểm đầu", false]);
