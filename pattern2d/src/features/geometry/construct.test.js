@@ -169,7 +169,8 @@ test("K3 refused, with why: a distance of 0, a pointer on the edge, a parallel t
   no(parallelOf({pts: RECT, closed: true}, [50, 30], 30), /co mất/, "chữ nhật cao 60, d = 30 phía trong");
   no(parallelOf({pts: RECT, closed: true}, [50, 30], 35), /co mất/, "d = 35 phía trong");
   const semi = arcPts([0, 0], 10, 0, 180, 60);
-  no(parallelOf({pts: semi, closed: false}, [0, 3], 15), /co mất/, "nửa vòng r 10, phía trong 15");
+  /* both its ends fall inside the band (the half circle is nearer than 15 to them): an open parallel that cannot start (K3) */
+  no(parallelOf({pts: semi, closed: false}, [0, 3], 15), /không bắt đầu được|co mất/, "nửa vòng r 10, phía trong 15");
   no(parallelOf({pts: [[0, 0]], closed: false}, [5, 5], 3), /ít nhất 2/, "một điểm");
 });
 

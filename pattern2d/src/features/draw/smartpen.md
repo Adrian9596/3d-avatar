@@ -83,6 +83,7 @@ Chế độ **Bút** của Vẽ: nút **Bút** trong dock, phím **8**; từ too
 | **N5** | Chuột phải | không dùng — requirement |
 | **N6** | Kéo trên chỗ trống ra chữ nhật (Richpeace) | ở đây kéo chỗ trống là **pan**, để kéo màn hình được ở mọi chế độ (canvas.js); chữ nhật: Rect (3) |
 | **N7** | Hít hướng tự động khi gần ngang / dọc | thay bằng **thước ngang bật tắt** (B10) — dễ đoán hơn một luật hít ngầm |
+| **N8** | Song song ở chỗ cạnh **tự gập / chồng lên chính nó** (đoạn chồng thẳng hàng: không có điểm cắt để lộ vòng thừa) | **từ chối** (lưới chặn của K2 — không bao giờ ra hình sai); thư viện, d = 6 mm, hai phía mỗi cạnh: 63 / 33 192 lượt — một số rập strike cost viền ren |
 
 ## 5. Chứng minh
 
