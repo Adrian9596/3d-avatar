@@ -35,7 +35,9 @@ distribute, lay out, drag with snapping — view only, never written back) · **
 **Edit** (`D`; select · drag · move · trim / extend · split · join — `T X K J` —, Length / Angle /
 Distance, sewing line, notches and grain follow) · **Vẽ** (`V`; Line · Curve · Rectangle · Circle ·
 Polygon at real size, with relations; **Mảnh** (`6`) — a new piece with the pen, with grain, name
-and quantity; **Notch** (`7`)) · **Delete** · `U` switches the display unit in · cm · mm (numbers only, never
+and quantity; **Notch** (`7`); **Bút** (`8`) — the smart pen: one pen, where and how you press decides —
+a click a point, a drag on an edge its parallel, a drag from a point a compass line, ⇧ drag a set square,
+`H` a T-square, dx · dy an offset start; every action shows its ghost and label first) · **Delete** · `U` switches the display unit in · cm · mm (numbers only, never
 the geometry) · **Xuất DXF** writes a new `<name>_edit.dxf` and never overwrites anything.
 
 Each tool's requirements are the spec next to its code (`src/features/*/**.md`, indexed in

@@ -35,7 +35,8 @@ Action Log, `reference_shapes.md`, `METHOD.md` ở workspace riêng — không c
 - **Mở ra trống** (O1). DXF vào bằng Open DXF / kéo thả, hoặc từ tab 3D (**Open in 2D**, thả `.dxf` lên trang host) qua
   ba message (§7). Không file nào nó xuất là deliverable (§8). Ngoài phạm vi: §5.11.
 - Tool · phím: Layers · mảnh · bảng số `P` · Fit `F` · Geom `G` · Edges `E` · Straight `M` · Along `L` · Copy (TSV) ·
-  Arrange `A` · Simplify `S` · Edit `D` (`T X K J`) · Vẽ `V` (`1–5`, Mảnh `6`, Notch `7`) · Delete · `U` in/cm/mm · Xuất DXF.
+  Arrange `A` · Simplify `S` · Edit `D` (`T X K J`) · Vẽ `V` (`1–5`, Mảnh `6`, Notch `7`, **Bút `8`**, trong Bút: `H` thước ngang) ·
+  Delete · `U` in/cm/mm · Xuất DXF.
 
 ---
 
@@ -56,7 +57,8 @@ pattern2d/
 `expected.json`, `output/` (cả `BLOCK_36C.dxf`), `DXF file/`, `input/`, `spec/`, `scripts/*.py`, `dxf_viewer.html`, DXF mẫu.
 
 **Spec:** `shared/units.md` · `dxf/open.md` · `geometry/` `along_path.md` `point_to_point.md` `simplify.md` `sketch.md` ·
-`measure/measure_engine.md` · `edges/edges.md` · `edit/edit.md` · `draw/draw.md` `piece.md` · `pieces/remove.md`.
+`measure/measure_engine.md` · `edges/edges.md` · `edit/edit.md` · `draw/draw.md` `piece.md` `smartpen.md` · `pieces/remove.md` ·
+`geometry/construct.md`.
 
 **Thứ spec/code trích mà nằm ngoài repo** — tất cả ở workspace riêng:
 
@@ -319,7 +321,10 @@ trim · extend · split · join — phím T · X · K · J, vật cắt là cả
 gia `+1/4` · `-3mm` —, đường may · notch · grainline tự theo, ⌘Z, **Xuất DXF** mới) · **Vẽ** (Line · Curve ·
 Rectangle · Circle · Polygon bằng kích thước thật, snap, nhập số, Ngang · Dọc · Trùng · Tiếp tuyến · Bằng, layer, ⌘Z; hình vẽ đi
 theo Xuất DXF; **Mảnh** — bút góc · ⇧ điểm cong, khép (điểm đầu · double-click · Enter) là ra mảnh có canh sợi, tên, SL; **Notch**;
-Tên · SL · Vải; Thành mảnh; hình chỉ hít trong mảnh của nó) · **Delete** xoá hẳn mảnh DXF đang chọn (⌘Z đưa lại) · Edit: Delete xoá đường,
+Tên · SL · Vải; Thành mảnh; hình chỉ hít trong mảnh của nó; **Bút** (`8`, smart pen — `draw/smartpen.md`): một bút, chỗ nhấn và cách nhấn
+quyết định việc — bấm = điểm (⇧ điểm cong), Enter / double-click = xong đường hở (2 điểm ra Line, nhiều hơn ra **Đường**), bấm điểm đầu = khép,
+kéo trên cạnh = **song song** (ô Cách), kéo từ điểm = **compa** (ô Compa) hay Line, ⇧ kéo A→B = **thước tam giác**, `H` = **thước ngang**, ô
+dx · dy = **điểm lệch**; mọi việc hiện bóng + nhãn trước, một bước ⌘Z) · **Delete** xoá hẳn mảnh DXF đang chọn (⌘Z đưa lại) · Edit: Delete xoá đường,
 POINT — trừ đường cắt.
 
 ---
@@ -359,6 +364,11 @@ Chạy như mặc định, **chưa chốt** (§5.4); hệ quả ở spec đượ
   CAD khác, hay đơn vị bản vẽ) · `draw.md` §2: W3 · W9 · W10 · `units.md` §4: D6 · D7 · `edit.md` §7: E5 · E3 · E7 · E9 ·
   E10 (GBK) · E8, rồi E13–E19; Trim/Extend nhiều giao điểm: gần nhất dọc đường từ đầu đã chọn, hoà thì trim ·
   `measure_engine.md` §4: A5 (tin `$INSUNITS` khi thiếu `Units:`?).
+- **Bút (2026-10-04, `draw/smartpen.md` §3 · §4):** Q1–Q11 chạy như mặc định. Cần TD nhất: **Q2** kéo trên đường = song song **một cạnh**
+  (giữa hai góc như Edges), không cả đường · **Q5** đầu đường song song **tự do** (chưa chạm hai đường bên cạnh — N3: phía trong và SA cần hai
+  luật khác nhau) · **Q7** thước tam giác sống tới hết **một đường** · **Q3** không gõ Cách thì cách đúng chỗ thả, không làm tròn. **Chưa làm,
+  chờ TD:** N1 thao tác pen (转省 · 收省 · 加省山 — sửa đường cắt, việc của Edit) · N2 compa đôi · N3 song song chạm hai đường · N8 song song ở
+  chỗ cạnh tự gập / chồng lên chính nó (từ chối — 63 / 33 192 lượt thử trên thư viện).
 - **Đã thấy, chưa sửa:** dock Edit có dải trống chặn bấm canvas (Vẽ đã sửa bằng `pointer-events`, `draw.css`).
 - **Mới 2026-09-28:** doctype hay quirks mode (§7) · CI chạy **Node 22**, máy làm việc v25.5.0 — built-in mới chỉ vỡ ở CI
   · tên file thư viện / mã style trong tên test, comment, spec đang công khai như code, và **một ít số đo** lấy từ rập
@@ -411,6 +421,7 @@ Nhật ký mới, chỉ thêm dòng. Mọi dòng trước 2026-09-28 (kể cả 
 
 | Ngày | Việc | Ghi chú |
 |---|---|---|
+| 2026-10-04 | **Bút — smart pen của tool Vẽ** (TD: *"theo bạn smart pen là như thế nào"* → câu trả lời về 智能笔 của Richpeace và ba điều làm nên "smart": cho thấy trước · gõ số bất cứ lúc nào · hít điểm có thứ tự, mỗi việc một bước ⌘Z; thiếu song song · compa · thước tam giác · thao tác pen · điểm lệch → *"ok áp dụng vào tool và push sau khi hoàn thành"*). Spec viết trước: `draw/smartpen.md` (B1–B15, Q1–Q11, N1–N8) · `geometry/construct.md` (K1–K6) · `sketch.md` §8 (Đường, L1–L9); test viết trước và **đỏ trước** (thiếu hàm / module), rồi code: kernel `geometry/construct.js` (cạnh theo góc của Edges · **song song** đúng bao Minkowski: cung bán kính d ở chỗ gãy lồi, giao ở chỗ lõm, đường thô tự cắt rồi đi dọc nhảy qua vòng nằm trong dải d, giao với cung bo tính trên đường tròn · **compa** · **thước** ngang / tam giác · **điểm lệch**) · đường hở trong `outline.js` (hàm của đường viền kín **không đụng**) · hình `polyline` (**Đường**, `PEN_ENTITY_TYPES`) trong `entity.js` · `sketch.js`; tool `draw/smart.js` (luật thuần) · `draw/smartpen.js` (điều khiển, `SmartPen.bind` như `PieceTool`) · `draw.js` `place()` là lối duy nhất đưa hình vào bản vẽ (Vẽ và Bút) · phím `8` (cả từ tool khác, như 6 · 7) · `H` · dock Cách · Compa · dx · dy · `paint.js` nhãn · thước · vòng compa · `out.js` Đường ghi điểm đã đặt làm đỉnh. `848/848 passed, 151 skipped`; có `PATTERN2D_DATA` `999/999`; rules `PATTERN2D_OK`; `build:pages` + `validate:pages-layout` OK. **DXF thật** — checker tạm (ezdxf + thước Python riêng, thư mục tạm, không commit): song song 6 mm hai phía mọi cạnh đường cắt / đường may của 39 file có đơn vị (8 file không khai đơn vị bỏ qua): **16 347 / 16 347** đạt mọi lời hứa K2 (đỉnh lệch d ≤ 1.9e-10 mm, mọi điểm trong [d − 0.005, d]); từ chối 203 = 158 đầu đường hở rơi vào vòng thừa (K3, đúng spec) + 45 cạnh tự gập (N8); compa **823 / 823**; xuất như Xuất DXF rồi ezdxf đọc lại **76 / 76**. Sáu checker của workspace trên code nhánh: đo 38/38 · rút gọn 54/54 · Edges 7157/7157 · Vẽ 225/225 · Edit 98/98 · Engine 210/210. **Bấm thật** (Chrome headless, sự kiện chuột / phím qua DevTools protocol, BLOCK_36C): phím 8 · đường 3 điểm có ⇧ điểm cong · Enter · nhãn rê chuột *"điểm đầu · hít đường · kéo: song song"* · kéo song song (bóng + *"song song · 0.406 in"*, ra Line cách mép đáy wing 10.3 mm, trong `wing_M`) · compa từ notch với Compa 1 in · thước tam giác (đoạn vuông góc AB) · H · ⌘Z hai bước · xuất; không lỗi console. | **DXF thật lộ, đều sửa trước khi xanh:** `ops.js` `prune` (của Geom) không dùng được cho đường song song — chỉ bỏ đỉnh **gần** hơn d (ở chỗ lõm có đoạn gốc ngắn, giao lại **xa** hơn d: 7.08 thay vì 6 mm) và xoay mảng như vòng kín → trên đường hở ra điểm khâu vọt **6.2e5 mm** → thay bằng phép đi dọc đường thô của `construct.js`; giao trên **dây cung** của chỗ bo lệch 1.5e-6 mm → tính trên đường tròn; vòng thừa ở chỗ lõm **0.04°** chỉ sâu 1.5e-6 mm → phép thử vòng dùng 1e-10 mm, không phải ngưỡng nghiệm thu 1e-6; d = 6 được mà 5 · 4 · 3 bị từ chối trên viền răng cưa (thuật toán cũ bỏ cuộc sớm) → hết. **Bấm thật lộ:** xong đường mà bảng số vẫn ghi *thước tam giác* (bảng vẽ trong bước lưu, trước khi bỏ thước) → bỏ thước trước · **lỗi có sẵn**: ⇧ bấm trên canvas bôi xanh chữ của mảnh (mọi tool dùng ⇧) → `#svg` `user-select: none`. Kịch bản bấm thử của tôi tự sai hai lần (bấm dưới khung số, bấm trúng nút Chọn của dock) — sửa kịch bản. **§5.16 — test sửa vì requirement đổi:** `piece.test.js` M13 bỏ `"8"` khỏi danh sách "chỉ trong Vẽ" và `edit.test.js` D11 thêm `"8"` vào danh sách phím toàn cục (spec `piece.md` M13 + `smartpen.md` B1 sửa trước); `construct.test.js` K3 nhận thêm câu từ chối mới cho đầu đường hở rơi vào vòng thừa (cùng lý do K3). **Kỳ vọng tôi tính tay sai trong test mới, sửa trước khi có code / trước khi xanh:** hình chiếu 0.6·6 + 0.8·8.1 = **10.08** (tôi ghi 10.06); khoảng từ (70, 0) tới vòng 180 đỉnh là đúng **20** (tôi trừ nhầm một dây cung); "không đỉnh gốc nào gần hơn d" mâu thuẫn với chính spec (dây cung chỗ bo hụt ≤ 0.005) → **d − 0.005**; đầu đường song song của cung lấy mẫu dời theo pháp tuyến **khúc đầu** (spec), không theo đường tròn; `smartpen.test.js` B12 hai chỗ rê chuột nằm trong 0.5 mm của một POINT nên nhãn đúng phải có *"hít điểm"* → dời chỗ rê ra ngoài dung sai hít, thêm một dòng kiểm chính chữ *"hít điểm"*. **Một lần tôi tự ghi sai vào spec rồi sửa:** "đoạn khâu lệch ≤ 0.0097 mm" — con số đó là cạnh **thẳng** đo với polyline thay vì với dây cung (thước của checker sai), không phải đoạn khâu; spec nay là dải thật [d − 0.005, d], `parallelOf` tự canh dải đó. Không nới dung sai nào của kernel cũ. |
 | 2026-09-28 | **Chuyển code 2D vào repo** (`pattern2d/`, nhánh `feature/pattern2d-tab`): `src/` + `tests/*.js` của workspace "2D Pattern" ở trạng thái **933/933** (2026-09-27). **Ở lại workspace:** pipeline block, thư viện DXF factory, fixture 3380, `cad_corpus.json`, nửa `lib` của `expected.json`, `BLOCK_36C.dxf`, checker ezdxf, `make_*fixture*.py`, `status.py` / `check_docs.py` / `build_viewer.py`, STATUS / INTENT / nghiên cứu. **Dữ liệu (TD):** chỉ code — không DXF factory, không fixture dẫn từ file factory, không cả `BLOCK_36C.dxf`; chỉ 14 DXF tổng hợp + nửa tổng hợp của `expected.json`. **Mới** (`open.md`, viết trước): mở trống, Open DXF trên stage (O1); canvas chặn khi chưa có file (O2); file từ host (O3, O4); `ready` / `opened` (O5); thanh tiêu đề chừa chỗ cho tab (O6); build Vite thay `build_viewer.py`. **Test:** `data.js` / `NeedsData`, harness đếm skipped, `run.js` FAIL khi đọc dữ liệu lúc nạp, `mcase` nhận kỳ vọng dạng hàm, `dom_fixture.js`; 8 test mới (`open.test.js` 7, `canvas.test.js` 1). | **Không phải sửa kỳ vọng (§5.16):** năm file test chỉ đổi **chỗ đọc** dữ liệu (`remove` · `write` · `relate.test.js` → `data.js`) hoặc bọc kỳ vọng thư viện thành **hàm** (`dxf.engine.test.js` DXF-21…25, `units.engine.test.js` UNIT-15 / 17) — không số kỳ vọng, dung sai, tên test nào đổi, không test nào bị bỏ; thiếu dữ liệu thì skipped, không bao giờ passed. Kết quả (Node v25.5.0): `790/790 passed, 151 skipped`; có dữ liệu `941/941 passed`; rules gate `PATTERN2D_OK`; checker trên bản repo: đo 38/38 · rút gọn 54/54 · Engine 210/210 · Edges 7157/7157 · Vẽ 225/225 · Edit 98/98, `sources_sha256` 66c693ee…. |
 
 ### Dòng §5.16 chép từ nhật ký của workspace (nguyên văn)
